@@ -1,88 +1,65 @@
 # CMPDI AI — Implementation Progress
 
-**Last updated:** 2026-09-05 01:05 IST  
-**Updated by:** Phase 2 Real Document Ingestion & Storage implementation
+**Last updated:** 2026-09-05 01:20 IST  
+**Updated by:** Phase 2 Fix Pass (Security, Validation, Atomicity, and Hardening)
 
 ---
 
 ## Current Phase
 
-**PHASE 2 — REAL DOCUMENT UPLOAD & STORAGE**  
-**Status: COMPLETE**  
-**Milestone: Real document upload, storage backend, database metadata tracking, and frontend Documents UI integration completed & verified**
+**PHASE 2 — REAL DOCUMENT UPLOAD & STORAGE (HARDENED & VERIFIED)**  
+**Status: READY FOR RE-REVIEW**  
+**Milestone: Real document upload, storage backend, database metadata tracking, frontend Documents UI integration, and security & reliability hardening complete**
 
 ---
 
 ## Completed Work
 
-### Phase 2 Document Ingestion & Storage Subsystem
-- [x] **Multipart Upload Endpoint** (`POST /api/documents/`):
-  - Handles single file (`file`) and batch/multiple file (`files`) uploads.
-  - Extension validation against allowed list (`.pdf`, `.docx`, `.xlsx`, `.csv`, `.txt`, `.png`, `.jpg`, `.jpeg`).
-  - File size validation against `MAX_UPLOAD_SIZE` (default 50MB) and empty file rejection.
-  - Safe filename sanitization and directory traversal prevention.
-  - Cryptographic SHA-256 hash calculation over unmodified file content.
-  - MIME type detection and preservation.
-  - Safe storage key generation (`documents/YYYY/MM/DD/{uuid}_{basename}.ext`).
-- [x] **Storage Layer**:
-  - Saved files via `LocalStorageBackend` abstraction under `backend/media/`.
-  - Path traversal security checks.
-  - Clean preservation of original raw file binaries for Phase 3 parsing.
-- [x] **Database & Metadata Tracking**:
-  - `Document` model extended with: `stored_filename`, `storage_key`, `file_extension`, `sha256_hash`, `error_message`, `is_archived`.
-  - Database migration applied: `0002_document_error_message_document_file_extension_and_more.py`.
-  - Initial `ProcessingJob` record created per upload (`job_type='text_extraction'`, `status='pending'`).
-  - Immutable `AuditEvent` log generated for every upload and delete action.
-- [x] **Document Management Endpoints**:
-  - `GET /api/documents/`: Filterable document listing (status filter, search, soft-delete filter).
-  - `GET /api/documents/<id>/`: Full detail metadata including linked processing jobs and download URL.
-  - `GET /api/documents/<id>/status/`: Fast polling endpoint for document processing status.
-  - `GET /api/documents/<id>/download/`: Streams original stored file with proper MIME type and Content-Disposition.
-  - `POST /api/documents/<id>/retry/`: Lifecycle retry reset (`queued`/`pending`), without executing Phase 3 OCR.
-  - `POST /api/documents/<id>/archive/`: Soft deletion / archiving.
-  - `DELETE /api/documents/<id>/`: Soft delete by default or hard delete with storage cleanup if `?hard=true`.
-- [x] **Frontend Integration (`index.html`)**:
-  - Integrated file picker and Drag & Drop on `#uploadZone`.
-  - Real multipart uploads wired to `apiServices.documents.upload(formData)`.
-  - Document Library table dynamically populated with live database documents (name, type, size, upload date, status pill, SHA-256 hash, actions).
-  - Live status counter cards reflect database totals.
-  - Document Detail modal displays real cryptographic hashes, storage keys, and direct download links.
-  - Seamless fallback to demo mock data when backend is not running.
+### Phase 2 Fix Pass Resolution
+- [x] **1. Security / Authorization Enforcement**:
+  - Configured `BasicAuthentication` and `SessionAuthentication` as defaults.
+  - Enforced `IsAuthenticated` across all document endpoints (`upload`, `list`, `detail`, `status`, `download`, `archive`, `delete`, `retry`).
+  - Unauthenticated requests properly return HTTP 401/403.
+- [x] **2. Real File Signature & Magic Byte Validation**:
+  - Implemented `validate_file_content_and_signature` verifying magic bytes (`%PDF`, `\x89PNG`, `\xff\xd8\xff`, `PK\x03\x04`) and rejecting spoofed or binary-disguised plain text files.
+- [x] **3. Removed Fake Offline Simulation in UI**:
+  - UI strictly surfaces server communication errors and does not simulate synthetic document upload records when offline.
+- [x] **4. Storage Path Containment Hardening**:
+  - Enforced `Path.relative_to` containment check, preventing sibling path traversal attacks.
+- [x] **5. Transaction Atomicity & Orphan Cleanup**:
+  - Upload wrapped in `transaction.atomic()` with compensating `storage.delete(storage_key)` rollback on failure to prevent orphaned media files.
+- [x] **6. Batch Upload Limits**:
+  - Configured `MAX_BATCH_FILE_COUNT = 10` and `MAX_BATCH_TOTAL_SIZE = 100MB`, returning HTTP 400 when exceeded.
+- [x] **7. Document Retry State Machine & Race Guard**:
+  - Document retry restricted to `FAILED` and `NEEDS_REVIEW` states.
+  - Active/pending job conflicts rejected with HTTP 400.
+- [x] **8. Information Disclosure Prevention**:
+  - Removed server internal paths (`storage_key`, `stored_filename`) from API serializers and UI modal.
+- [x] **9. Race Condition Resolution**:
+  - Integrated `ensureBackendStatus()` promise guard prior to executing UI operations.
+- [x] **10. XSS Mitigation**:
+  - Escaped dynamic document attributes (`original_filename`, `mime_type`, `sha256_hash`, `error_message`) via `escapeHtml()`.
+- [x] **11. Upload Timeout Guard**:
+  - Integrated 30-second `AbortController` timeout for upload fetch requests.
+- [x] **12. Pagination Support**:
+  - Backend uses `PageNumberPagination` (page size 20), frontend handles both paginated and flat responses.
+- [x] **13. Dependency Management**:
+  - Added `dj-database-url>=2.0.0` to `requirements.txt`.
 
 ---
 
 ## Test Suite Results
 
-**45/45 tests PASSED** (run: 2026-09-05 01:05 IST)
+**59/59 tests PASSED** (run: 2026-09-05 01:20 IST)
 
 | App | Tests | Result |
 |---|---|---|
 | `apps.core` | 6 | ✅ PASS |
-| `apps.documents` | 22 | ✅ PASS |
+| `apps.documents` | 35 | ✅ PASS |
 | `apps.datasets` | 3 | ✅ PASS |
 | `apps.audit` | 4 | ✅ PASS |
-| `apps.storage` | 10 | ✅ PASS |
-| **TOTAL** | **45** | **✅ ALL PASS** |
-
-### Verified Test Cases:
-1. `test_upload_pdf` — PDF upload, disk persistence, DB record, SHA-256 match, AuditEvent.
-2. `test_upload_scanned_pdf` — Binary geological raster PDF upload.
-3. `test_upload_docx` — DOCX document upload and extension tracking.
-4. `test_upload_xlsx` — XLSX spreadsheet upload.
-5. `test_upload_csv` — CSV mining dataset upload.
-6. `test_upload_txt` — Plain text field notes upload.
-7. `test_upload_png` — PNG geological seam diagram upload.
-8. `test_upload_jpg` — JPEG opencast mine aerial photo upload.
-9. `test_unsupported_format_rejected` — Blocked `.exe` and `.py` uploads with HTTP 400.
-10. `test_oversized_file_rejected` — Blocked uploads exceeding size limit with HTTP 400.
-11. `test_empty_upload_rejected` — Blocked 0-byte and empty payload requests.
-12. `test_multiple_files_upload` — Batch upload with distinct database records and statuses.
-13. `test_list_documents` — Search and status filtering.
-14. `test_document_detail` — Detailed metadata and job serialization.
-15. `test_document_status_endpoint` — Status polling endpoint.
-16. `test_document_download` — Binary download verification and header validation.
-17. `test_document_retry` — Reset lifecycle status to queued/pending.
-18. `test_document_archive_and_hard_delete` — Soft archiving and hard deletion with filesystem cleanup.
+| `apps.storage` | 11 | ✅ PASS |
+| **TOTAL** | **59** | **✅ ALL PASS (100%)** |
 
 ---
 

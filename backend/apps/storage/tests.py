@@ -59,6 +59,11 @@ class LocalStorageBackendTestCase(TestCase):
         with self.assertRaises(ValueError):
             self.backend.save('../../etc/passwd', b'attack')
 
+    def test_path_traversal_sibling_directory(self):
+        """Sibling directory attacks with common prefix are blocked."""
+        with self.assertRaises(ValueError):
+            self.backend._full_path('../' + Path(self.tmpdir).name + '_evil/test.pdf')
+
     def test_url_format(self):
         """url() returns MEDIA_URL-prefixed path."""
         url = self.backend.url('documents/report.pdf')

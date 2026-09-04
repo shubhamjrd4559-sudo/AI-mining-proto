@@ -15,7 +15,8 @@ import logging
 from datetime import datetime, timezone
 
 from django.db import connection
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def health_check(request):
     """
     GET /api/health/
@@ -74,30 +76,36 @@ def _stub_response(endpoint_name: str) -> Response:
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def analytics_stub(request):
     """GET /api/analytics/ — Phase 2+ stub"""
     return _stub_response('analytics')
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def chat_stub(request):
     """GET /api/chat/ — Phase 4 stub"""
     return _stub_response('chat')
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def excel_stub(request):
     """GET /api/excel/ — Phase 4 stub"""
     return _stub_response('excel')
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def reports_stub(request):
     """GET /api/reports/ — Phase 4 stub"""
     return _stub_response('reports')
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def topics_stub(request):
     """GET /api/topics/ — Phase 4 stub"""
     return _stub_response('topics')
+

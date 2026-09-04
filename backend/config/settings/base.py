@@ -127,6 +127,7 @@ MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ============================================================
+# ============================================================
 # Django REST Framework
 # ============================================================
 REST_FRAMEWORK = {
@@ -141,10 +142,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        # Phase 1: allow all for development
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -189,8 +190,14 @@ CORS_ALLOW_HEADERS = [
 # ============================================================
 STORAGE_BACKEND = config('STORAGE_BACKEND', default='local')
 
-# Maximum file size allowed for upload (default 50 MB)
+# Maximum file size allowed for a single upload (default 50 MB)
 MAX_UPLOAD_SIZE = config('MAX_UPLOAD_SIZE', default=50 * 1024 * 1024, cast=int)
+
+# Maximum files permitted in a single batch upload request
+MAX_BATCH_FILE_COUNT = config('MAX_BATCH_FILE_COUNT', default=10, cast=int)
+
+# Maximum aggregate size allowed for a batch upload request (default 100 MB)
+MAX_BATCH_TOTAL_SIZE = config('MAX_BATCH_TOTAL_SIZE', default=100 * 1024 * 1024, cast=int)
 
 # Supported document extensions (case-insensitive)
 ALLOWED_DOCUMENT_EXTENSIONS = {
@@ -217,4 +224,5 @@ ALLOWED_DOCUMENT_MIMETYPES = {
     'image/jpeg',
     'application/octet-stream', # common fallback for multipart clients
 }
+
 

@@ -1603,6 +1603,16 @@ function applyHeroTransform(rot, scale){
    ============================================================ */
 let _liveDocuments = null;
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function pageDocuments(){
   const statusCounts = { done:0, processing:0, review:0, failed:0 };
   const docs = _liveDocuments || MOCK.documents;
@@ -1627,7 +1637,7 @@ function pageDocuments(){
       <div class="upload-zone" id="uploadZone">
         <div class="uic">⬆</div>
         <h4>Drag &amp; drop PDF / Excel / DOCX / Image</h4>
-        <p>${isLive ? 'Real document storage active. Uploaded files are verified and stored safely on server.' : 'Or use the buttons below to upload or simulate in prototype mode.'}</p>
+        <p id="uploadZoneMsg">${isLive ? 'Real document storage active. Uploaded files are verified and stored safely on server.' : 'Backend connection required for real file upload. (Demo mode active for viewing).'}</p>
         <div class="row" style="justify-content:center; gap:10px;">
           <input type="file" id="realDocFileInput" multiple style="display:none;" accept=".pdf,.docx,.xlsx,.csv,.txt,.png,.jpg,.jpeg">
           <button class="btn btn-primary" id="uploadBtn">⬆ Upload Document</button>
@@ -1635,8 +1645,8 @@ function pageDocuments(){
         </div>
       </div>
       <div class="pipeline" id="pipelineRow" style="display:none;">
-        ${["Upload","OCR","Extraction","Table Detection","Entity Extraction","Validation","AI Indexing","Completed"]
-          .map((s,i)=>`<div class="pstep" data-step="${i}"><span class="pdot"></span>${s}</div>${i<7?'<span class="pchevron">›</span>':''}`).join("")}
+        ${["Upload","Storage Persistence","Validation","Queued for Processing"]
+          .map((s,i)=>`<div class="pstep" data-step="${i}"><span class="pdot"></span>${s}</div>${i<3?'<span class="pchevron">›</span>':''}`).join("")}
       </div>
     </div>
 
@@ -1678,7 +1688,7 @@ function statusMiniCard(label,count,color,isLive=false){
   const badgeLabel = isLive ? "Live DB" : "Demo Data";
   const badgeClass = isLive ? "badge" : "badge demo";
   const badgeStyle = isLive ? "background:#E8F5E9; color:#1E9E63; margin-left:6px;" : "margin-left:6px;";
-  return `<div class="stat-mini"><div class="l">${label}<span class="${badgeClass}" style="${badgeStyle}">${badgeLabel}</span></div>
+  return `<div class="stat-mini"><div class="l">${escapeHtml(label)}<span class="${badgeClass}" style="${badgeStyle}">${badgeLabel}</span></div>
     <div class="v" style="color:${colorMap[color]}">${count}</div></div>`;
 }
 
@@ -1707,19 +1717,23 @@ function renderDocRows(){
       const sizeStr = d.file_size_display || '—';
       const createdStr = d.created_at ? new Date(d.created_at).toLocaleString() : '—';
       const hashShort = d.sha256_hash ? d.sha256_hash.substring(0, 10) + '...' : '—';
+      const docName = escapeHtml(d.original_filename || d.title);
+      const safeHash = escapeHtml(d.sha256_hash || '');
+      const docId = escapeHtml(String(d.id));
+
       return `
       <tr>
-        <td class="doc-name"><b style="color:var(--navy);">${d.original_filename || d.title}</b></td>
-        <td><span class="badge" style="background:#EBF2FA; color:var(--royal); font-weight:600;">${ext}</span></td>
-        <td>${sizeStr}</td>
-        <td style="font-size:12px; color:#6B7A90;">${createdStr}</td>
+        <td class="doc-name"><b style="color:var(--navy);">${docName}</b></td>
+        <td><span class="badge" style="background:#EBF2FA; color:var(--royal); font-weight:600;">${escapeHtml(ext)}</span></td>
+        <td>${escapeHtml(sizeStr)}</td>
+        <td style="font-size:12px; color:#6B7A90;">${escapeHtml(createdStr)}</td>
         <td>${statusPill(d.status)}</td>
-        <td class="mono small" title="${d.sha256_hash || ''}" style="color:#5C6B80;">${hashShort}</td>
+        <td class="mono small" title="${safeHash}" style="color:#5C6B80;">${escapeHtml(hashShort)}</td>
         <td>
-          <a class="link-action" data-view="${d.id}">View</a>
-          <a class="link-action" data-dl="${d.id}">Download</a>
-          <a class="link-action" data-ask="${d.id}">Ask AI</a>
-          <a class="link-action" data-archive="${d.id}" style="color:var(--red);">Archive</a>
+          <a class="link-action" data-view="${docId}">View</a>
+          <a class="link-action" data-dl="${docId}">Download</a>
+          <a class="link-action" data-ask="${docId}">Ask AI</a>
+          <a class="link-action" data-archive="${docId}" style="color:var(--red);">Archive</a>
         </td>
       </tr>`;
     }).join("");
@@ -1749,48 +1763,53 @@ function renderDocRows(){
     const filtered = MOCK.documents.filter(d=> APP.docFilter==="all" || d.status===APP.docFilter);
     tbody.innerHTML = filtered.map(d=>`
       <tr>
-        <td class="doc-name">${d.name}</td>
-        <td><span class="badge" style="background:#EBF2FA; color:var(--royal);">${d.type}</span></td>
-        <td>${d.pages} pages</td>
-        <td>${d.year}</td>
+        <td class="doc-name">${escapeHtml(d.name)}</td>
+        <td><span class="badge" style="background:#EBF2FA; color:var(--royal);">${escapeHtml(d.type)}</span></td>
+        <td>${escapeHtml(String(d.pages))} pages</td>
+        <td>${escapeHtml(String(d.year))}</td>
         <td>${statusPill(d.status)}</td>
         <td class="mono small" style="color:#7E8CA3;">MOCK-SHA256</td>
         <td>
-          <a class="link-action" data-view="${d.id}">View</a>
-          <a class="link-action" data-ask="${d.id}">Ask AI</a>
-          <a class="link-action" data-dl="${d.id}">Download</a>
+          <a class="link-action" data-view="${escapeHtml(d.id)}">View</a>
+          <a class="link-action" data-ask="${escapeHtml(d.id)}">Ask AI</a>
+          <a class="link-action" data-dl="${escapeHtml(d.id)}">Download</a>
         </td>
       </tr>`).join("");
     tbody.querySelectorAll("[data-view]").forEach(el=> el.addEventListener("click", ()=> openDocDetail(el.dataset.view)));
     tbody.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> { goTo("ai-query"); setTimeout(()=>runAIQuery("Major geological activities?"),150); }));
-    tbody.querySelectorAll("[data-dl]").forEach(el=> el.addEventListener("click", ()=> toast("Download started", "This is a simulated download in the prototype.")));
+    tbody.querySelectorAll("[data-dl]").forEach(el=> el.addEventListener("click", ()=> toast("Download started", "This is a simulated download in demo mode.")));
   }
 }
 
 async function loadLiveDocuments(){
-  if (!window.CMPDI_AI || !window.CMPDI_AI.isBackendOnline || !window.CMPDI_AI.isBackendOnline()) return;
+  if (!window.CMPDI_AI || !window.CMPDI_AI.ensureBackendStatus) return;
+  const isOnline = await window.CMPDI_AI.ensureBackendStatus();
+  if (!isOnline) {
+    renderDocRows();
+    return;
+  }
   try {
     const res = await window.CMPDI_AI.apiServices.documents.list();
-    if (res && res.documents) {
-      _liveDocuments = res.documents;
-      renderDocRows();
-      // Update status counter cards
-      const statusCounts = { done:0, processing:0, review:0, failed:0 };
-      _liveDocuments.forEach(d=> {
-        const st = d.status === 'completed' || d.status === 'indexed' || d.status === 'processed' ? 'done'
-          : (d.status === 'uploaded' || d.status === 'queued' || d.status === 'processing' || d.status === 'extracting' || d.status === 'validating') ? 'processing'
-          : (d.status === 'needs_review' || d.status === 'review') ? 'review' : 'failed';
-        if (statusCounts[st] !== undefined) statusCounts[st]++;
-      });
-      const cards = document.getElementById("docStatusCards");
-      if (cards) {
-        cards.innerHTML = `
-          ${statusMiniCard("Processed", statusCounts.done, "green", true)}
-          ${statusMiniCard("Processing", statusCounts.processing, "royal", true)}
-          ${statusMiniCard("Needs Review", statusCounts.review, "gold", true)}
-          ${statusMiniCard("Failed", statusCounts.failed, "red", true)}
-        `;
-      }
+    const docList = (res && (res.results || res.documents)) ? (res.results || res.documents) : [];
+    _liveDocuments = docList;
+    renderDocRows();
+
+    // Update status counter cards
+    const statusCounts = { done:0, processing:0, review:0, failed:0 };
+    _liveDocuments.forEach(d=> {
+      const st = d.status === 'completed' || d.status === 'indexed' || d.status === 'processed' ? 'done'
+        : (d.status === 'uploaded' || d.status === 'queued' || d.status === 'processing' || d.status === 'extracting' || d.status === 'validating') ? 'processing'
+        : (d.status === 'needs_review' || d.status === 'review') ? 'review' : 'failed';
+      if (statusCounts[st] !== undefined) statusCounts[st]++;
+    });
+    const cards = document.getElementById("docStatusCards");
+    if (cards) {
+      cards.innerHTML = `
+        ${statusMiniCard("Processed", statusCounts.done, "green", true)}
+        ${statusMiniCard("Processing", statusCounts.processing, "royal", true)}
+        ${statusMiniCard("Needs Review", statusCounts.review, "gold", true)}
+        ${statusMiniCard("Failed", statusCounts.failed, "red", true)}
+      `;
     }
   } catch (err) {
     console.warn("[CMPDI AI] Failed to load live documents from backend:", err);
@@ -1813,56 +1832,66 @@ function statusPill(status){
     failed: ["failed","Failed"],
   };
   const [cls,label] = map[status] || ["review", status || "Unknown"];
-  return `<span class="status-pill ${cls}">${label}</span>`;
+  return `<span class="status-pill ${cls}">${escapeHtml(label)}</span>`;
 }
 
 async function handleRealUpload(fileList){
   if (!fileList || fileList.length === 0) return;
-  const isLive = Boolean(window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline());
 
-  if (isLive) {
-    const formData = new FormData();
-    for (let i = 0; i < fileList.length; i++) {
-      formData.append("files", fileList[i]);
-    }
-    const label = fileList.length === 1 ? fileList[0].name : `${fileList.length} documents`;
-    toast("Uploading...", `Sending ${label} to backend storage.`);
+  const isLive = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
 
-    // Show pipeline animation
-    const row = document.getElementById("pipelineRow");
+  if (!isLive) {
+    toast("Upload unavailable", "Backend service is offline. Connect to Django backend on port 8000 to upload documents.");
+    return;
+  }
+
+  const formData = new FormData();
+  for (let i = 0; i < fileList.length; i++) {
+    formData.append("files", fileList[i]);
+  }
+  const label = fileList.length === 1 ? fileList[0].name : `${fileList.length} documents`;
+  toast("Uploading...", `Sending ${label} to backend storage.`);
+
+  // Show pipeline animation
+  const row = document.getElementById("pipelineRow");
+  if (row) {
+    row.style.display = "flex";
+    const steps = row.querySelectorAll(".pstep");
+    steps.forEach(s=> s.classList.remove("active","done"));
+    if (steps[0]) steps[0].classList.add("active");
+  }
+
+  try {
+    const res = await window.CMPDI_AI.apiServices.documents.upload(formData);
     if (row) {
-      row.style.display = "flex";
       const steps = row.querySelectorAll(".pstep");
-      steps.forEach(s=> s.classList.remove("active","done"));
-      if (steps[0]) steps[0].classList.add("active");
+      if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
+      if (steps[1]) steps[1].classList.add("done");
+      if (steps[2]) steps[2].classList.add("done");
+      if (steps[3]) steps[3].classList.add("done");
     }
-
-    try {
-      const res = await window.CMPDI_AI.apiServices.documents.upload(formData);
-      if (row) {
-        const steps = row.querySelectorAll(".pstep");
-        if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
-        if (steps[1]) steps[1].classList.add("done");
-      }
-      toast("Upload successful", `${res.uploaded_count || fileList.length} file(s) stored and registered in database.`);
-      await loadLiveDocuments();
-    } catch (err) {
-      toast("Upload failed", err.message || "Could not upload files to backend.");
-    }
-  } else {
-    const label = fileList.length === 1 ? fileList[0].name : `${fileList.length} documents (bulk batch)`;
-    simulateUploadPipeline(label);
+    toast("Upload successful", `${res.uploaded_count || fileList.length} file(s) stored and registered in database.`);
+    await loadLiveDocuments();
+  } catch (err) {
+    if (row) row.style.display = "none";
+    toast("Upload failed", err.message || "Could not upload files to backend.");
   }
 }
 
-function afterDocuments(){
+async function afterDocuments(){
+  if (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus) {
+    await window.CMPDI_AI.ensureBackendStatus();
+  }
   renderDocRows();
   loadLiveDocuments();
 
-  document.getElementById("docStatusFilter").addEventListener("change", (e)=>{
-    APP.docFilter = e.target.value;
-    renderDocRows();
-  });
+  const filterSelect = document.getElementById("docStatusFilter");
+  if (filterSelect) {
+    filterSelect.addEventListener("change", (e)=>{
+      APP.docFilter = e.target.value;
+      renderDocRows();
+    });
+  }
 
   const fileInput = document.getElementById("realDocFileInput");
   if (fileInput) {
@@ -1874,64 +1903,58 @@ function afterDocuments(){
     });
   }
 
-  document.getElementById("uploadBtn").addEventListener("click", ()=>{
-    if (fileInput) fileInput.click();
-    else simulateUploadPipeline("CMPDI Annual Report 2025-26.pdf");
-  });
+  const uploadBtn = document.getElementById("uploadBtn");
+  if (uploadBtn) {
+    uploadBtn.addEventListener("click", ()=>{
+      if (window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline()) {
+        if (fileInput) fileInput.click();
+      } else {
+        toast("Upload unavailable", "Backend service is offline. Please start backend on port 8000 to upload files.");
+      }
+    });
+  }
 
-  document.getElementById("bulkUploadBtn").addEventListener("click", ()=>{
-    if (fileInput) fileInput.click();
-    else simulateUploadPipeline("4 documents (bulk batch)");
-  });
+  const bulkUploadBtn = document.getElementById("bulkUploadBtn");
+  if (bulkUploadBtn) {
+    bulkUploadBtn.addEventListener("click", ()=>{
+      if (window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline()) {
+        if (fileInput) fileInput.click();
+      } else {
+        toast("Upload unavailable", "Backend service is offline. Please start backend on port 8000 to upload files.");
+      }
+    });
+  }
 
   const zone = document.getElementById("uploadZone");
-  ["dragover","dragenter"].forEach(evt=> zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.add("drag"); }));
-  ["dragleave","drop"].forEach(evt=> zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.remove("drag"); }));
-  zone.addEventListener("drop", e=>{
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleRealUpload(e.dataTransfer.files);
-    } else {
-      simulateUploadPipeline("Dropped Document.pdf");
-    }
-  });
-}
-
-function simulateUploadPipeline(fileLabel){
-  const row = document.getElementById("pipelineRow");
-  if (!row) return;
-  row.style.display = "flex";
-  toast("Upload started", fileLabel);
-  const steps = row.querySelectorAll(".pstep");
-  steps.forEach(s=> s.classList.remove("active","done"));
-  let i = 0;
-  const tick = ()=>{
-    if(i>0) steps[i-1].classList.remove("active"); if(i>0) steps[i-1].classList.add("done");
-    if(i < steps.length){
-      steps[i].classList.add("active");
-      i++;
-      setTimeout(tick, 550);
-    } else {
-      toast("Processing complete", fileLabel + " indexed successfully.");
-    }
-  };
-  tick();
+  if (zone) {
+    ["dragover","dragenter"].forEach(evt=> zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.add("drag"); }));
+    ["dragleave","drop"].forEach(evt=> zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.remove("drag"); }));
+    zone.addEventListener("drop", e=>{
+      if (window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline()) {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleRealUpload(e.dataTransfer.files);
+        }
+      } else {
+        toast("Upload unavailable", "Backend service is offline. Please start backend on port 8000 to upload files.");
+      }
+    });
+  }
 }
 
 function openDocDetail(id){
-  const isNumeric = /^\d+$/.test(String(id));
   const liveDoc = _liveDocuments ? _liveDocuments.find(d => String(d.id) === String(id)) : null;
 
   if (liveDoc) {
-    document.getElementById("docDetailModal_title").textContent = liveDoc.original_filename || liveDoc.title;
+    const title = escapeHtml(liveDoc.original_filename || liveDoc.title);
+    document.getElementById("docDetailModal_title").textContent = title;
     const dlUrl = window.CMPDI_AI.apiServices.documents.downloadUrl(liveDoc.id);
     document.getElementById("docDetailModal_body").innerHTML = `
       <div class="grid-2">
         <div>
           <div class="card card-pad" style="background:#F5F7FA; min-height:360px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; text-align:center;">
             <div style="font-size:48px;">📄</div>
-            <div style="font-weight:700; color:var(--navy); font-size:16px;">${liveDoc.original_filename}</div>
-            <div class="badge" style="background:#EBF2FA; color:var(--royal); font-size:12px;">${(liveDoc.file_extension || '').toUpperCase()} · ${liveDoc.file_size_display || '—'}</div>
-            <div class="small muted">Storage Key: <code class="mono">${liveDoc.storage_key || liveDoc.stored_filename}</code></div>
+            <div style="font-weight:700; color:var(--navy); font-size:16px;">${title}</div>
+            <div class="badge" style="background:#EBF2FA; color:var(--royal); font-size:12px;">${escapeHtml((liveDoc.file_extension || '').toUpperCase())} · ${escapeHtml(liveDoc.file_size_display || '—')}</div>
             <a href="${dlUrl}" target="_blank" class="btn btn-primary btn-sm mt-8">⬇ Download Original File</a>
           </div>
         </div>
@@ -1940,9 +1963,9 @@ function openDocDetail(id){
             <h4 style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--royal); margin-bottom:8px;">Document Metadata</h4>
             <table style="width:100%; font-size:12.5px; border-collapse:collapse;">
               <tr><td style="color:#7E8CA3; padding:4px 0;">Status:</td><td><b>${statusPill(liveDoc.status)}</b></td></tr>
-              <tr><td style="color:#7E8CA3; padding:4px 0;">MIME Type:</td><td class="mono">${liveDoc.mime_type || '—'}</td></tr>
-              <tr><td style="color:#7E8CA3; padding:4px 0;">Uploaded:</td><td>${liveDoc.created_at ? new Date(liveDoc.created_at).toLocaleString() : '—'}</td></tr>
-              <tr><td style="color:#7E8CA3; padding:4px 0;">SHA-256 Hash:</td><td class="mono small" style="word-break:break-all; color:#202936;">${liveDoc.sha256_hash || '—'}</td></tr>
+              <tr><td style="color:#7E8CA3; padding:4px 0;">MIME Type:</td><td class="mono">${escapeHtml(liveDoc.mime_type || '—')}</td></tr>
+              <tr><td style="color:#7E8CA3; padding:4px 0;">Uploaded:</td><td>${escapeHtml(liveDoc.created_at ? new Date(liveDoc.created_at).toLocaleString() : '—')}</td></tr>
+              <tr><td style="color:#7E8CA3; padding:4px 0;">SHA-256 Hash:</td><td class="mono small" style="word-break:break-all; color:#202936;">${escapeHtml(liveDoc.sha256_hash || '—')}</td></tr>
             </table>
           </div>
           <div class="divider"></div>
@@ -1951,7 +1974,7 @@ function openDocDetail(id){
             <p class="small" style="line-height:1.6; color:#4B5563;">
               ${liveDoc.status === 'uploaded' || liveDoc.status === 'queued'
                 ? 'Document safely received and queued for Phase 3 parsing & extraction pipeline.'
-                : liveDoc.error_message || 'Document is registered in CMPDI AI Intelligence Command Center.'}
+                : escapeHtml(liveDoc.error_message || 'Document is registered in CMPDI AI Intelligence Command Center.')}
             </p>
           </div>
         </div>
@@ -1970,30 +1993,30 @@ function openDocDetail(id){
         <div class="card card-pad" style="background:#F5F7FA; min-height:360px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px;">
           <div style="font-size:40px;">📄</div>
           <div class="muted small">Document preview mockup</div>
-          <div class="mono small muted">${doc.pages} pages · ${doc.tables} tables detected</div>
+          <div class="mono small muted">${escapeHtml(String(doc.pages))} pages · ${escapeHtml(String(doc.tables))} tables detected</div>
         </div>
       </div>
       <div class="stack">
         <div>
           <h4 style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--royal); margin-bottom:8px;">AI Document Insights</h4>
-          <p class="small" style="line-height:1.6;">${detail.summary}</p>
+          <p class="small" style="line-height:1.6;">${escapeHtml(detail.summary)}</p>
         </div>
         <div>
           <div class="small" style="font-weight:700; color:var(--navy); margin-bottom:6px;">Key Entities</div>
-          <div class="row wrap">${detail.entities.map(e=>`<span class="chip">${e}</span>`).join("")}</div>
+          <div class="row wrap">${detail.entities.map(e=>`<span class="chip">${escapeHtml(e)}</span>`).join("")}</div>
         </div>
         <div>
           <div class="small" style="font-weight:700; color:var(--navy); margin-bottom:6px;">Important Numbers</div>
-          <div class="row wrap">${detail.numbers.map(n=>`<span class="chip gold">${n}</span>`).join("")}</div>
+          <div class="row wrap">${detail.numbers.map(n=>`<span class="chip gold">${escapeHtml(n)}</span>`).join("")}</div>
         </div>
         <div class="divider"></div>
         <div>
           <div class="small" style="font-weight:700; color:var(--navy); margin-bottom:6px;">Extracted Data</div>
           <div class="grid-4" style="grid-template-columns:1fr 1fr;">
-            <div class="stat-mini"><div class="l">Organization</div><div class="v" style="font-size:13px;">${detail.extracted.organization}</div></div>
-            <div class="stat-mini"><div class="l">Year</div><div class="v" style="font-size:13px;">${detail.extracted.year}</div></div>
-            <div class="stat-mini"><div class="l">Production</div><div class="v" style="font-size:13px;">${detail.extracted.production}</div></div>
-            <div class="stat-mini"><div class="l">Confidence</div><div class="v" style="font-size:13px;">${detail.extracted.confidence}%</div></div>
+            <div class="stat-mini"><div class="l">Organization</div><div class="v" style="font-size:13px;">${escapeHtml(detail.extracted.organization)}</div></div>
+            <div class="stat-mini"><div class="l">Year</div><div class="v" style="font-size:13px;">${escapeHtml(detail.extracted.year)}</div></div>
+            <div class="stat-mini"><div class="l">Production</div><div class="v" style="font-size:13px;">${escapeHtml(detail.extracted.production)}</div></div>
+            <div class="stat-mini"><div class="l">Confidence</div><div class="v" style="font-size:13px;">${escapeHtml(String(detail.extracted.confidence))}%</div></div>
           </div>
         </div>
       </div>
@@ -2596,6 +2619,7 @@ function toast(title, message){
 
 const API_BASE = 'http://127.0.0.1:8000';
 const API_TIMEOUT_MS = 5000;
+const UPLOAD_TIMEOUT_MS = 30000;
 
 /* --- Low-level fetch helper with timeout ------------------- */
 async function _apiFetch(path, options = {}) {
@@ -2608,7 +2632,14 @@ async function _apiFetch(path, options = {}) {
       ...options,
     });
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    if (!res.ok) {
+      let errMsg = `HTTP ${res.status}: ${res.statusText}`;
+      try {
+        const data = await res.json();
+        if (data.error || data.message) errMsg = data.error || data.message;
+      } catch (_) {}
+      throw new Error(errMsg);
+    }
     return await res.json();
   } catch (err) {
     clearTimeout(timer);
@@ -2632,15 +2663,27 @@ const apiServices = {
     get:    (id) => _apiFetch(`/api/documents/${id}/`),
     status: (id) => _apiFetch(`/api/documents/${id}/status/`),
     upload: async (formData) => {
-      const res = await fetch(API_BASE + '/api/documents/', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || data.message || `Upload failed (HTTP ${res.status})`);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+      try {
+        const res = await fetch(API_BASE + '/api/documents/', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || data.message || `Upload failed (HTTP ${res.status})`);
+        }
+        return data;
+      } catch (err) {
+        clearTimeout(timer);
+        if (err.name === 'AbortError') {
+          throw new Error('Upload request timed out after 30 seconds.');
+        }
+        throw err;
       }
-      return data;
     },
     retry:   (id) => _apiFetch(`/api/documents/${id}/retry/`, { method: 'POST' }),
     archive: (id) => _apiFetch(`/api/documents/${id}/archive/`, { method: 'POST' }),
@@ -2696,31 +2739,39 @@ const apiServices = {
   },
 };
 
-/* --- Phase 1: Silent background health check --------------- */
+/* --- Synchronized Health Check ----------------------------- */
 let _backendOnline = false;
+let _healthPromise = null;
 
-(async function _phase1HealthCheck() {
-  try {
-    const health = await apiServices.health();
-    _backendOnline = true;
-    console.info(
-      '%c[CMPDI AI] Backend connected',
-      'color:#1E9E63; font-weight:bold;',
-      health
-    );
-  } catch (_err) {
-    _backendOnline = false;
-    console.info(
-      '%c[CMPDI AI] Demo mode — backend not running. Mock data active.',
-      'color:#DFAE24; font-weight:bold;'
-    );
+function ensureBackendStatus() {
+  if (!_healthPromise) {
+    _healthPromise = apiServices.health()
+      .then(health => {
+        _backendOnline = true;
+        console.info('%c[CMPDI AI] Backend connected', 'color:#1E9E63; font-weight:bold;', health);
+        const msg = document.getElementById("uploadZoneMsg");
+        if (msg) msg.textContent = "Real document storage active. Uploaded files are verified and stored safely on server.";
+        return true;
+      })
+      .catch(_err => {
+        _backendOnline = false;
+        console.info('%c[CMPDI AI] Backend offline. Demo mock mode active.', 'color:#DFAE24; font-weight:bold;');
+        const msg = document.getElementById("uploadZoneMsg");
+        if (msg) msg.textContent = "Backend connection required for real file upload. (Demo mode active for viewing).";
+        return false;
+      });
   }
-})();
+  return _healthPromise;
+}
 
-/* Expose backend status for future use */
+// Kick off initial health check
+ensureBackendStatus();
+
+/* Expose backend status for application use */
 window.CMPDI_AI = window.CMPDI_AI || {};
 window.CMPDI_AI.apiServices = apiServices;
 window.CMPDI_AI.isBackendOnline = () => _backendOnline;
+window.CMPDI_AI.ensureBackendStatus = ensureBackendStatus;
 window.CMPDI_AI.API_BASE = API_BASE;
 </script>
 </body>

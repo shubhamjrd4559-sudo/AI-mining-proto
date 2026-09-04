@@ -26,14 +26,14 @@ class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = [
-            'id', 'title', 'original_filename', 'stored_filename',
-            'storage_key', 'file_extension', 'file_size',
+            'id', 'title', 'original_filename',
+            'file_extension', 'file_size',
             'file_size_display', 'mime_type', 'sha256_hash',
             'status', 'error_message', 'is_archived', 'notes',
             'download_url', 'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'stored_filename', 'storage_key', 'file_extension',
+            'id', 'file_extension',
             'file_size', 'file_size_display', 'sha256_hash',
             'download_url', 'created_at', 'updated_at',
         ]

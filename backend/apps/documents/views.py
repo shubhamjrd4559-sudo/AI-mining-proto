@@ -4,7 +4,7 @@ apps.documents — Views
 Phase 2 Real Document Upload, Storage, and Management API.
 Endpoints:
   POST /api/documents/            → Upload single or multiple documents
-  GET  /api/documents/            → List documents (filters: status, search, archived)
+  GET  /api/documents/            → List documents (filters: status, search, archived, pagination)
   GET  /api/documents/<id>/       → Retrieve document details with jobs
   GET  /api/documents/<id>/status/→ Lightweight status query
   GET  /api/documents/<id>/download/ → Download original file
@@ -23,14 +23,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone as dj_timezone
 
 from rest_framework import status
-from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.storage.service import get_storage_service
@@ -57,6 +60,53 @@ def sanitize_filename(filename: str) -> str:
     return clean or 'unnamed_document'
 
 
+def validate_file_content_and_signature(content: bytes, ext: str, raw_name: str) -> tuple[bool, str | None]:
+    """
+    Validate file magic bytes and content structure against declared extension.
+    Rejects spoofed, renamed, or malformed files.
+    """
+    if len(content) == 0:
+        return False, f"File '{raw_name}' contains no readable data (0 bytes)."
+
+    # 1. PDF: must begin with %PDF
+    if ext == '.pdf':
+        if not content.startswith(b'%PDF'):
+            return False, f"File '{raw_name}' is not a valid PDF (invalid signature header)."
+
+    # 2. PNG: must begin with standard PNG signature
+    elif ext == '.png':
+        if not content.startswith(b'\x89PNG\r\n\x1a\n'):
+            return False, f"File '{raw_name}' is not a valid PNG image (invalid signature header)."
+
+    # 3. JPEG / JPG: must begin with standard JPEG SOI marker
+    elif ext in ('.jpg', '.jpeg'):
+        if not content.startswith(b'\xff\xd8\xff'):
+            return False, f"File '{raw_name}' is not a valid JPEG image (invalid signature header)."
+
+    # 4. DOCX / XLSX: ZIP-based OpenXML formats (must start with PK\x03\x04)
+    elif ext in ('.docx', '.xlsx'):
+        if not content.startswith(b'PK\x03\x04'):
+            return False, f"File '{raw_name}' is not a valid OpenXML document (missing ZIP container signature)."
+
+    # 5. TXT / CSV: Plain text formats
+    elif ext in ('.txt', '.csv'):
+        # Reject executable signatures
+        if content.startswith(b'MZ') or content.startswith(b'\x7fELF') or content.startswith(b'%PDF-') or content.startswith(b'\x89PNG'):
+            return False, f"File '{raw_name}' contains binary executable/image data for text format '{ext}'."
+        # Verify text decodability and absence of NUL bytes
+        if b'\x00' in content[:4096]:
+            return False, f"File '{raw_name}' contains binary null bytes and is not valid text/CSV."
+        try:
+            content.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                content.decode('latin-1')
+            except Exception:
+                return False, f"File '{raw_name}' cannot be decoded as text."
+
+    return True, None
+
+
 def log_audit(request, event_type: str, resource_id: str, description: str, metadata: dict | None = None):
     """Safely log an AuditEvent."""
     try:
@@ -78,6 +128,7 @@ def log_audit(request, event_type: str, resource_id: str, description: str, meta
 def process_single_upload(uploaded_file, request, custom_title: str | None = None) -> tuple[Document | None, str | None]:
     """
     Validate, store, and create a Document record for a single uploaded file.
+    Implements compensating cleanup if database/job creation fails.
     Returns (document_instance, error_message).
     """
     raw_name = getattr(uploaded_file, 'name', '') or 'unnamed'
@@ -85,7 +136,7 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
     base_name, ext = os.path.splitext(clean_name)
     ext = ext.lower()
 
-    # 1. Validate extension
+    # 1. Validate extension against allowlist
     allowed_exts = getattr(
         settings,
         'ALLOWED_DOCUMENT_EXTENSIONS',
@@ -116,27 +167,29 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
         logger.error("Failed to read uploaded file '%s': %s", raw_name, exc)
         return None, f"Could not read upload payload for '{raw_name}'."
 
-    if len(content) == 0:
-        return None, f"File '{raw_name}' contains no readable data."
+    # 4. Deep magic-bytes and signature validation
+    is_valid_sig, sig_error = validate_file_content_and_signature(content, ext, clean_name)
+    if not is_valid_sig:
+        return None, sig_error
 
-    # 4. Compute SHA-256 hash
+    # 5. Compute SHA-256 hash
     sha256_hash = hashlib.sha256(content).hexdigest()
 
-    # 5. Detect MIME type
+    # 6. Detect MIME type
     detected_mime = (
         getattr(uploaded_file, 'content_type', None)
         or mimetypes.guess_type(clean_name)[0]
         or 'application/octet-stream'
     )
 
-    # 6. Generate storage key
+    # 7. Generate safe storage key
     now = dj_timezone.now()
     unique_prefix = uuid.uuid4().hex[:12]
     safe_base = re.sub(r'[^a-zA-Z0-9_\-]', '_', base_name)[:60]
     storage_filename = f"{unique_prefix}_{safe_base}{ext}"
     storage_key = f"documents/{now.year}/{now.month:02d}/{now.day:02d}/{storage_filename}"
 
-    # 7. Persist to storage
+    # 8. Persist to storage
     storage = get_storage_service()
     try:
         storage.save(storage_key, content)
@@ -144,60 +197,68 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
         logger.error("Storage backend error saving '%s': %s", storage_key, exc)
         return None, f"Storage error while saving file '{raw_name}'."
 
-    # 8. Create database record
+    # 9. Create database records inside atomic transaction with compensating cleanup
     doc_title = custom_title.strip() if (custom_title and custom_title.strip()) else clean_name
-
     user = request.user if (request.user and request.user.is_authenticated) else None
 
-    doc = Document.objects.create(
-        title=doc_title,
-        original_filename=clean_name,
-        stored_filename=storage_filename,
-        storage_key=storage_key,
-        file_extension=ext,
-        file_size=len(content),
-        mime_type=detected_mime,
-        sha256_hash=sha256_hash,
-        status=DocumentStatus.UPLOADED,
-        uploaded_by=user,
-        is_archived=False,
-    )
+    try:
+        with transaction.atomic():
+            doc = Document.objects.create(
+                title=doc_title,
+                original_filename=clean_name,
+                stored_filename=storage_filename,
+                storage_key=storage_key,
+                file_extension=ext,
+                file_size=len(content),
+                mime_type=detected_mime,
+                sha256_hash=sha256_hash,
+                status=DocumentStatus.UPLOADED,
+                uploaded_by=user,
+                is_archived=False,
+            )
 
-    # 9. Create initial pending ProcessingJob for Phase 3 pipeline
-    ProcessingJob.objects.create(
-        document=doc,
-        job_type=ProcessingJob.JobType.TEXT_EXTRACTION,
-        status=JobStatus.PENDING,
-        metadata={
-            'original_filename': clean_name,
-            'sha256_hash': sha256_hash,
-            'file_size': len(content),
-            'mime_type': detected_mime,
-        },
-    )
+            # Create initial pending ProcessingJob for Phase 3 pipeline
+            ProcessingJob.objects.create(
+                document=doc,
+                job_type=ProcessingJob.JobType.TEXT_EXTRACTION,
+                status=JobStatus.PENDING,
+                metadata={
+                    'original_filename': clean_name,
+                    'sha256_hash': sha256_hash,
+                    'file_size': len(content),
+                    'mime_type': detected_mime,
+                },
+            )
 
-    # 10. Log Audit Event
-    log_audit(
-        request=request,
-        event_type=AuditEventType.DOCUMENT_UPLOADED,
-        resource_id=doc.id,
-        description=f"Uploaded document '{doc.original_filename}' ({doc.file_size_display})",
-        metadata={
-            'storage_key': storage_key,
-            'sha256_hash': sha256_hash,
-            'file_size': len(content),
-            'mime_type': detected_mime,
-        },
-    )
+            # Log Audit Event
+            log_audit(
+                request=request,
+                event_type=AuditEventType.DOCUMENT_UPLOADED,
+                resource_id=doc.id,
+                description=f"Uploaded document '{doc.original_filename}' ({doc.file_size_display})",
+                metadata={
+                    'sha256_hash': sha256_hash,
+                    'file_size': len(content),
+                    'mime_type': detected_mime,
+                },
+            )
+    except Exception as exc:
+        logger.error("Database error creating document records for '%s', cleaning up storage: %s", storage_key, exc)
+        try:
+            storage.delete(storage_key)
+        except Exception as del_exc:
+            logger.error("Compensating cleanup failed for '%s': %s", storage_key, del_exc)
+        return None, f"Database failure during document registration: {exc}"
 
     return doc, None
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def document_collection(request):
     """
-    GET  /api/documents/ -> List documents (with filters)
+    GET  /api/documents/ -> List documents (with filters and pagination)
     POST /api/documents/ -> Upload one or multiple files
     """
     if request.method == 'GET':
@@ -224,9 +285,17 @@ def document_collection(request):
         else:
             queryset = queryset.order_by('-created_at')
 
+        # Pagination
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        if page is not None:
+            serializer = DocumentSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = DocumentSerializer(queryset, many=True, context={'request': request})
         return Response({
             'count': queryset.count(),
+            'results': serializer.data,
             'documents': serializer.data,
         }, status=status.HTTP_200_OK)
 
@@ -243,6 +312,30 @@ def document_collection(request):
                 {
                     'error': 'No file was uploaded.',
                     'message': "Please provide a file under the 'file' or 'files' multipart field.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Batch count limit check
+        max_batch_count = getattr(settings, 'MAX_BATCH_FILE_COUNT', 10)
+        if len(files) > max_batch_count:
+            return Response(
+                {
+                    'error': 'Batch count limit exceeded.',
+                    'message': f"Maximum {max_batch_count} files allowed per upload request (received {len(files)}).",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Batch aggregate size check
+        max_batch_size = getattr(settings, 'MAX_BATCH_TOTAL_SIZE', 100 * 1024 * 1024)
+        aggregate_size = sum(getattr(f, 'size', 0) for f in files)
+        if aggregate_size > max_batch_size:
+            max_mb = max_batch_size / (1024 * 1024)
+            return Response(
+                {
+                    'error': 'Batch aggregate size limit exceeded.',
+                    'message': f"Total batch size exceeds maximum allowed limit of {max_mb:.0f}MB.",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -271,6 +364,7 @@ def document_collection(request):
         response_data = {
             'status': 'success',
             'uploaded_count': len(created_docs),
+            'results': DocumentSerializer(created_docs, many=True, context={'request': request}).data,
             'documents': DocumentSerializer(created_docs, many=True, context={'request': request}).data,
         }
         if errors:
@@ -284,6 +378,7 @@ def document_collection(request):
 
 
 @api_view(['GET', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def document_detail(request, pk: int):
     """
     GET    /api/documents/<pk>/ -> Document details + jobs
@@ -337,6 +432,7 @@ def document_detail(request, pk: int):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def document_status(request, pk: int):
     """
     GET /api/documents/<pk>/status/ -> Lightweight status polling endpoint
@@ -354,6 +450,7 @@ def document_status(request, pk: int):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def document_download(request, pk: int):
     """
     GET /api/documents/<pk>/download/ -> Download original unmodified file
@@ -384,18 +481,40 @@ def document_download(request, pk: int):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def document_retry(request, pk: int):
     """
     POST /api/documents/<pk>/retry/ -> Reset status to queued/pending for processing retry.
-    Establishes lifecycle structure for later phases without executing OCR/extraction in Phase 2.
+    Only permitted for documents in failed or needs_review status.
+    Prevents duplicate active jobs.
     """
     doc = get_object_or_404(Document, pk=pk)
+
+    allowed_retry_statuses = [DocumentStatus.FAILED, DocumentStatus.NEEDS_REVIEW]
+    if doc.status not in allowed_retry_statuses:
+        return Response(
+            {
+                'error': f"Cannot retry document in '{doc.status}' status.",
+                'message': f"Only documents with status in {allowed_retry_statuses} can be retried.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check for existing active/pending jobs
+    active_jobs = doc.jobs.filter(status__in=[JobStatus.PENDING, JobStatus.RUNNING])
+    if active_jobs.exists():
+        return Response(
+            {
+                'error': 'Duplicate retry rejected.',
+                'message': 'Document already has an active or pending processing job in progress.',
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     doc.status = DocumentStatus.QUEUED
     doc.error_message = ''
     doc.save(update_fields=['status', 'error_message', 'updated_at'])
 
-    # Create / update processing job to pending
     ProcessingJob.objects.create(
         document=doc,
         job_type=ProcessingJob.JobType.TEXT_EXTRACTION,
@@ -417,6 +536,7 @@ def document_retry(request, pk: int):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def document_archive(request, pk: int):
     """
     POST /api/documents/<pk>/archive/ -> Archive / soft-delete document
@@ -437,4 +557,5 @@ def document_archive(request, pk: int):
         'id': doc.id,
         'message': f"Document '{doc.original_filename}' archived successfully.",
     }, status=status.HTTP_200_OK)
+
 

@@ -94,9 +94,11 @@ class LocalStorageBackend(StorageBackend):
 
     def _full_path(self, name: str) -> Path:
         """Resolve a storage name to an absolute filesystem path."""
-        # Security: prevent path traversal attacks
         resolved = (self.root / name).resolve()
-        if not str(resolved).startswith(str(self.root.resolve())):
+        root_resolved = self.root.resolve()
+        try:
+            resolved.relative_to(root_resolved)
+        except ValueError:
             raise ValueError(f'Path traversal detected: {name!r}')
         return resolved
 
