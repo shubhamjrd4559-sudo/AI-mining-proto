@@ -2337,5 +2337,142 @@ function toast(title, message){
   setTimeout(()=>{ el.style.opacity="0"; el.style.transform="translateX(30px)"; el.style.transition="all .3s"; setTimeout(()=> el.remove(), 300); }, 3600);
 }
 </script>
+
+<!-- ============================================================
+     PHASE 1 — API Service Boundary
+     Added: Phase 1 Full-Stack Foundation
+     ============================================================
+     READ-ONLY addition. All existing mock data, UI, demo
+     functionality, charts, navigation, and pages are preserved
+     exactly. This script only adds apiServices and a silent
+     background health check.
+     ============================================================ -->
+<script>
+/* ============================================================
+   CMPDI AI — Phase 1 API Service Boundary
+   Establishes clean communication interfaces between the
+   static frontend and the Django backend.
+
+   - When backend is running: health check succeeds silently.
+   - When backend is NOT running: graceful fallback, all mock
+     data and demo UI continue working normally.
+   - No existing UI behaviour is modified.
+   ============================================================ */
+
+const API_BASE = 'http://127.0.0.1:8000';
+const API_TIMEOUT_MS = 5000;
+
+/* --- Low-level fetch helper with timeout ------------------- */
+async function _apiFetch(path, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    const res = await fetch(API_BASE + path, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      signal: controller.signal,
+      ...options,
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    return await res.json();
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+/* --- API Services ------------------------------------------ */
+const apiServices = {
+  /**
+   * GET /api/health/
+   * Returns backend status. Used for connectivity verification.
+   */
+  health: () => _apiFetch('/api/health/'),
+
+  /**
+   * Documents service — Phase 2
+   */
+  documents: {
+    list:   () => _apiFetch('/api/documents/'),
+    get:    (id) => _apiFetch(`/api/documents/${id}/`),
+    upload: (formData) => _apiFetch('/api/documents/', { method: 'POST', body: formData, headers: {} }),
+    delete: (id) => _apiFetch(`/api/documents/${id}/`, { method: 'DELETE' }),
+  },
+
+  /**
+   * Analytics service — Phase 4
+   */
+  analytics: {
+    summary:    () => _apiFetch('/api/analytics/'),
+    production: (params) => _apiFetch('/api/analytics/production/' + (params ? '?' + new URLSearchParams(params) : '')),
+  },
+
+  /**
+   * Chat / AI Query service — Phase 4
+   */
+  chat: {
+    query: (message, context = {}) =>
+      _apiFetch('/api/chat/', { method: 'POST', body: JSON.stringify({ message, context }) }),
+  },
+
+  /**
+   * Excel AI Maintainer service — Phase 4
+   */
+  excel: {
+    list:   () => _apiFetch('/api/excel/'),
+    query:  (sheet_id, prompt) =>
+      _apiFetch(`/api/excel/${sheet_id}/query/`, { method: 'POST', body: JSON.stringify({ prompt }) }),
+  },
+
+  /**
+   * Reports service — Phase 4
+   */
+  reports: {
+    list:     () => _apiFetch('/api/reports/'),
+    generate: (params) => _apiFetch('/api/reports/', { method: 'POST', body: JSON.stringify(params) }),
+  },
+
+  /**
+   * Topics service — Phase 4
+   */
+  topics: {
+    list: () => _apiFetch('/api/topics/'),
+  },
+
+  /**
+   * Audit service — Phase 2
+   */
+  audit: {
+    list: (params) => _apiFetch('/api/audit/' + (params ? '?' + new URLSearchParams(params) : '')),
+  },
+};
+
+/* --- Phase 1: Silent background health check --------------- */
+let _backendOnline = false;
+
+(async function _phase1HealthCheck() {
+  try {
+    const health = await apiServices.health();
+    _backendOnline = true;
+    console.info(
+      '%c[CMPDI AI] Backend connected',
+      'color:#1E9E63; font-weight:bold;',
+      health
+    );
+  } catch (_err) {
+    _backendOnline = false;
+    console.info(
+      '%c[CMPDI AI] Demo mode — backend not running. Mock data active.',
+      'color:#DFAE24; font-weight:bold;'
+    );
+  }
+})();
+
+/* Expose backend status for future use */
+window.CMPDI_AI = window.CMPDI_AI || {};
+window.CMPDI_AI.apiServices = apiServices;
+window.CMPDI_AI.isBackendOnline = () => _backendOnline;
+window.CMPDI_AI.API_BASE = API_BASE;
+</script>
 </body>
 </html>

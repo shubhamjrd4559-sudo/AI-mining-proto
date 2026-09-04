@@ -1,0 +1,62 @@
+# ============================================================
+# CMPDI AI — Mining Intelligence Command Center
+# .gitignore
+# ============================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+backend/venv/
+venv/
+env/
+.venv/
+ENV/
+
+# Django
+*.pyc
+db.sqlite3
+db.sqlite3-journal
+local_settings.py
+media/
+staticfiles/
+backend/staticfiles/
+backend/media/
+
+# Environment / secrets — NEVER commit real .env
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Node (future frontend tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
