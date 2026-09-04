@@ -185,6 +185,36 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # ============================================================
-# Storage backend configuration
+# Storage & Document Upload Configuration
 # ============================================================
 STORAGE_BACKEND = config('STORAGE_BACKEND', default='local')
+
+# Maximum file size allowed for upload (default 50 MB)
+MAX_UPLOAD_SIZE = config('MAX_UPLOAD_SIZE', default=50 * 1024 * 1024, cast=int)
+
+# Supported document extensions (case-insensitive)
+ALLOWED_DOCUMENT_EXTENSIONS = {
+    '.pdf',
+    '.docx',
+    '.xlsx',
+    '.csv',
+    '.txt',
+    '.png',
+    '.jpg',
+    '.jpeg',
+}
+
+# Mapping of extensions to standard MIME types
+ALLOWED_DOCUMENT_MIMETYPES = {
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'text/csv',
+    'text/plain',
+    'image/png',
+    'image/jpeg',
+    'application/octet-stream', # common fallback for multipart clients
+}
+

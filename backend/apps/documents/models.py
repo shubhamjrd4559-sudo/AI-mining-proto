@@ -18,11 +18,13 @@ from django.contrib.auth.models import User
 
 class DocumentStatus(models.TextChoices):
     UPLOADED = 'uploaded', 'Uploaded'
+    QUEUED = 'queued', 'Queued'
     PROCESSING = 'processing', 'Processing'
     EXTRACTING = 'extracting', 'Extracting'
     VALIDATING = 'validating', 'Validating'
     INDEXED = 'indexed', 'Indexed'
     NEEDS_REVIEW = 'needs_review', 'Needs Review'
+    PROCESSED = 'processed', 'Processed'
     COMPLETED = 'completed', 'Completed'
     FAILED = 'failed', 'Failed'
 
@@ -39,9 +41,9 @@ class Document(models.Model):
     """
     Represents a document uploaded into the CMPDI AI system.
 
-    Phase 1: Model and DB table only. No upload functionality yet.
-    Phase 2: File upload endpoint and storage wired.
-    Phase 3: Processing pipeline activated.
+    Phase 1: Model and DB table foundation.
+    Phase 2: Real multipart upload, storage abstraction, and metadata tracking.
+    Phase 3: Processing pipeline (OCR, text extraction, validation, indexing).
     """
 
     title = models.CharField(
@@ -59,6 +61,23 @@ class Document(models.Model):
         blank=True,
         help_text='Original filename as uploaded by the user.',
     )
+    stored_filename = models.CharField(
+        max_length=512,
+        blank=True,
+        help_text='Safe storage filename/path.',
+    )
+    storage_key = models.CharField(
+        max_length=512,
+        blank=True,
+        db_index=True,
+        help_text='Key used in storage backend.',
+    )
+    file_extension = models.CharField(
+        max_length=32,
+        blank=True,
+        db_index=True,
+        help_text='Lowercased file extension with leading dot (e.g. .pdf).',
+    )
     file_size = models.PositiveBigIntegerField(
         null=True,
         blank=True,
@@ -69,11 +88,21 @@ class Document(models.Model):
         blank=True,
         help_text='MIME type detected at upload (e.g. application/pdf).',
     )
+    sha256_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text='SHA-256 cryptographic hash of the original file content.',
+    )
     status = models.CharField(
         max_length=20,
         choices=DocumentStatus.choices,
         default=DocumentStatus.UPLOADED,
         db_index=True,
+    )
+    error_message = models.TextField(
+        blank=True,
+        help_text='Error details if upload, validation, or processing fails.',
     )
     uploaded_by = models.ForeignKey(
         User,
@@ -82,6 +111,11 @@ class Document(models.Model):
         on_delete=models.SET_NULL,
         related_name='uploaded_documents',
         help_text='User who uploaded this document.',
+    )
+    is_archived = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='True if the document has been archived/soft-deleted.',
     )
     notes = models.TextField(
         blank=True,
@@ -101,13 +135,15 @@ class Document(models.Model):
     @property
     def file_size_display(self):
         """Human-readable file size string."""
-        if not self.file_size:
+        if self.file_size is None:
             return 'Unknown'
+        size = float(self.file_size)
         for unit in ('B', 'KB', 'MB', 'GB'):
-            if self.file_size < 1024:
-                return f'{self.file_size:.1f} {unit}'
-            self.file_size /= 1024
-        return f'{self.file_size:.1f} TB'
+            if size < 1024.0:
+                return f'{size:.1f} {unit}'
+            size /= 1024.0
+        return f'{size:.1f} TB'
+
 
 
 class ProcessingJob(models.Model):

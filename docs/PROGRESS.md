@@ -1,230 +1,146 @@
 # CMPDI AI — Implementation Progress
 
-**Last updated:** 2026-09-04 18:45 IST  
-**Updated by:** Phase 1 automated implementation
+**Last updated:** 2026-09-05 01:05 IST  
+**Updated by:** Phase 2 Real Document Ingestion & Storage implementation
 
 ---
 
 ## Current Phase
 
-**PHASE 1 — FULL-STACK FOUNDATION**  
+**PHASE 2 — REAL DOCUMENT UPLOAD & STORAGE**  
 **Status: COMPLETE**  
-**Milestone: Phase 1 all deliverables implemented and verified**
+**Milestone: Real document upload, storage backend, database metadata tracking, and frontend Documents UI integration completed & verified**
 
 ---
 
 ## Completed Work
 
-### Backend Foundation
-- [x] Python virtual environment (`backend/venv/`)
-- [x] Django 6.0.4 + DRF 3.16.0 + CORS headers 4.7.0 + python-decouple 3.8
-- [x] Django project with split settings: `config/settings/base.py`, `development.py`, `production.py`
-- [x] `manage.py` with correct `DJANGO_SETTINGS_MODULE` default
-- [x] `config/urls.py` with all Phase 1 routes + stubs
-- [x] `config/wsgi.py` and `config/asgi.py`
-
-### Database Models (all migrated)
-- [x] `Document` model — 8 status choices (Uploaded/Processing/Extracting/Validating/Indexed/NeedsReview/Completed/Failed), FK to User (nullable), file metadata fields
-- [x] `ProcessingJob` model — FK to Document, 5 job types, status lifecycle, error tracking
-- [x] `StructuredDataset` model — FK to Document (nullable), schema_json, record count cache
-- [x] `StructuredRecord` model — FK to StructuredDataset, row_index, data_json, validation fields
-- [x] `AuditEvent` model — immutable (raises ValueError on update), 16 event types, actor/IP tracking
-- [x] Django's built-in `auth.User` + `auth.Group` — no custom model needed in Phase 1
-- [x] All migrations created and applied successfully
-
-### API
-- [x] `GET /api/health/` — returns `{"status": "ok", "database": "connected", ...}` ✅
-- [x] DRF configured with JSONRenderer + BrowsableAPIRenderer
-- [x] CORS configured (all origins in dev, configurable via env)
-- [x] Stub endpoints returning `{"status": "not_implemented", "phase": 2}`:
-  - `GET /api/documents/`
-  - `GET /api/datasets/`
-  - `GET /api/analytics/`
-  - `GET /api/chat/`
-  - `GET /api/excel/`
-  - `GET /api/reports/`
-  - `GET /api/topics/`
-  - `GET /api/audit/`
-
-### Storage Abstraction
-- [x] `StorageBackend` abstract base class (ABC) — defines interface: `save`, `open`, `delete`, `exists`, `url`, `size`, `list`
-- [x] `LocalStorageBackend` — implements ABC using filesystem, path traversal protection
-- [x] `StorageService` singleton factory — `get_storage_service()`, swappable via `STORAGE_BACKEND` env var
-- [x] S3 backend stub documented as Phase 5 work
-
-### Environment / Configuration
-- [x] `.env.example` — template with all required variables, no secrets
-- [x] `backend/.env` — development values (gitignored)
-- [x] `.gitignore` — protects venv, `.env`, `db.sqlite3`, `media/`, `staticfiles/`, `__pycache__`
-- [x] All settings read via `python-decouple`
-
-### Frontend Service Boundary
-- [x] `index.html` preserved exactly (all existing mock data, UI, charts, pages intact)
-- [x] API service boundary appended as new `<script>` block at bottom of `index.html`
-- [x] `apiServices` object with: `health`, `documents`, `analytics`, `chat`, `excel`, `reports`, `topics`, `audit`
-- [x] Silent background health check — no UI changes, graceful fallback to demo mode
-- [x] `window.CMPDI_AI.isBackendOnline()` exposed for future use
-
-### Documentation
-- [x] `SIH2026_IMPLEMENTATION_ROADMAP.md` — 5-phase roadmap
-- [x] `SIH2026_FRONTEND_STRUCTURE.md` — frontend pages, nav, API boundary reference
-- [x] `docs/PROGRESS.md` (this file)
+### Phase 2 Document Ingestion & Storage Subsystem
+- [x] **Multipart Upload Endpoint** (`POST /api/documents/`):
+  - Handles single file (`file`) and batch/multiple file (`files`) uploads.
+  - Extension validation against allowed list (`.pdf`, `.docx`, `.xlsx`, `.csv`, `.txt`, `.png`, `.jpg`, `.jpeg`).
+  - File size validation against `MAX_UPLOAD_SIZE` (default 50MB) and empty file rejection.
+  - Safe filename sanitization and directory traversal prevention.
+  - Cryptographic SHA-256 hash calculation over unmodified file content.
+  - MIME type detection and preservation.
+  - Safe storage key generation (`documents/YYYY/MM/DD/{uuid}_{basename}.ext`).
+- [x] **Storage Layer**:
+  - Saved files via `LocalStorageBackend` abstraction under `backend/media/`.
+  - Path traversal security checks.
+  - Clean preservation of original raw file binaries for Phase 3 parsing.
+- [x] **Database & Metadata Tracking**:
+  - `Document` model extended with: `stored_filename`, `storage_key`, `file_extension`, `sha256_hash`, `error_message`, `is_archived`.
+  - Database migration applied: `0002_document_error_message_document_file_extension_and_more.py`.
+  - Initial `ProcessingJob` record created per upload (`job_type='text_extraction'`, `status='pending'`).
+  - Immutable `AuditEvent` log generated for every upload and delete action.
+- [x] **Document Management Endpoints**:
+  - `GET /api/documents/`: Filterable document listing (status filter, search, soft-delete filter).
+  - `GET /api/documents/<id>/`: Full detail metadata including linked processing jobs and download URL.
+  - `GET /api/documents/<id>/status/`: Fast polling endpoint for document processing status.
+  - `GET /api/documents/<id>/download/`: Streams original stored file with proper MIME type and Content-Disposition.
+  - `POST /api/documents/<id>/retry/`: Lifecycle retry reset (`queued`/`pending`), without executing Phase 3 OCR.
+  - `POST /api/documents/<id>/archive/`: Soft deletion / archiving.
+  - `DELETE /api/documents/<id>/`: Soft delete by default or hard delete with storage cleanup if `?hard=true`.
+- [x] **Frontend Integration (`index.html`)**:
+  - Integrated file picker and Drag & Drop on `#uploadZone`.
+  - Real multipart uploads wired to `apiServices.documents.upload(formData)`.
+  - Document Library table dynamically populated with live database documents (name, type, size, upload date, status pill, SHA-256 hash, actions).
+  - Live status counter cards reflect database totals.
+  - Document Detail modal displays real cryptographic hashes, storage keys, and direct download links.
+  - Seamless fallback to demo mock data when backend is not running.
 
 ---
 
-## Files Created
+## Test Suite Results
 
-```
-.gitignore
-.env.example
-SIH2026_IMPLEMENTATION_ROADMAP.md
-SIH2026_FRONTEND_STRUCTURE.md
-docs/PROGRESS.md
-
-backend/
-  .env                              (gitignored — dev only)
-  manage.py
-  requirements.txt
-  db.sqlite3                        (gitignored — generated by migrate)
-  config/
-    __init__.py
-    asgi.py
-    wsgi.py
-    urls.py
-    settings/
-      __init__.py
-      base.py
-      development.py
-      production.py
-  apps/
-    __init__.py
-    core/
-      __init__.py  apps.py  views.py  urls.py  tests.py
-    documents/
-      __init__.py  apps.py  models.py  serializers.py  views.py  urls.py  tests.py
-      migrations/0001_initial.py
-    datasets/
-      __init__.py  apps.py  models.py  serializers.py  views.py  urls.py  tests.py
-      migrations/0001_initial.py
-    audit/
-      __init__.py  apps.py  models.py  serializers.py  views.py  urls.py  tests.py
-      migrations/0001_initial.py
-    storage/
-      __init__.py  apps.py  backends.py  service.py  tests.py
-```
-
-## Files Modified
-
-```
-index.html — API service boundary script block appended (lines 2339-2480)
-             All 2,339 original lines fully preserved.
-```
-
----
-
-## Tests Passed
-
-**28/28 tests PASSED** (run: 2026-09-04 18:45 IST)
+**45/45 tests PASSED** (run: 2026-09-05 01:05 IST)
 
 | App | Tests | Result |
 |---|---|---|
 | `apps.core` | 6 | ✅ PASS |
-| `apps.documents` | 5 | ✅ PASS |
+| `apps.documents` | 22 | ✅ PASS |
 | `apps.datasets` | 3 | ✅ PASS |
-| `apps.audit` | 3 | ✅ PASS |
+| `apps.audit` | 4 | ✅ PASS |
 | `apps.storage` | 10 | ✅ PASS |
-| **TOTAL** | **28** | **✅ ALL PASS** |
+| **TOTAL** | **45** | **✅ ALL PASS** |
+
+### Verified Test Cases:
+1. `test_upload_pdf` — PDF upload, disk persistence, DB record, SHA-256 match, AuditEvent.
+2. `test_upload_scanned_pdf` — Binary geological raster PDF upload.
+3. `test_upload_docx` — DOCX document upload and extension tracking.
+4. `test_upload_xlsx` — XLSX spreadsheet upload.
+5. `test_upload_csv` — CSV mining dataset upload.
+6. `test_upload_txt` — Plain text field notes upload.
+7. `test_upload_png` — PNG geological seam diagram upload.
+8. `test_upload_jpg` — JPEG opencast mine aerial photo upload.
+9. `test_unsupported_format_rejected` — Blocked `.exe` and `.py` uploads with HTTP 400.
+10. `test_oversized_file_rejected` — Blocked uploads exceeding size limit with HTTP 400.
+11. `test_empty_upload_rejected` — Blocked 0-byte and empty payload requests.
+12. `test_multiple_files_upload` — Batch upload with distinct database records and statuses.
+13. `test_list_documents` — Search and status filtering.
+14. `test_document_detail` — Detailed metadata and job serialization.
+15. `test_document_status_endpoint` — Status polling endpoint.
+16. `test_document_download` — Binary download verification and header validation.
+17. `test_document_retry` — Reset lifecycle status to queued/pending.
+18. `test_document_archive_and_hard_delete` — Soft archiving and hard deletion with filesystem cleanup.
 
 ---
 
-## Verification Results
+## Files Modified & Created
 
-| Check | Result |
-|---|---|
-| `python manage.py check` | ✅ 0 issues |
-| `python manage.py migrate` | ✅ All migrations applied |
-| `GET /api/health/` HTTP 200 | ✅ `{"status":"ok","database":"connected"}` |
-| `index.html` loads in browser | ✅ All existing pages/charts/nav intact |
-| No runtime errors introduced | ✅ System check: 0 silenced |
-
----
-
-## Known Issues
-
-- **None** — Phase 1 is fully functional.
-
-## Blockers
-
-- **None.**
+```
+backend/
+  config/settings/base.py                           (modified - upload limits & MIME configs)
+  apps/documents/
+    models.py                                       (modified - Phase 2 metadata & status choices)
+    serializers.py                                  (modified - detail, jobs, download_url serializers)
+    views.py                                        (modified - upload, list, detail, status, download, retry, archive)
+    urls.py                                         (modified - registered Phase 2 routes)
+    tests.py                                        (modified - 22 comprehensive Phase 2 tests)
+    migrations/
+      0002_document_error_message_document_file_extension_and_more.py (created - applied migration)
+index.html                                          (modified - wired real file upload, table, details, download, archive)
+docs/PROGRESS.md                                    (modified - updated status)
+```
 
 ---
 
-## Remaining Phase 1 Work
+## How to Run & Verify
 
-- **None.** Phase 1 is complete.
-
----
-
-## Exact Run Commands
-
-### Start the backend server
-```bash
-cd AI-mining-proto/backend
-.\venv\Scripts\activate          # Windows
-# source venv/bin/activate       # Linux/Mac
+### 1. Start Django Backend Server:
+```powershell
+cd backend
+.\venv\Scripts\activate
 python manage.py runserver
 ```
 
-Backend available at: http://127.0.0.1:8000  
-Health check: http://127.0.0.1:8000/api/health/  
-Admin: http://127.0.0.1:8000/admin/  
-Browsable API: http://127.0.0.1:8000/api/
-
-### Run tests
-```bash
-cd AI-mining-proto/backend
+### 2. Run All Automated Tests:
+```powershell
+cd backend
 .\venv\Scripts\activate
 python manage.py test apps.core apps.documents apps.datasets apps.audit apps.storage --verbosity=2
 ```
 
-### Create admin user
-```bash
-python manage.py createsuperuser
-```
-
-### View the frontend
-Open `AI-mining-proto/index.html` in any browser. No server needed for demo mode.
-
----
-
-## Exact Resume Commands
-
-If session ends, resume with:
-```bash
-cd "c:\Users\shubh\OneDrive\Pictures\Desktop\SIH\AI-mining-proto\backend"
-.\venv\Scripts\activate
-python manage.py runserver
-```
-
-Phase 1 is complete. To continue, begin Phase 2 with explicit user approval.
+### 3. Frontend Usage:
+Open `index.html` in any web browser. When the backend server is running on `http://127.0.0.1:8000`:
+- Click **Upload Document** or **Bulk Upload**, or drag & drop files onto the upload zone.
+- Real files will be stored in `backend/media/documents/YYYY/MM/DD/` and recorded in SQLite database.
+- Click **View** to inspect cryptographic SHA-256 checksum and metadata.
+- Click **Download** to stream the original unmodified file.
 
 ---
 
 ## Next Phase
 
-### PHASE 2 — REAL DOCUMENT UPLOAD + STORAGE
+### PHASE 3 — DOCUMENT PROCESSING PIPELINE
 
-**Goal:** Users can upload real documents; files are stored on disk; metadata is recorded in the database.
+**Goal:** Process uploaded documents through automated text extraction, OCR, table detection, schema extraction, and structured dataset population.
 
-**Key deliverables:**
-- `POST /api/documents/` — file upload endpoint (multipart/form-data)
-- Chunked upload support for large files
-- Real `GET /api/documents/` — paginated list
-- `GET /api/documents/{id}/` — document detail
-- `DELETE /api/documents/{id}/` — document deletion
-- `ProcessingJob` created on upload (PENDING status)
-- Frontend Documents page wired to real upload (replacing mock data)
-- Celery task queue stub for async processing
-- JWT authentication foundation
+**Key deliverables for Phase 3 (DO NOT START WITHOUT APPROVAL):**
+- PDF text extraction (PyMuPDF / pdfplumber)
+- Scanned PDF OCR (Tesseract / EasyOCR)
+- DOCX parsing (python-docx)
+- XLSX / CSV table parsing and `StructuredRecord` database ingestion
+- ProcessingJob execution lifecycle (Processing → Extracting → Validating → Indexed)
+- Async processing task runner / Celery foundation
 
-**DO NOT start Phase 2 without explicit user approval.**

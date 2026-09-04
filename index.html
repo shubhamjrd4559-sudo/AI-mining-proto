@@ -1601,9 +1601,20 @@ function applyHeroTransform(rot, scale){
 /* ============================================================
    DOCUMENTS
    ============================================================ */
+let _liveDocuments = null;
+
 function pageDocuments(){
   const statusCounts = { done:0, processing:0, review:0, failed:0 };
-  MOCK.documents.forEach(d=> statusCounts[d.status]++);
+  const docs = _liveDocuments || MOCK.documents;
+  docs.forEach(d=> {
+    const st = d.status === 'completed' || d.status === 'indexed' || d.status === 'processed' ? 'done'
+      : (d.status === 'uploaded' || d.status === 'queued' || d.status === 'processing' || d.status === 'extracting' || d.status === 'validating') ? 'processing'
+      : (d.status === 'needs_review' || d.status === 'review') ? 'review' : 'failed';
+    if (statusCounts[st] !== undefined) statusCounts[st]++;
+  });
+
+  const isLive = Boolean(window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline());
+
   return `
   <div class="page active">
     <div class="page-head">
@@ -1616,8 +1627,9 @@ function pageDocuments(){
       <div class="upload-zone" id="uploadZone">
         <div class="uic">⬆</div>
         <h4>Drag &amp; drop PDF / Excel / DOCX / Image</h4>
-        <p>Or use the buttons below to simulate an upload — nothing leaves your browser in this prototype.</p>
+        <p>${isLive ? 'Real document storage active. Uploaded files are verified and stored safely on server.' : 'Or use the buttons below to upload or simulate in prototype mode.'}</p>
         <div class="row" style="justify-content:center; gap:10px;">
+          <input type="file" id="realDocFileInput" multiple style="display:none;" accept=".pdf,.docx,.xlsx,.csv,.txt,.png,.jpg,.jpeg">
           <button class="btn btn-primary" id="uploadBtn">⬆ Upload Document</button>
           <button class="btn btn-outline" id="bulkUploadBtn">▤ Bulk Upload</button>
         </div>
@@ -1628,21 +1640,21 @@ function pageDocuments(){
       </div>
     </div>
 
-    <div class="grid-4 mt-16">
-      ${statusMiniCard("Processed", statusCounts.done, "green")}
-      ${statusMiniCard("Processing", statusCounts.processing, "royal")}
-      ${statusMiniCard("Needs Review", statusCounts.review, "gold")}
-      ${statusMiniCard("Failed", statusCounts.failed, "red")}
+    <div class="grid-4 mt-16" id="docStatusCards">
+      ${statusMiniCard("Processed", statusCounts.done, "green", isLive)}
+      ${statusMiniCard("Processing", statusCounts.processing, "royal", isLive)}
+      ${statusMiniCard("Needs Review", statusCounts.review, "gold", isLive)}
+      ${statusMiniCard("Failed", statusCounts.failed, "red", isLive)}
     </div>
 
     <div class="card card-pad mt-16">
       <div class="card-title-row">
-        <h3>Document Library</h3>
+        <h3>Document Library ${isLive ? '<span class="badge" style="background:#E8F5E9; color:#1E9E63; margin-left:8px;">Live Backend</span>' : '<span class="badge demo" style="margin-left:8px;">Demo Data</span>'}</h3>
         <div class="filters" style="margin-bottom:0;">
           <select id="docStatusFilter">
             <option value="all">All statuses</option>
-            <option value="done">Processed</option>
-            <option value="processing">Processing</option>
+            <option value="done">Processed / Completed</option>
+            <option value="processing">Processing / Uploaded</option>
             <option value="review">Needs Review</option>
             <option value="failed">Failed</option>
           </select>
@@ -1650,7 +1662,7 @@ function pageDocuments(){
       </div>
       <div class="tbl-wrap">
         <table class="dtable" id="docTable">
-          <thead><tr><th>Document</th><th>Type</th><th>Organization</th><th>Year</th><th>Pages</th><th>Tables</th><th>Status</th><th>Accuracy</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Uploaded</th><th>Status</th><th>Checksum (SHA-256)</th><th>Actions</th></tr></thead>
           <tbody id="docTableBody"></tbody>
         </table>
       </div>
@@ -1660,53 +1672,233 @@ function pageDocuments(){
   ${modalShell("docDetailModal", "Document Insights")}
   `;
 }
-function statusMiniCard(label,count,color){
+
+function statusMiniCard(label,count,color,isLive=false){
   const colorMap = { green:"var(--green)", royal:"var(--royal)", gold:"var(--gold)", red:"var(--red)" };
-  return `<div class="stat-mini"><div class="l">${label}<span class="badge demo" style="margin-left:6px;">Demo Data</span></div>
+  const badgeLabel = isLive ? "Live DB" : "Demo Data";
+  const badgeClass = isLive ? "badge" : "badge demo";
+  const badgeStyle = isLive ? "background:#E8F5E9; color:#1E9E63; margin-left:6px;" : "margin-left:6px;";
+  return `<div class="stat-mini"><div class="l">${label}<span class="${badgeClass}" style="${badgeStyle}">${badgeLabel}</span></div>
     <div class="v" style="color:${colorMap[color]}">${count}</div></div>`;
 }
+
 function renderDocRows(){
-  const filtered = MOCK.documents.filter(d=> APP.docFilter==="all" || d.status===APP.docFilter);
-  document.getElementById("docTableBody").innerHTML = filtered.map(d=>`
-    <tr>
-      <td class="doc-name">${d.name}</td>
-      <td>${d.type}</td>
-      <td>${d.org}</td>
-      <td>${d.year}</td>
-      <td>${d.pages}</td>
-      <td>${d.tables}</td>
-      <td>${statusPill(d.status)}</td>
-      <td>${d.accuracy? d.accuracy+"%" : "—"}</td>
-      <td>
-        <a class="link-action" data-view="${d.id}">View</a>
-        <a class="link-action" data-ask="${d.id}">Ask AI</a>
-        <a class="link-action" data-dl="${d.id}">Download</a>
-      </td>
-    </tr>`).join("");
-  document.querySelectorAll("[data-view]").forEach(el=> el.addEventListener("click", ()=> openDocDetail(el.dataset.view)));
-  document.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> { goTo("ai-query"); setTimeout(()=>runAIQuery("Major geological activities?"),150); }));
-  document.querySelectorAll("[data-dl]").forEach(el=> el.addEventListener("click", ()=> toast("Download started", "This is a simulated download in the prototype.")));
+  const isLive = Boolean(window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline() && _liveDocuments !== null);
+  const tbody = document.getElementById("docTableBody");
+  if (!tbody) return;
+
+  if (isLive) {
+    const filtered = (_liveDocuments || []).filter(d => {
+      if (APP.docFilter === "all") return true;
+      if (APP.docFilter === "done") return d.status === "completed" || d.status === "indexed" || d.status === "processed";
+      if (APP.docFilter === "processing") return d.status === "uploaded" || d.status === "queued" || d.status === "processing" || d.status === "extracting" || d.status === "validating";
+      if (APP.docFilter === "review") return d.status === "needs_review" || d.status === "review";
+      if (APP.docFilter === "failed") return d.status === "failed";
+      return d.status === APP.docFilter;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:28px; color:#7E8CA3;">No documents found matching this filter. Use the upload button above to upload files.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(d => {
+      const ext = (d.file_extension || '').replace('.', '').toUpperCase() || 'DOC';
+      const sizeStr = d.file_size_display || '—';
+      const createdStr = d.created_at ? new Date(d.created_at).toLocaleString() : '—';
+      const hashShort = d.sha256_hash ? d.sha256_hash.substring(0, 10) + '...' : '—';
+      return `
+      <tr>
+        <td class="doc-name"><b style="color:var(--navy);">${d.original_filename || d.title}</b></td>
+        <td><span class="badge" style="background:#EBF2FA; color:var(--royal); font-weight:600;">${ext}</span></td>
+        <td>${sizeStr}</td>
+        <td style="font-size:12px; color:#6B7A90;">${createdStr}</td>
+        <td>${statusPill(d.status)}</td>
+        <td class="mono small" title="${d.sha256_hash || ''}" style="color:#5C6B80;">${hashShort}</td>
+        <td>
+          <a class="link-action" data-view="${d.id}">View</a>
+          <a class="link-action" data-dl="${d.id}">Download</a>
+          <a class="link-action" data-ask="${d.id}">Ask AI</a>
+          <a class="link-action" data-archive="${d.id}" style="color:var(--red);">Archive</a>
+        </td>
+      </tr>`;
+    }).join("");
+
+    tbody.querySelectorAll("[data-view]").forEach(el=> el.addEventListener("click", ()=> openDocDetail(el.dataset.view)));
+    tbody.querySelectorAll("[data-dl]").forEach(el=> el.addEventListener("click", ()=> {
+      const docId = el.dataset.dl;
+      const url = window.CMPDI_AI.apiServices.documents.downloadUrl(docId);
+      window.open(url, '_blank');
+      toast("Download started", `Retrieving document #${docId} from backend storage.`);
+    }));
+    tbody.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> { goTo("ai-query"); setTimeout(()=>runAIQuery("Major geological findings in uploaded report?"),150); }));
+    tbody.querySelectorAll("[data-archive]").forEach(el=> el.addEventListener("click", async ()=> {
+      const docId = el.dataset.archive;
+      if (confirm(`Archive document #${docId}?`)) {
+        try {
+          await window.CMPDI_AI.apiServices.documents.archive(docId);
+          toast("Document archived", `Document #${docId} has been archived.`);
+          await loadLiveDocuments();
+        } catch (err) {
+          toast("Archive failed", err.message);
+        }
+      }
+    }));
+  } else {
+    // Fallback Mock rendering
+    const filtered = MOCK.documents.filter(d=> APP.docFilter==="all" || d.status===APP.docFilter);
+    tbody.innerHTML = filtered.map(d=>`
+      <tr>
+        <td class="doc-name">${d.name}</td>
+        <td><span class="badge" style="background:#EBF2FA; color:var(--royal);">${d.type}</span></td>
+        <td>${d.pages} pages</td>
+        <td>${d.year}</td>
+        <td>${statusPill(d.status)}</td>
+        <td class="mono small" style="color:#7E8CA3;">MOCK-SHA256</td>
+        <td>
+          <a class="link-action" data-view="${d.id}">View</a>
+          <a class="link-action" data-ask="${d.id}">Ask AI</a>
+          <a class="link-action" data-dl="${d.id}">Download</a>
+        </td>
+      </tr>`).join("");
+    tbody.querySelectorAll("[data-view]").forEach(el=> el.addEventListener("click", ()=> openDocDetail(el.dataset.view)));
+    tbody.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> { goTo("ai-query"); setTimeout(()=>runAIQuery("Major geological activities?"),150); }));
+    tbody.querySelectorAll("[data-dl]").forEach(el=> el.addEventListener("click", ()=> toast("Download started", "This is a simulated download in the prototype.")));
+  }
 }
+
+async function loadLiveDocuments(){
+  if (!window.CMPDI_AI || !window.CMPDI_AI.isBackendOnline || !window.CMPDI_AI.isBackendOnline()) return;
+  try {
+    const res = await window.CMPDI_AI.apiServices.documents.list();
+    if (res && res.documents) {
+      _liveDocuments = res.documents;
+      renderDocRows();
+      // Update status counter cards
+      const statusCounts = { done:0, processing:0, review:0, failed:0 };
+      _liveDocuments.forEach(d=> {
+        const st = d.status === 'completed' || d.status === 'indexed' || d.status === 'processed' ? 'done'
+          : (d.status === 'uploaded' || d.status === 'queued' || d.status === 'processing' || d.status === 'extracting' || d.status === 'validating') ? 'processing'
+          : (d.status === 'needs_review' || d.status === 'review') ? 'review' : 'failed';
+        if (statusCounts[st] !== undefined) statusCounts[st]++;
+      });
+      const cards = document.getElementById("docStatusCards");
+      if (cards) {
+        cards.innerHTML = `
+          ${statusMiniCard("Processed", statusCounts.done, "green", true)}
+          ${statusMiniCard("Processing", statusCounts.processing, "royal", true)}
+          ${statusMiniCard("Needs Review", statusCounts.review, "gold", true)}
+          ${statusMiniCard("Failed", statusCounts.failed, "red", true)}
+        `;
+      }
+    }
+  } catch (err) {
+    console.warn("[CMPDI AI] Failed to load live documents from backend:", err);
+  }
+}
+
 function statusPill(status){
-  const map = { done:["done","Processed"], processing:["progress","Processing"], review:["review","Needs Review"], failed:["failed","Failed"] };
-  const [cls,label] = map[status];
+  const map = {
+    done: ["done","Processed"],
+    completed: ["done","Completed"],
+    indexed: ["done","Indexed"],
+    processed: ["done","Processed"],
+    processing: ["progress","Processing"],
+    uploaded: ["progress","Uploaded"],
+    queued: ["progress","Queued"],
+    extracting: ["progress","Extracting"],
+    validating: ["progress","Validating"],
+    review: ["review","Needs Review"],
+    needs_review: ["review","Needs Review"],
+    failed: ["failed","Failed"],
+  };
+  const [cls,label] = map[status] || ["review", status || "Unknown"];
   return `<span class="status-pill ${cls}">${label}</span>`;
 }
+
+async function handleRealUpload(fileList){
+  if (!fileList || fileList.length === 0) return;
+  const isLive = Boolean(window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline());
+
+  if (isLive) {
+    const formData = new FormData();
+    for (let i = 0; i < fileList.length; i++) {
+      formData.append("files", fileList[i]);
+    }
+    const label = fileList.length === 1 ? fileList[0].name : `${fileList.length} documents`;
+    toast("Uploading...", `Sending ${label} to backend storage.`);
+
+    // Show pipeline animation
+    const row = document.getElementById("pipelineRow");
+    if (row) {
+      row.style.display = "flex";
+      const steps = row.querySelectorAll(".pstep");
+      steps.forEach(s=> s.classList.remove("active","done"));
+      if (steps[0]) steps[0].classList.add("active");
+    }
+
+    try {
+      const res = await window.CMPDI_AI.apiServices.documents.upload(formData);
+      if (row) {
+        const steps = row.querySelectorAll(".pstep");
+        if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
+        if (steps[1]) steps[1].classList.add("done");
+      }
+      toast("Upload successful", `${res.uploaded_count || fileList.length} file(s) stored and registered in database.`);
+      await loadLiveDocuments();
+    } catch (err) {
+      toast("Upload failed", err.message || "Could not upload files to backend.");
+    }
+  } else {
+    const label = fileList.length === 1 ? fileList[0].name : `${fileList.length} documents (bulk batch)`;
+    simulateUploadPipeline(label);
+  }
+}
+
 function afterDocuments(){
   renderDocRows();
-  document.getElementById("docStatusFilter").addEventListener("change", (e)=>{ APP.docFilter = e.target.value; renderDocRows(); });
-  document.getElementById("uploadBtn").addEventListener("click", ()=> simulateUploadPipeline("CMPDI Annual Report 2025-26.pdf"));
-  document.getElementById("bulkUploadBtn").addEventListener("click", ()=> simulateUploadPipeline("4 documents (bulk batch)"));
+  loadLiveDocuments();
+
+  document.getElementById("docStatusFilter").addEventListener("change", (e)=>{
+    APP.docFilter = e.target.value;
+    renderDocRows();
+  });
+
+  const fileInput = document.getElementById("realDocFileInput");
+  if (fileInput) {
+    fileInput.addEventListener("change", (e)=>{
+      if (e.target.files && e.target.files.length > 0) {
+        handleRealUpload(e.target.files);
+        fileInput.value = "";
+      }
+    });
+  }
+
+  document.getElementById("uploadBtn").addEventListener("click", ()=>{
+    if (fileInput) fileInput.click();
+    else simulateUploadPipeline("CMPDI Annual Report 2025-26.pdf");
+  });
+
+  document.getElementById("bulkUploadBtn").addEventListener("click", ()=>{
+    if (fileInput) fileInput.click();
+    else simulateUploadPipeline("4 documents (bulk batch)");
+  });
+
   const zone = document.getElementById("uploadZone");
   ["dragover","dragenter"].forEach(evt=> zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.add("drag"); }));
   ["dragleave","drop"].forEach(evt=> zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.remove("drag"); }));
   zone.addEventListener("drop", e=>{
-    const f = e.dataTransfer.files[0];
-    simulateUploadPipeline(f ? f.name : "CMPDI Annual Report 2025-26.pdf");
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleRealUpload(e.dataTransfer.files);
+    } else {
+      simulateUploadPipeline("Dropped Document.pdf");
+    }
   });
 }
+
 function simulateUploadPipeline(fileLabel){
   const row = document.getElementById("pipelineRow");
+  if (!row) return;
   row.style.display = "flex";
   toast("Upload started", fileLabel);
   const steps = row.querySelectorAll(".pstep");
@@ -1724,8 +1916,52 @@ function simulateUploadPipeline(fileLabel){
   };
   tick();
 }
+
 function openDocDetail(id){
-  const doc = MOCK.documents.find(d=>d.id===id);
+  const isNumeric = /^\d+$/.test(String(id));
+  const liveDoc = _liveDocuments ? _liveDocuments.find(d => String(d.id) === String(id)) : null;
+
+  if (liveDoc) {
+    document.getElementById("docDetailModal_title").textContent = liveDoc.original_filename || liveDoc.title;
+    const dlUrl = window.CMPDI_AI.apiServices.documents.downloadUrl(liveDoc.id);
+    document.getElementById("docDetailModal_body").innerHTML = `
+      <div class="grid-2">
+        <div>
+          <div class="card card-pad" style="background:#F5F7FA; min-height:360px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; text-align:center;">
+            <div style="font-size:48px;">📄</div>
+            <div style="font-weight:700; color:var(--navy); font-size:16px;">${liveDoc.original_filename}</div>
+            <div class="badge" style="background:#EBF2FA; color:var(--royal); font-size:12px;">${(liveDoc.file_extension || '').toUpperCase()} · ${liveDoc.file_size_display || '—'}</div>
+            <div class="small muted">Storage Key: <code class="mono">${liveDoc.storage_key || liveDoc.stored_filename}</code></div>
+            <a href="${dlUrl}" target="_blank" class="btn btn-primary btn-sm mt-8">⬇ Download Original File</a>
+          </div>
+        </div>
+        <div class="stack">
+          <div>
+            <h4 style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--royal); margin-bottom:8px;">Document Metadata</h4>
+            <table style="width:100%; font-size:12.5px; border-collapse:collapse;">
+              <tr><td style="color:#7E8CA3; padding:4px 0;">Status:</td><td><b>${statusPill(liveDoc.status)}</b></td></tr>
+              <tr><td style="color:#7E8CA3; padding:4px 0;">MIME Type:</td><td class="mono">${liveDoc.mime_type || '—'}</td></tr>
+              <tr><td style="color:#7E8CA3; padding:4px 0;">Uploaded:</td><td>${liveDoc.created_at ? new Date(liveDoc.created_at).toLocaleString() : '—'}</td></tr>
+              <tr><td style="color:#7E8CA3; padding:4px 0;">SHA-256 Hash:</td><td class="mono small" style="word-break:break-all; color:#202936;">${liveDoc.sha256_hash || '—'}</td></tr>
+            </table>
+          </div>
+          <div class="divider"></div>
+          <div>
+            <h4 style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--royal); margin-bottom:8px;">Processing Pipeline Status</h4>
+            <p class="small" style="line-height:1.6; color:#4B5563;">
+              ${liveDoc.status === 'uploaded' || liveDoc.status === 'queued'
+                ? 'Document safely received and queued for Phase 3 parsing & extraction pipeline.'
+                : liveDoc.error_message || 'Document is registered in CMPDI AI Intelligence Command Center.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+    openModal("docDetailModal");
+    return;
+  }
+
+  const doc = MOCK.documents.find(d=>d.id===id) || MOCK.documents[0];
   const detail = MOCK.documentDetail[id] || MOCK.documentDetail["D-1001"];
   document.getElementById("docDetailModal_title").textContent = doc.name;
   document.getElementById("docDetailModal_body").innerHTML = `
@@ -1759,7 +1995,6 @@ function openDocDetail(id){
             <div class="stat-mini"><div class="l">Production</div><div class="v" style="font-size:13px;">${detail.extracted.production}</div></div>
             <div class="stat-mini"><div class="l">Confidence</div><div class="v" style="font-size:13px;">${detail.extracted.confidence}%</div></div>
           </div>
-          <button class="btn btn-outline btn-sm mt-16">View Source — ${detail.extracted.source}</button>
         </div>
       </div>
     </div>
@@ -2393,10 +2628,24 @@ const apiServices = {
    * Documents service — Phase 2
    */
   documents: {
-    list:   () => _apiFetch('/api/documents/'),
+    list:   (params) => _apiFetch('/api/documents/' + (params ? '?' + new URLSearchParams(params) : '')),
     get:    (id) => _apiFetch(`/api/documents/${id}/`),
-    upload: (formData) => _apiFetch('/api/documents/', { method: 'POST', body: formData, headers: {} }),
-    delete: (id) => _apiFetch(`/api/documents/${id}/`, { method: 'DELETE' }),
+    status: (id) => _apiFetch(`/api/documents/${id}/status/`),
+    upload: async (formData) => {
+      const res = await fetch(API_BASE + '/api/documents/', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Upload failed (HTTP ${res.status})`);
+      }
+      return data;
+    },
+    retry:   (id) => _apiFetch(`/api/documents/${id}/retry/`, { method: 'POST' }),
+    archive: (id) => _apiFetch(`/api/documents/${id}/archive/`, { method: 'POST' }),
+    delete:  (id, hard = false) => _apiFetch(`/api/documents/${id}/` + (hard ? '?hard=true' : ''), { method: 'DELETE' }),
+    downloadUrl: (id) => `${API_BASE}/api/documents/${id}/download/`,
   },
 
   /**
