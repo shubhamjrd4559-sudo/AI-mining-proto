@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/datasets/', include('apps.datasets.urls')),
     path('api/audit/', include('apps.audit.urls')),
     path('api/', include('apps.pipeline.urls')),
+    path('api/maintainer/', include('apps.maintainer.urls')),
 
     # Auth — obtain token via POST username/password
     path('api/auth/token/', obtain_auth_token, name='api-token-auth'),

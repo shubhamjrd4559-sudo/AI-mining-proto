@@ -7,9 +7,9 @@
 
 ## Current Phase
 
-**PHASE 3 — DOCUMENT EXTRACTION, OCR, SCHEMA DETECTION & VALIDATION (COMPLETE)**
+**PHASE 4 — AI EXCEL/CSV MAINTAINER (COMPLETE)**
 **Status: READY FOR REVIEW**
-**All 97 tests passing. Local checkpoint commit created.**
+**All 146 tests passing. Verification complete.**
 
 ---
 
@@ -23,40 +23,93 @@
 - `Document`, `ProcessingJob`, `AuditEvent` models with migrations
 - IsAuthenticated on all document endpoints, owner-scoping
 - TokenAuthentication login flow, seed_dev_user management command
-- 71 Phase 2 tests passing (all preserved in Phase 3)
+- 71 Phase 2 tests passing (all preserved)
 
-### Phase 3 — Document Processing Pipeline (this phase)
+### Phase 3 — Document Processing Pipeline (previously completed)
+- Extractor modules (PDF, DOCX, XLSX, CSV, TXT, OCR)
+- Dynamic Schema Detection (25+ mining concepts)
+- Normalization (financial year, numeric units, dates)
+- Validation Engine (10 issue types, severity levels)
+- Orchestrator and thread safety
+- 30 Phase 3 pipeline tests passing
 
-- [x] **New Django app: `apps.pipeline`**
-  - Isolated from Phase 2; minimal integration only at upload trigger hook
-  - Registered in `INSTALLED_APPS`, migrations applied
+### Phase 4 — AI Excel/CSV Maintainer (this phase)
 
-- [x] **Extractor Modules** (`apps/pipeline/extractor/`)
-  - `pdf_extractor.py` — pdfplumber text extraction; pytesseract OCR fallback for scanned pages
-  - `docx_extractor.py` — python-docx paragraphs + tables
-  - `xlsx_extractor.py` — openpyxl multi-sheet extraction
-  - `csv_extractor.py` — csv.Sniffer delimiter detection (comma/semicolon/tab/pipe)
-  - `txt_extractor.py` — multi-encoding UTF-8/latin-1 detection
-  - `image_extractor.py` — Pillow + pytesseract OCR; graceful degradation when Tesseract unavailable
-  - `base.py` — `ExtractedDocument` and `ExtractedTable` dataclasses
+- [x] **New Django App: `apps.maintainer`**
+  - Registered in `LOCAL_APPS` and `INSTALLED_APPS`
+  - Database migrations applied (`maintainer.0001_initial`)
+  - Admin registration for `MaintainerSuggestion`
 
-- [x] **Dynamic Schema Detection** (`apps/pipeline/schema/detector.py`)
-  - Rule-based regex matching for 25+ mining concepts (mine, coalfield, subsidiary, production,
-    financial_year, dispatch, grade, seam, borehole, coordinates, reserve, resource, etc.)
-  - Returns `{raw_header: {concept, confidence, raw}}`
+- [x] **Model & Lifecycle State Machine**
+  - `MaintainerSuggestion` model: `PENDING → APPROVED → APPLIED`, `PENDING → REJECTED`, `APPROVED → FAILED`
+  - Fields: `dataset`, `record`, `document`, `field_name`, `original_value`, `suggested_value`, `applied_value`, `issue_type`, `reason`, `confidence`, `suggestion_source` (`deterministic` / `ai`), `provenance`, `status`, `error_message`, `created_by`, `reviewed_by`, timestamps
+  - Full indexing and relational links to `StructuredDataset` and `StructuredRecord`
 
-- [x] **Value Normalization** (`apps/pipeline/schema/normalizer.py`)
-  - Financial year normalization (e.g. `FY 2024-25` → `2024-25`)
-  - Numeric + unit extraction (e.g. `4.5 MT` → `{value: 4.5, unit: 'MT'}`)
-  - Date parsing to ISO 8601
-  - Original values always preserved alongside normalized values
+- [x] **Deterministic Cleaning Engine (`apps/maintainer/suggester.py`)**
+  - Rules for whitespace cleanup, comma-number formatting, redundant plus / missing zero numeric formatting, percentage standardization, financial year normalization, date ISO 8601 normalization, safe unit casing (`MT`, `KT`, `km`), and mine/subsidiary title casing.
+  - Safe generation: Never auto-applies; generates persisted `MaintainerSuggestion` records.
 
-- [x] **Validation Engine** (`apps/pipeline/validation/engine.py`)
-  - 10 issue types: `missing_required`, `duplicate`, `invalid_numeric`, `invalid_date`,
-    `inconsistent_unit`, `suspicious_value`, `coordinate_error`, `schema_mismatch`,
-    `extraction_failure`, `duplicate_record`
-  - Severity levels: INFO / WARNING / ERROR
-  - Per-row, per-table, and dataset-level checks
+- [x] **Optional AI Fallback (`apps/maintainer/ai_maintainer.py`)**
+  - Environment-configured (`OPENAI_API_KEY` / `GEMINI_API_KEY`).
+  - Bounded context-level calls (never one call per cell).
+  - Graceful degradation when AI credentials are not provided.
+
+- [x] **Owner-Scoped & Authenticated APIs (`apps/maintainer/views.py`)**
+  - `GET /api/maintainer/datasets/` — Owner-scoped dataset library
+  - `GET /api/maintainer/datasets/<id>/overview/` — Dataset overview & summary metrics
+  - `GET /api/maintainer/datasets/<id>/records/` — Paginated records with suggestion flags
+  - `GET /api/maintainer/datasets/<id>/suggestions/` — Filterable suggestions list
+  - `GET /api/maintainer/datasets/<id>/validation-issues/` — Document validation findings
+  - `POST /api/maintainer/datasets/<id>/generate-suggestions/` — Trigger suggestion engine
+  - `POST /api/maintainer/suggestions/<id>/approve/` — Single approval (does NOT apply)
+  - `POST /api/maintainer/suggestions/<id>/reject/` — Single rejection
+  - `POST /api/maintainer/suggestions/batch-review/` — Batch approval / rejection
+  - `POST /api/maintainer/datasets/<id>/apply/` — Atomic apply with conflict protection
+  - `GET /api/maintainer/datasets/<id>/export/xlsx/` — Download maintained XLSX
+  - `GET /api/maintainer/datasets/<id>/export/csv/` — Download maintained CSV
+
+- [x] **Safety, Conflict Protection & Immutability**
+  - Source file immutability: Original uploaded files are never overwritten.
+  - Conflict protection: Verifies record's current value matches `original_value` before applying; marks `FAILED` with details if modified.
+  - Transaction atomicity: Uses `transaction.atomic()` and row-level locking (`select_for_update`).
+  - Non-destructive revision backup: Original values retained in `_original_before_apply` keys.
+  - Audit logging: Every review (approve/reject/batch) and apply creates immutable `AuditEvent` records.
+  - Strict ownership: Rejects orphan datasets without valid owners.
+
+- [x] **Interactive Frontend UI (`index.html`)**
+  - "Data Maintainer" navigation tab in sidebar.
+  - Active dataset picker with real-time overview metrics.
+  - Three-tab workspace: Suggested Fixes (Before → After), Dataset Records, Validation Issues.
+  - Interactive single & batch approve/reject actions, explicit "Apply Changes" button, and XLSX/CSV export downloads.
+
+- [x] **Test Suite Expansion**
+  - 45 focused Phase 4 tests in `apps.maintainer.tests`.
+  - Full project suite: 146/146 tests passing.
+
+---
+
+## Test Suite Results (Phase 4 Complete)
+
+**146/146 tests PASSED (exit code 0)**
+
+| App | Tests | Result |
+|---|---|---|
+| `apps.core` | 6 | ✅ PASS |
+| `apps.documents` | 47 | ✅ PASS |
+| `apps.datasets` | 3 | ✅ PASS |
+| `apps.audit` | 4 | ✅ PASS |
+| `apps.storage` | 11 | ✅ PASS |
+| `apps.pipeline` | 30 | ✅ PASS |
+| `apps.maintainer` | 45 | ✅ PASS |
+| **TOTAL** | **146** | **✅ ALL PASS** |
+
+---
+
+## Known Limitations
+
+- **OCR requires Tesseract binary**: Must install Tesseract OCR separately if OCR for scanned images is required. Graceful fallback is tested and supported.
+- **SQLite Concurrency in Dev**: In multi-threaded development environments, SQLite file locks are mitigated by bounded exponential retries. Production deployments should use PostgreSQL.
+- **AI Token Configuration**: AI contextual analysis requires `OPENAI_API_KEY` or `GEMINI_API_KEY` in `.env`. When absent, deterministic rules operate at 100% functionality without error.
 
 - [x] **Pipeline Orchestrator** (`apps/pipeline/orchestrator.py`)
   - Daemon thread launched after each successful upload (non-blocking)
