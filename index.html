@@ -2061,11 +2061,21 @@ function openDocDetail(id){
           <div class="divider"></div>
           <div>
             <h4 style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--royal); margin-bottom:8px;">Processing Pipeline Status</h4>
+            ${liveDoc.extraction_summary ? `
+              <table style="width:100%; font-size:12.5px; border-collapse:collapse;">
+                <tr><td style="color:#7E8CA3; padding:4px 0;">Extraction Status:</td><td><b>${escapeHtml(liveDoc.extraction_summary.status)}</b></td></tr>
+                <tr><td style="color:#7E8CA3; padding:4px 0;">OCR Used:</td><td>${liveDoc.extraction_summary.ocr_used ? 'Yes' : 'No'}</td></tr>
+                <tr><td style="color:#7E8CA3; padding:4px 0;">Detected Type:</td><td class="mono">${escapeHtml(liveDoc.extraction_summary.extractor_type)}</td></tr>
+                <tr><td style="color:#7E8CA3; padding:4px 0;">Tables Found:</td><td>${liveDoc.extraction_summary.tables_count}</td></tr>
+              </table>
+              ${liveDoc.extraction_summary.error ? `<p class="small" style="color:var(--red); margin-top:8px;">${escapeHtml(liveDoc.extraction_summary.error)}</p>` : ''}
+            ` : `
             <p class="small" style="line-height:1.6; color:#4B5563;">
               ${liveDoc.status === 'uploaded' || liveDoc.status === 'queued'
                 ? 'Document safely received and queued for Phase 3 parsing & extraction pipeline.'
                 : escapeHtml(liveDoc.error_message || 'Document is registered in CMPDI AI Intelligence Command Center.')}
             </p>
+            `}
           </div>
         </div>
       </div>

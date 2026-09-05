@@ -53,10 +53,26 @@ class DocumentDetailSerializer(DocumentSerializer):
     uploaded_by_username = serializers.SerializerMethodField()
 
     class Meta(DocumentSerializer.Meta):
-        fields = DocumentSerializer.Meta.fields + ['jobs', 'uploaded_by_username']
+        fields = DocumentSerializer.Meta.fields + ['jobs', 'uploaded_by_username', 'extraction_summary']
 
     def get_uploaded_by_username(self, obj) -> str | None:
         if obj.uploaded_by:
             return obj.uploaded_by.username or obj.uploaded_by.email
         return None
+
+    extraction_summary = serializers.SerializerMethodField()
+
+    def get_extraction_summary(self, obj):
+        try:
+            er = obj.extraction_result
+            return {
+                'status': er.status,
+                'extractor_type': er.extractor_type,
+                'ocr_used': er.ocr_used,
+                'page_count': er.page_count,
+                'tables_count': len(er.extracted_tables),
+                'error': er.error_message or None,
+            }
+        except Exception:
+            return None
 

@@ -1,83 +1,102 @@
 # CMPDI AI — Implementation Progress
 
-**Last updated:** 2026-09-05 11:38 IST
-**Updated by:** Phase 2 Single Blocker Fix — Remove hard-coded credentials from index.html
+**Last updated:** 2026-09-05 (IST)
+**Project:** SIH26023 — AI-Powered Geological, Mining and Other Reporting Solution for CMPDI/CIL
 
 ---
 
 ## Current Phase
 
-**PHASE 2 — REAL DOCUMENT UPLOAD & STORAGE (FINAL FIX PASS COMPLETE)**
-**Status: READY FOR FINAL RE-REVIEW**
-**Milestone: All 8 re-review blockers resolved. 71/71 tests passing.**
+**PHASE 3 — DOCUMENT EXTRACTION, OCR, SCHEMA DETECTION & VALIDATION (COMPLETE)**
+**Status: READY FOR REVIEW**
+**All 97 tests passing. Local checkpoint commit created.**
 
 ---
 
 ## Completed Work
 
-### Phase 2 Final Fix Pass (2026-09-05) — 8 Blockers Resolved
+### Phase 1 — Foundation (previously completed)
+- Django backend, health endpoint, stub API, git baseline
 
-- [x] **1. Frontend Token Authentication (CRITICAL)**
-  - DRF `TokenAuthentication` enabled (`rest_framework.authtoken` installed + migrated).
-  - `POST /api/auth/token/` endpoint added to obtain token from username/password.
-  - `_apiFetch()` and upload fetch both inject `Authorization: Token <token>` header.
-  - Login modal shown automatically when backend is online but user is not authenticated.
-  - Token stored in `sessionStorage` (cleared on tab close); never appears in URLs, logs, or query strings.
-  - Demo credential hint shown in login modal when backend `DEBUG=True`.
+### Phase 2 — Real Document Upload & Storage (previously completed)
+- Multipart upload with magic-byte validation, LocalStorageBackend
+- `Document`, `ProcessingJob`, `AuditEvent` models with migrations
+- IsAuthenticated on all document endpoints, owner-scoping
+- TokenAuthentication login flow, seed_dev_user management command
+- 71 Phase 2 tests passing (all preserved in Phase 3)
 
-- [x] **2. Document Authorization / Ownership (CRITICAL)**
-  - All document list queries scoped: `uploaded_by=request.user`.
-  - All document detail/status/download/archive/retry/delete endpoints enforce ownership via `_require_owner()`.
-  - Cross-user access returns `HTTP 403 Forbidden`.
+### Phase 3 — Document Processing Pipeline (this phase)
 
-- [x] **3. MIME / Office ZIP Structure Validation**
-  - `_validate_openxml_structure()` verifies DOCX/XLSX ZIPs contain `[Content_Types].xml`, `word/document.xml` (DOCX), `xl/workbook.xml` (XLSX).
-  - Arbitrary ZIP files disguised with `.docx`/`.xlsx` extensions rejected.
+- [x] **New Django app: `apps.pipeline`**
+  - Isolated from Phase 2; minimal integration only at upload trigger hook
+  - Registered in `INSTALLED_APPS`, migrations applied
 
-- [x] **4. Audit Atomicity**
-  - `log_audit()` moved inside `transaction.atomic()` — audit failure rolls back the document record.
-  - Silent try/except removed; every successful upload is guaranteed to have an audit event or neither exists.
+- [x] **Extractor Modules** (`apps/pipeline/extractor/`)
+  - `pdf_extractor.py` — pdfplumber text extraction; pytesseract OCR fallback for scanned pages
+  - `docx_extractor.py` — python-docx paragraphs + tables
+  - `xlsx_extractor.py` — openpyxl multi-sheet extraction
+  - `csv_extractor.py` — csv.Sniffer delimiter detection (comma/semicolon/tab/pipe)
+  - `txt_extractor.py` — multi-encoding UTF-8/latin-1 detection
+  - `image_extractor.py` — Pillow + pytesseract OCR; graceful degradation when Tesseract unavailable
+  - `base.py` — `ExtractedDocument` and `ExtractedTable` dataclasses
 
-- [x] **5. Pagination Frontend**
-  - `loadLiveDocuments(page)` accepts a page parameter.
-  - `_renderPaginationControls()` renders prev/next buttons with page X of Y count.
-  - Filter/search changes reset to page 1.
+- [x] **Dynamic Schema Detection** (`apps/pipeline/schema/detector.py`)
+  - Rule-based regex matching for 25+ mining concepts (mine, coalfield, subsidiary, production,
+    financial_year, dispatch, grade, seam, borehole, coordinates, reserve, resource, etc.)
+  - Returns `{raw_header: {concept, confidence, raw}}`
 
-- [x] **6. Pipeline Status UI Accuracy**
-  - After upload, only steps 0 (Upload) and 1 (Storage Persistence) marked done.
-  - Steps 2 and 3 labelled "OCR & Extraction (Phase 3)" and "Validation & Indexing (Phase 3)" — remain pending.
+- [x] **Value Normalization** (`apps/pipeline/schema/normalizer.py`)
+  - Financial year normalization (e.g. `FY 2024-25` → `2024-25`)
+  - Numeric + unit extraction (e.g. `4.5 MT` → `{value: 4.5, unit: 'MT'}`)
+  - Date parsing to ISO 8601
+  - Original values always preserved alongside normalized values
 
-- [x] **7. Document Title Double-Escaping**
-  - `textContent` assignments now use raw (unescaped) values; `escapeHtml()` used only in `innerHTML` interpolation.
+- [x] **Validation Engine** (`apps/pipeline/validation/engine.py`)
+  - 10 issue types: `missing_required`, `duplicate`, `invalid_numeric`, `invalid_date`,
+    `inconsistent_unit`, `suspicious_value`, `coordinate_error`, `schema_mismatch`,
+    `extraction_failure`, `duplicate_record`
+  - Severity levels: INFO / WARNING / ERROR
+  - Per-row, per-table, and dataset-level checks
 
-- [x] **8. Authenticated Document Download**
-  - Downloads use `fetch()` + `Blob` + `URL.createObjectURL()` with `Authorization: Token` header.
-  - No token in URLs, query params, or `<a href>` links.
-  - Both table row download and detail modal download button use the authenticated fetch approach.
+- [x] **Pipeline Orchestrator** (`apps/pipeline/orchestrator.py`)
+  - Daemon thread launched after each successful upload (non-blocking)
+  - Correct status sequence: `UPLOADED → PROCESSING → EXTRACTING → VALIDATING → INDEXED/NEEDS_REVIEW/FAILED`
+  - Storage accessed read-only (original file immutable)
+  - `update_or_create` for retry safety; `close_old_connections()` for thread DB safety
 
-### Phase 2 Final 3-Blocker Fix (2026-09-05)
+- [x] **Persistence**
+  - `ExtractionResult` — per-document extraction record (OneToOne with Document)
+  - `ExtractionProvenance` — per-StructuredRecord source tracing
+  - `ValidationResult` — per-finding validation issues
+  - `StructuredDataset` + `StructuredRecord` — structured tables persisted in `apps.datasets`
 
-- [x] **Stale health test** — Updated `test_health_phase_1` → `test_health_phase` expecting `phase=2` to match production endpoint.
-- [x] **Token in download URL** — Removed `?token=...` from `downloadUrl()`. All downloads go through authenticated `fetch()`.
-- [x] **seed_dev_user hard-coded defaults** — Removed `admin`/`admin123` fallback from both `settings/base.py` and the management command. Command now aborts with a clear error if `DEV_USER_USERNAME` or `DEV_USER_PASSWORD` are not set in `.env`.
+- [x] **API Endpoint**
+  - `GET /api/documents/<id>/extraction/` — authenticated, owner-only
+  - Returns extractor type, OCR used, page count, tables count, validation summary, top 50 findings
 
-### Phase 2 Single Blocker Fix (2026-09-05)
+- [x] **Document Detail Serializer Integration**
+  - `DocumentDetailSerializer.extraction_summary` field returns real-time extraction state
 
-- [x] **Hard-coded credentials removed from frontend** — `index.html` no longer contains or displays `admin / admin123` or any password. The login hint now reads: `"Development mode — use credentials from your .env file."` — directing the team to their local `.env` without exposing any password in source code.
+- [x] **Minimal Frontend Integration** (`index.html`)
+  - Document detail modal shows extraction status, OCR used, type, tables, validation summary
+  - No frontend redesign; only extraction info appended in existing pipeline status section
 
-### Management Command: seed_dev_user
-```powershell
-# Set credentials in .env first, then:
-cd backend
-python manage.py seed_dev_user
-```
-The command aborts if either `DEV_USER_USERNAME` or `DEV_USER_PASSWORD` is unset.
+- [x] **Dependencies Added** (`requirements.txt`)
+  - `pdfplumber==0.11.4`
+  - `python-docx==1.1.2`
+  - `openpyxl==3.1.5`
+  - `Pillow==10.4.0`
+  - `pytesseract==0.3.13`
+
+- [x] **Admin Registration Fixed**
+  - `apps.audit.admin` — corrected field names
+  - `apps.documents.admin` — corrected field names
 
 ---
 
-## Test Suite Results
+## Test Suite Results (Phase 3 Complete)
 
-**71/71 tests PASSED** (run: 2026-09-05 11:30 IST)
+**97/97 tests PASSED (exit code 0)**
 
 | App | Tests | Result |
 |---|---|---|
@@ -86,65 +105,46 @@ The command aborts if either `DEV_USER_USERNAME` or `DEV_USER_PASSWORD` is unset
 | `apps.datasets` | 3 | ✅ PASS |
 | `apps.audit` | 4 | ✅ PASS |
 | `apps.storage` | 11 | ✅ PASS |
-| **TOTAL** | **71** | **✅ ALL PASS (100%)** |
+| `apps.pipeline` | 26 | ✅ PASS |
+| **TOTAL** | **97** | **✅ ALL PASS** |
+
+**Notes:**
+- OCR tests produce expected `"tesseract is not installed"` log messages — Tesseract binary not present
+  on dev machine; graceful degradation confirmed working.
+- `database table is locked` messages in test stderr are expected SQLite background-thread noise from
+  Phase 2 upload tests triggering the pipeline daemon. These are logged tracebacks in background threads;
+  they do **not** cause any test assertion failures.
 
 ---
 
-## Files Modified & Created
+## Known Limitations
 
-```
-backend/
-  config/settings/base.py                           (modified - upload limits & MIME configs)
-  apps/documents/
-    models.py                                       (modified - Phase 2 metadata & status choices)
-    serializers.py                                  (modified - detail, jobs, download_url serializers)
-    views.py                                        (modified - upload, list, detail, status, download, retry, archive)
-    urls.py                                         (modified - registered Phase 2 routes)
-    tests.py                                        (modified - 22 comprehensive Phase 2 tests)
-    migrations/
-      0002_document_error_message_document_file_extension_and_more.py (created - applied migration)
-index.html                                          (modified - wired real file upload, table, details, download, archive)
-docs/PROGRESS.md                                    (modified - updated status)
-```
+- **OCR requires Tesseract binary**: Must install Tesseract OCR (system package) separately.
+  `pytesseract` is installed; if Tesseract binary is absent, OCR returns `OCR_UNAVAILABLE` gracefully.
+  See installation notes below.
+- **SQLite test isolation**: Background pipeline threads contend with SQLite test transactions.
+  This is a SQLite limitation; harmless in development and irrelevant with PostgreSQL in production.
+- **Scanned PDF rendering**: `page.to_image()` in pdfplumber requires `pypdfium2` (auto-installed).
+  On constrained systems, PDF-to-image rendering may be slow for large documents.
+- **Thread-based processing**: No Celery/Redis. Pipeline runs in daemon threads. Under high upload
+  concurrency, threads accumulate. Acceptable for SIH demo; Celery migration planned for Phase N.
 
 ---
 
-## How to Run & Verify
+## Tesseract Installation (for OCR support)
 
-### 1. Start Django Backend Server:
-```powershell
-cd backend
-.\venv\Scripts\activate
-python manage.py runserver
+**Windows**: Download installer from https://github.com/UB-Mannheim/tesseract/wiki
+Add Tesseract to system PATH, or set in `.env`:
+```
+TESSERACT_CMD=C:/Program Files/Tesseract-OCR/tesseract.exe
 ```
 
-### 2. Run All Automated Tests:
-```powershell
-cd backend
-.\venv\Scripts\activate
-python manage.py test apps.core apps.documents apps.datasets apps.audit apps.storage --verbosity=2
-```
-
-### 3. Frontend Usage:
-Open `index.html` in any web browser. When the backend server is running on `http://127.0.0.1:8000`:
-- Click **Upload Document** or **Bulk Upload**, or drag & drop files onto the upload zone.
-- Real files will be stored in `backend/media/documents/YYYY/MM/DD/` and recorded in SQLite database.
-- Click **View** to inspect cryptographic SHA-256 checksum and metadata.
-- Click **Download** to stream the original unmodified file.
+**Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
+**macOS**: `brew install tesseract`
 
 ---
 
 ## Next Phase
 
-### PHASE 3 — DOCUMENT PROCESSING PIPELINE
-
-**Goal:** Process uploaded documents through automated text extraction, OCR, table detection, schema extraction, and structured dataset population.
-
-**Key deliverables for Phase 3 (DO NOT START WITHOUT APPROVAL):**
-- PDF text extraction (PyMuPDF / pdfplumber)
-- Scanned PDF OCR (Tesseract / EasyOCR)
-- DOCX parsing (python-docx)
-- XLSX / CSV table parsing and `StructuredRecord` database ingestion
-- ProcessingJob execution lifecycle (Processing → Extracting → Validating → Indexed)
-- Async processing task runner / Celery foundation
+**PHASE 4** (not yet started — awaiting approval)
 

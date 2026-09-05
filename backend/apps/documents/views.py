@@ -1,4 +1,4 @@
-﻿"""
+"""
 apps.documents — Views
 
 Phase 2 Real Document Upload, Storage, and Management API.
@@ -307,6 +307,13 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
         except Exception as del_exc:
             logger.error("Compensating cleanup failed for '%s': %s", storage_key, del_exc)
         return None, f"Database failure during document registration: {exc}"
+
+    # Trigger Phase 3 pipeline (non-blocking daemon thread)
+    try:
+        from apps.pipeline.orchestrator import trigger_processing
+        trigger_processing(doc.pk)
+    except Exception as exc:
+        logger.warning('Could not trigger pipeline for doc %d: %s', doc.pk, exc)
 
     return doc, None
 
