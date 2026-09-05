@@ -2867,11 +2867,12 @@ function _buildLoginModal() {
     </div>`;
   document.body.appendChild(modal);
 
-  // Inject dev hint if backend is in debug/demo mode
+  // Inject a generic dev hint if the backend is running in debug/demo mode.
+  // No credentials are stored or displayed in the frontend — check your .env file.
   fetch(API_BASE + '/api/health/').then(r => r.json()).then(data => {
     const hintEl = document.getElementById('loginHint');
     if (hintEl && data && data.debug) {
-      hintEl.textContent = 'Demo credentials: admin / admin123';
+      hintEl.textContent = 'Development mode — use credentials from your .env file.';
     }
   }).catch(() => {});
 

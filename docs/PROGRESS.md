@@ -1,7 +1,7 @@
 # CMPDI AI — Implementation Progress
 
-**Last updated:** 2026-09-05 11:30 IST
-**Updated by:** Phase 2 Final Fix Pass (Auth, Ownership, MIME Validation, Audit Atomicity, Pagination, Pipeline UI, Security)
+**Last updated:** 2026-09-05 11:38 IST
+**Updated by:** Phase 2 Single Blocker Fix — Remove hard-coded credentials from index.html
 
 ---
 
@@ -60,6 +60,10 @@
 - [x] **Stale health test** — Updated `test_health_phase_1` → `test_health_phase` expecting `phase=2` to match production endpoint.
 - [x] **Token in download URL** — Removed `?token=...` from `downloadUrl()`. All downloads go through authenticated `fetch()`.
 - [x] **seed_dev_user hard-coded defaults** — Removed `admin`/`admin123` fallback from both `settings/base.py` and the management command. Command now aborts with a clear error if `DEV_USER_USERNAME` or `DEV_USER_PASSWORD` are not set in `.env`.
+
+### Phase 2 Single Blocker Fix (2026-09-05)
+
+- [x] **Hard-coded credentials removed from frontend** — `index.html` no longer contains or displays `admin / admin123` or any password. The login hint now reads: `"Development mode — use credentials from your .env file."` — directing the team to their local `.env` without exposing any password in source code.
 
 ### Management Command: seed_dev_user
 ```powershell
