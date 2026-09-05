@@ -88,15 +88,18 @@
   - `Pillow==10.4.0`
   - `pytesseract==0.3.13`
 
-- [x] **Admin Registration Fixed**
-  - `apps.audit.admin` — corrected field names
-  - `apps.documents.admin` — corrected field names
+- [x] **SQLite Concurrency & Lock Resilience**
+  - Added `is_transient_db_error` detection for SQLite table locks, busy states, and timeouts.
+  - Added `db_retry` decorator with bounded exponential backoff and jitter for database operations.
+  - Top-level exception safety ensuring documents reach `FAILED` state rather than hanging on error.
+  - Configured SQLite connection busy `timeout: 20` in development settings.
+  - Added dedicated regression tests (`ConcurrencyAndRetryTests`).
 
 ---
 
 ## Test Suite Results (Phase 3 Complete)
 
-**97/97 tests PASSED (exit code 0)**
+**101/101 tests PASSED (exit code 0)**
 
 | App | Tests | Result |
 |---|---|---|
@@ -105,15 +108,12 @@
 | `apps.datasets` | 3 | ✅ PASS |
 | `apps.audit` | 4 | ✅ PASS |
 | `apps.storage` | 11 | ✅ PASS |
-| `apps.pipeline` | 26 | ✅ PASS |
-| **TOTAL** | **97** | **✅ ALL PASS** |
+| `apps.pipeline` | 30 | ✅ PASS |
+| **TOTAL** | **101** | **✅ ALL PASS** |
 
 **Notes:**
-- OCR tests produce expected `"tesseract is not installed"` log messages — Tesseract binary not present
-  on dev machine; graceful degradation confirmed working.
-- `database table is locked` messages in test stderr are expected SQLite background-thread noise from
-  Phase 2 upload tests triggering the pipeline daemon. These are logged tracebacks in background threads;
-  they do **not** cause any test assertion failures.
+- Transient SQLite database locks in background threads are handled gracefully via bounded retry and backoff, preventing unhandled thread crashes and ensuring documents cleanly reach terminal status.
+- OCR tests produce expected `"tesseract is not installed"` log messages when the Tesseract system binary is not on the host; graceful degradation confirmed working.
 
 ---
 

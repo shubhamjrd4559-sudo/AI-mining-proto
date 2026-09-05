@@ -210,6 +210,62 @@ class OrchestratorTests(TestCase):
         self.assertEqual(self.doc.status, DocumentStatus.FAILED)
 
 
+class ConcurrencyAndRetryTests(TestCase):
+    def test_transient_lock_detection(self):
+        from django.db import OperationalError
+        from .orchestrator import is_transient_db_error
+
+        self.assertTrue(is_transient_db_error(OperationalError('database table is locked: documents_document')))
+        self.assertTrue(is_transient_db_error(OperationalError('database is locked')))
+        self.assertTrue(is_transient_db_error(OperationalError('sqlite3.OperationalError: database is busy')))
+        self.assertFalse(is_transient_db_error(ValueError('random error')))
+        self.assertFalse(is_transient_db_error(OperationalError('syntax error near SELECT')))
+
+    def test_db_retry_recovers_after_transient_lock(self):
+        from django.db import OperationalError
+        from .orchestrator import db_retry
+
+        attempts = 0
+
+        @db_retry(max_retries=3, initial_delay=0.01, max_delay=0.05)
+        def flaky_operation():
+            nonlocal attempts
+            attempts += 1
+            if attempts < 3:
+                raise OperationalError('database is locked')
+            return 'success'
+
+        result = flaky_operation()
+        self.assertEqual(result, 'success')
+        self.assertEqual(attempts, 3)
+
+    def test_db_retry_exhausted_raises_exception(self):
+        from django.db import OperationalError
+        from .orchestrator import db_retry
+
+        @db_retry(max_retries=2, initial_delay=0.01, max_delay=0.02)
+        def always_locked():
+            raise OperationalError('database is locked')
+
+        with self.assertRaises(OperationalError):
+            always_locked()
+
+    def test_db_retry_does_not_retry_non_transient_error(self):
+        from .orchestrator import db_retry
+
+        attempts = 0
+
+        @db_retry(max_retries=3, initial_delay=0.01, max_delay=0.05)
+        def bad_code():
+            nonlocal attempts
+            attempts += 1
+            raise ValueError('bad parameter')
+
+        with self.assertRaises(ValueError):
+            bad_code()
+        self.assertEqual(attempts, 1)
+
+
 class APIExtractionTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='tester', password='pw')
