@@ -51,12 +51,12 @@ class HealthCheckTestCase(TestCase):
         data = response.json()
         self.assertEqual(data['service'], 'CMPDI AI Backend')
 
-    def test_health_phase_1(self):
-        """Phase must be 1 in the health response."""
+    def test_health_phase(self):
+        """Phase must reflect current implementation phase in the health response."""
         url = reverse('api-health')
         response = self.client.get(url)
         data = response.json()
-        self.assertEqual(data['phase'], 1)
+        self.assertEqual(data['phase'], 2)
 
     def test_stub_endpoints_return_200(self):
         """All stub endpoints must return 200 with not_implemented status."""

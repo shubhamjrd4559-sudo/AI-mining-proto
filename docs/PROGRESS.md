@@ -1,65 +1,88 @@
 # CMPDI AI — Implementation Progress
 
-**Last updated:** 2026-09-05 01:20 IST  
-**Updated by:** Phase 2 Fix Pass (Security, Validation, Atomicity, and Hardening)
+**Last updated:** 2026-09-05 11:30 IST
+**Updated by:** Phase 2 Final Fix Pass (Auth, Ownership, MIME Validation, Audit Atomicity, Pagination, Pipeline UI, Security)
 
 ---
 
 ## Current Phase
 
-**PHASE 2 — REAL DOCUMENT UPLOAD & STORAGE (HARDENED & VERIFIED)**  
-**Status: READY FOR RE-REVIEW**  
-**Milestone: Real document upload, storage backend, database metadata tracking, frontend Documents UI integration, and security & reliability hardening complete**
+**PHASE 2 — REAL DOCUMENT UPLOAD & STORAGE (FINAL FIX PASS COMPLETE)**
+**Status: READY FOR FINAL RE-REVIEW**
+**Milestone: All 8 re-review blockers resolved. 71/71 tests passing.**
 
 ---
 
 ## Completed Work
 
-### Phase 2 Fix Pass Resolution
-- [x] **1. Security / Authorization Enforcement**:
-  - Configured `BasicAuthentication` and `SessionAuthentication` as defaults.
-  - Enforced `IsAuthenticated` across all document endpoints (`upload`, `list`, `detail`, `status`, `download`, `archive`, `delete`, `retry`).
-  - Unauthenticated requests properly return HTTP 401/403.
-- [x] **2. Real File Signature & Magic Byte Validation**:
-  - Implemented `validate_file_content_and_signature` verifying magic bytes (`%PDF`, `\x89PNG`, `\xff\xd8\xff`, `PK\x03\x04`) and rejecting spoofed or binary-disguised plain text files.
-- [x] **3. Removed Fake Offline Simulation in UI**:
-  - UI strictly surfaces server communication errors and does not simulate synthetic document upload records when offline.
-- [x] **4. Storage Path Containment Hardening**:
-  - Enforced `Path.relative_to` containment check, preventing sibling path traversal attacks.
-- [x] **5. Transaction Atomicity & Orphan Cleanup**:
-  - Upload wrapped in `transaction.atomic()` with compensating `storage.delete(storage_key)` rollback on failure to prevent orphaned media files.
-- [x] **6. Batch Upload Limits**:
-  - Configured `MAX_BATCH_FILE_COUNT = 10` and `MAX_BATCH_TOTAL_SIZE = 100MB`, returning HTTP 400 when exceeded.
-- [x] **7. Document Retry State Machine & Race Guard**:
-  - Document retry restricted to `FAILED` and `NEEDS_REVIEW` states.
-  - Active/pending job conflicts rejected with HTTP 400.
-- [x] **8. Information Disclosure Prevention**:
-  - Removed server internal paths (`storage_key`, `stored_filename`) from API serializers and UI modal.
-- [x] **9. Race Condition Resolution**:
-  - Integrated `ensureBackendStatus()` promise guard prior to executing UI operations.
-- [x] **10. XSS Mitigation**:
-  - Escaped dynamic document attributes (`original_filename`, `mime_type`, `sha256_hash`, `error_message`) via `escapeHtml()`.
-- [x] **11. Upload Timeout Guard**:
-  - Integrated 30-second `AbortController` timeout for upload fetch requests.
-- [x] **12. Pagination Support**:
-  - Backend uses `PageNumberPagination` (page size 20), frontend handles both paginated and flat responses.
-- [x] **13. Dependency Management**:
-  - Added `dj-database-url>=2.0.0` to `requirements.txt`.
+### Phase 2 Final Fix Pass (2026-09-05) — 8 Blockers Resolved
+
+- [x] **1. Frontend Token Authentication (CRITICAL)**
+  - DRF `TokenAuthentication` enabled (`rest_framework.authtoken` installed + migrated).
+  - `POST /api/auth/token/` endpoint added to obtain token from username/password.
+  - `_apiFetch()` and upload fetch both inject `Authorization: Token <token>` header.
+  - Login modal shown automatically when backend is online but user is not authenticated.
+  - Token stored in `sessionStorage` (cleared on tab close); never appears in URLs, logs, or query strings.
+  - Demo credential hint shown in login modal when backend `DEBUG=True`.
+
+- [x] **2. Document Authorization / Ownership (CRITICAL)**
+  - All document list queries scoped: `uploaded_by=request.user`.
+  - All document detail/status/download/archive/retry/delete endpoints enforce ownership via `_require_owner()`.
+  - Cross-user access returns `HTTP 403 Forbidden`.
+
+- [x] **3. MIME / Office ZIP Structure Validation**
+  - `_validate_openxml_structure()` verifies DOCX/XLSX ZIPs contain `[Content_Types].xml`, `word/document.xml` (DOCX), `xl/workbook.xml` (XLSX).
+  - Arbitrary ZIP files disguised with `.docx`/`.xlsx` extensions rejected.
+
+- [x] **4. Audit Atomicity**
+  - `log_audit()` moved inside `transaction.atomic()` — audit failure rolls back the document record.
+  - Silent try/except removed; every successful upload is guaranteed to have an audit event or neither exists.
+
+- [x] **5. Pagination Frontend**
+  - `loadLiveDocuments(page)` accepts a page parameter.
+  - `_renderPaginationControls()` renders prev/next buttons with page X of Y count.
+  - Filter/search changes reset to page 1.
+
+- [x] **6. Pipeline Status UI Accuracy**
+  - After upload, only steps 0 (Upload) and 1 (Storage Persistence) marked done.
+  - Steps 2 and 3 labelled "OCR & Extraction (Phase 3)" and "Validation & Indexing (Phase 3)" — remain pending.
+
+- [x] **7. Document Title Double-Escaping**
+  - `textContent` assignments now use raw (unescaped) values; `escapeHtml()` used only in `innerHTML` interpolation.
+
+- [x] **8. Authenticated Document Download**
+  - Downloads use `fetch()` + `Blob` + `URL.createObjectURL()` with `Authorization: Token` header.
+  - No token in URLs, query params, or `<a href>` links.
+  - Both table row download and detail modal download button use the authenticated fetch approach.
+
+### Phase 2 Final 3-Blocker Fix (2026-09-05)
+
+- [x] **Stale health test** — Updated `test_health_phase_1` → `test_health_phase` expecting `phase=2` to match production endpoint.
+- [x] **Token in download URL** — Removed `?token=...` from `downloadUrl()`. All downloads go through authenticated `fetch()`.
+- [x] **seed_dev_user hard-coded defaults** — Removed `admin`/`admin123` fallback from both `settings/base.py` and the management command. Command now aborts with a clear error if `DEV_USER_USERNAME` or `DEV_USER_PASSWORD` are not set in `.env`.
+
+### Management Command: seed_dev_user
+```powershell
+# Set credentials in .env first, then:
+cd backend
+python manage.py seed_dev_user
+```
+The command aborts if either `DEV_USER_USERNAME` or `DEV_USER_PASSWORD` is unset.
 
 ---
 
 ## Test Suite Results
 
-**59/59 tests PASSED** (run: 2026-09-05 01:20 IST)
+**71/71 tests PASSED** (run: 2026-09-05 11:30 IST)
 
 | App | Tests | Result |
 |---|---|---|
 | `apps.core` | 6 | ✅ PASS |
-| `apps.documents` | 35 | ✅ PASS |
+| `apps.documents` | 47 | ✅ PASS |
 | `apps.datasets` | 3 | ✅ PASS |
 | `apps.audit` | 4 | ✅ PASS |
 | `apps.storage` | 11 | ✅ PASS |
-| **TOTAL** | **59** | **✅ ALL PASS (100%)** |
+| **TOTAL** | **71** | **✅ ALL PASS (100%)** |
 
 ---
 

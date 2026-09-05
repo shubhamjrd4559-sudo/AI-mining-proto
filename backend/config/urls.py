@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
     # Django admin
@@ -16,6 +17,9 @@ urlpatterns = [
     path('api/documents/', include('apps.documents.urls')),
     path('api/datasets/', include('apps.datasets.urls')),
     path('api/audit/', include('apps.audit.urls')),
+
+    # Auth — obtain token via POST username/password
+    path('api/auth/token/', obtain_auth_token, name='api-token-auth'),
 
     # DRF browsable API auth
     path('api-auth/', include('rest_framework.urls')),

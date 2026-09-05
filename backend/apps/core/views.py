@@ -14,6 +14,7 @@ GET /api/topics/      (stub)
 import logging
 from datetime import datetime, timezone
 
+from django.conf import settings
 from django.db import connection
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -30,13 +31,13 @@ def health_check(request):
     GET /api/health/
 
     Returns service health status including database connectivity.
-    This is the primary Phase 1 verification endpoint.
+    Includes debug flag so the frontend can show dev credential hints
+    when the backend is running in DEBUG mode.
     """
     db_status = 'connected'
     db_error = None
 
     try:
-        # Verify database is reachable
         with connection.cursor() as cursor:
             cursor.execute('SELECT 1')
     except Exception as exc:
@@ -49,10 +50,12 @@ def health_check(request):
     payload = {
         'status': overall_status,
         'service': 'CMPDI AI Backend',
-        'version': '1.0.0-phase1',
-        'phase': 1,
+        'version': '2.0.0-phase2',
+        'phase': 2,
         'database': db_status,
         'timestamp': datetime.now(timezone.utc).isoformat(),
+        # Expose debug flag so frontend can display dev credential hints
+        'debug': bool(getattr(settings, 'DEBUG', False)),
     }
 
     if db_error:

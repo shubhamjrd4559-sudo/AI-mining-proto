@@ -1,4 +1,4 @@
-"""
+﻿"""
 apps.documents — Views
 
 Phase 2 Real Document Upload, Storage, and Management API.
@@ -13,12 +13,14 @@ Endpoints:
   DELETE /api/documents/<id>/     → Delete document (soft or ?hard=true)
 """
 
+import io
 import os
 import re
 import uuid
 import hashlib
-import mimetypes
 import logging
+import mimetypes
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -60,10 +62,44 @@ def sanitize_filename(filename: str) -> str:
     return clean or 'unnamed_document'
 
 
+def _validate_openxml_structure(content: bytes, ext: str, raw_name: str) -> tuple[bool, str | None]:
+    """
+    Validate DOCX/XLSX internal ZIP structure.
+    A valid OpenXML file must:
+      - Be openable as a ZIP archive
+      - Contain [Content_Types].xml
+      - Contain word/document.xml  (DOCX) or xl/workbook.xml (XLSX)
+    Rejects arbitrary ZIP files masquerading as Office documents.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            names = zf.namelist()
+    except zipfile.BadZipFile:
+        return False, f"File '{raw_name}' cannot be opened as a ZIP archive (corrupt or invalid OpenXML)."
+
+    if '[Content_Types].xml' not in names:
+        return False, (
+            f"File '{raw_name}' is missing '[Content_Types].xml' — not a valid OpenXML Office document."
+        )
+
+    if ext == '.docx' and 'word/document.xml' not in names:
+        return False, (
+            f"File '{raw_name}' is missing 'word/document.xml' — not a valid DOCX document."
+        )
+
+    if ext == '.xlsx' and 'xl/workbook.xml' not in names:
+        return False, (
+            f"File '{raw_name}' is missing 'xl/workbook.xml' — not a valid XLSX spreadsheet."
+        )
+
+    return True, None
+
+
 def validate_file_content_and_signature(content: bytes, ext: str, raw_name: str) -> tuple[bool, str | None]:
     """
     Validate file magic bytes and content structure against declared extension.
     Rejects spoofed, renamed, or malformed files.
+    For DOCX/XLSX: also validates internal OpenXML ZIP structure.
     """
     if len(content) == 0:
         return False, f"File '{raw_name}' contains no readable data (0 bytes)."
@@ -83,15 +119,20 @@ def validate_file_content_and_signature(content: bytes, ext: str, raw_name: str)
         if not content.startswith(b'\xff\xd8\xff'):
             return False, f"File '{raw_name}' is not a valid JPEG image (invalid signature header)."
 
-    # 4. DOCX / XLSX: ZIP-based OpenXML formats (must start with PK\x03\x04)
+    # 4. DOCX / XLSX: ZIP-based OpenXML formats — validate magic bytes AND internal structure
     elif ext in ('.docx', '.xlsx'):
         if not content.startswith(b'PK\x03\x04'):
             return False, f"File '{raw_name}' is not a valid OpenXML document (missing ZIP container signature)."
+        # Validate internal OpenXML structure (rejects arbitrary ZIPs)
+        ok, err = _validate_openxml_structure(content, ext, raw_name)
+        if not ok:
+            return False, err
 
     # 5. TXT / CSV: Plain text formats
     elif ext in ('.txt', '.csv'):
         # Reject executable signatures
-        if content.startswith(b'MZ') or content.startswith(b'\x7fELF') or content.startswith(b'%PDF-') or content.startswith(b'\x89PNG'):
+        if (content.startswith(b'MZ') or content.startswith(b'\x7fELF')
+                or content.startswith(b'%PDF-') or content.startswith(b'\x89PNG')):
             return False, f"File '{raw_name}' contains binary executable/image data for text format '{ext}'."
         # Verify text decodability and absence of NUL bytes
         if b'\x00' in content[:4096]:
@@ -107,28 +148,46 @@ def validate_file_content_and_signature(content: bytes, ext: str, raw_name: str)
     return True, None
 
 
-def log_audit(request, event_type: str, resource_id: str, description: str, metadata: dict | None = None):
-    """Safely log an AuditEvent."""
-    try:
-        actor = request.user.username if (request.user and request.user.is_authenticated) else 'anonymous'
-        actor_ip = get_client_ip(request)
-        AuditEvent.objects.create(
-            event_type=event_type,
-            actor=actor,
-            actor_ip=actor_ip,
-            resource_type='document',
-            resource_id=str(resource_id),
-            description=description,
-            metadata_json=metadata or {},
+def _require_owner(doc: 'Document', request) -> Response | None:
+    """
+    Return a 403 Response if request.user is not the document owner.
+    Returns None if ownership check passes.
+    Uses 403 (not 404) because the document ID came from an authenticated
+    context — leaking existence is acceptable; allowing access is not.
+    """
+    if doc.uploaded_by is not None and doc.uploaded_by != request.user:
+        return Response(
+            {'error': 'You do not have permission to access this document.'},
+            status=status.HTTP_403_FORBIDDEN,
         )
-    except Exception as exc:
-        logger.warning('Failed to create audit event: %s', exc)
+    return None
 
 
-def process_single_upload(uploaded_file, request, custom_title: str | None = None) -> tuple[Document | None, str | None]:
+def log_audit(request, event_type: str, resource_id: str, description: str,
+              metadata: dict | None = None) -> None:
+    """
+    Create an AuditEvent record.
+    Must be called inside a transaction.atomic() block so that audit failure
+    triggers a rollback of the enclosing operation.
+    Callers outside a transaction should catch exceptions and return 500.
+    """
+    actor = request.user.username if (request.user and request.user.is_authenticated) else 'anonymous'
+    actor_ip = get_client_ip(request)
+    AuditEvent.objects.create(
+        event_type=event_type,
+        actor=actor,
+        actor_ip=actor_ip,
+        resource_type='document',
+        resource_id=str(resource_id),
+        description=description,
+        metadata_json=metadata or {},
+    )
+
+
+def process_single_upload(uploaded_file, request, custom_title: str | None = None) -> tuple['Document | None', str | None]:
     """
     Validate, store, and create a Document record for a single uploaded file.
-    Implements compensating cleanup if database/job creation fails.
+    Storage save + Document + ProcessingJob + AuditEvent are all atomic.
     Returns (document_instance, error_message).
     """
     raw_name = getattr(uploaded_file, 'name', '') or 'unnamed'
@@ -167,7 +226,7 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
         logger.error("Failed to read uploaded file '%s': %s", raw_name, exc)
         return None, f"Could not read upload payload for '{raw_name}'."
 
-    # 4. Deep magic-bytes and signature validation
+    # 4. Deep magic-bytes and signature validation (server-side, ignores client MIME header)
     is_valid_sig, sig_error = validate_file_content_and_signature(content, ext, clean_name)
     if not is_valid_sig:
         return None, sig_error
@@ -175,12 +234,8 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
     # 5. Compute SHA-256 hash
     sha256_hash = hashlib.sha256(content).hexdigest()
 
-    # 6. Detect MIME type
-    detected_mime = (
-        getattr(uploaded_file, 'content_type', None)
-        or mimetypes.guess_type(clean_name)[0]
-        or 'application/octet-stream'
-    )
+    # 6. Detect MIME type from extension (do NOT trust client-reported content_type)
+    detected_mime = mimetypes.guess_type(clean_name)[0] or 'application/octet-stream'
 
     # 7. Generate safe storage key
     now = dj_timezone.now()
@@ -189,7 +244,7 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
     storage_filename = f"{unique_prefix}_{safe_base}{ext}"
     storage_key = f"documents/{now.year}/{now.month:02d}/{now.day:02d}/{storage_filename}"
 
-    # 8. Persist to storage
+    # 8. Persist to storage (outside transaction — compensating delete on failure)
     storage = get_storage_service()
     try:
         storage.save(storage_key, content)
@@ -197,7 +252,7 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
         logger.error("Storage backend error saving '%s': %s", storage_key, exc)
         return None, f"Storage error while saving file '{raw_name}'."
 
-    # 9. Create database records inside atomic transaction with compensating cleanup
+    # 9. Create database records + audit inside one atomic transaction
     doc_title = custom_title.strip() if (custom_title and custom_title.strip()) else clean_name
     user = request.user if (request.user and request.user.is_authenticated) else None
 
@@ -230,7 +285,7 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
                 },
             )
 
-            # Log Audit Event
+            # Audit event is INSIDE the transaction — failure rolls back the whole upload
             log_audit(
                 request=request,
                 event_type=AuditEventType.DOCUMENT_UPLOADED,
@@ -243,7 +298,10 @@ def process_single_upload(uploaded_file, request, custom_title: str | None = Non
                 },
             )
     except Exception as exc:
-        logger.error("Database error creating document records for '%s', cleaning up storage: %s", storage_key, exc)
+        logger.error(
+            "Atomic transaction failed for '%s', cleaning up storage: %s",
+            storage_key, exc
+        )
         try:
             storage.delete(storage_key)
         except Exception as del_exc:
@@ -262,8 +320,12 @@ def document_collection(request):
     POST /api/documents/ -> Upload one or multiple files
     """
     if request.method == 'GET':
+        # Scope to documents owned by the requesting user
         include_archived = request.query_params.get('archived', 'false').lower() == 'true'
-        queryset = Document.objects.filter(is_archived=include_archived)
+        queryset = Document.objects.filter(
+            uploaded_by=request.user,
+            is_archived=include_archived,
+        )
 
         # Filter by status
         status_filter = request.query_params.get('status')
@@ -280,7 +342,8 @@ def document_collection(request):
 
         # Ordering
         ordering = request.query_params.get('ordering', '-created_at')
-        if ordering in ['created_at', '-created_at', 'title', '-title', 'file_size', '-file_size', 'status', '-status']:
+        if ordering in ['created_at', '-created_at', 'title', '-title',
+                        'file_size', '-file_size', 'status', '-status']:
             queryset = queryset.order_by(ordering)
         else:
             queryset = queryset.order_by('-created_at')
@@ -296,7 +359,6 @@ def document_collection(request):
         return Response({
             'count': queryset.count(),
             'results': serializer.data,
-            'documents': serializer.data,
         }, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
@@ -386,6 +448,11 @@ def document_detail(request, pk: int):
     """
     doc = get_object_or_404(Document, pk=pk)
 
+    # Ownership check
+    denied = _require_owner(doc, request)
+    if denied:
+        return denied
+
     if request.method == 'GET':
         serializer = DocumentDetailSerializer(doc, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -405,25 +472,39 @@ def document_detail(request, pk: int):
                 except Exception as exc:
                     logger.warning("Could not delete stored file '%s': %s", storage_key, exc)
 
-            doc.delete()
-
-            log_audit(
-                request=request,
-                event_type=AuditEventType.DOCUMENT_DELETED,
-                resource_id=doc_id,
-                description=f"Permanently deleted document '{filename}'",
-            )
+            try:
+                with transaction.atomic():
+                    doc.delete()
+                    log_audit(
+                        request=request,
+                        event_type=AuditEventType.DOCUMENT_DELETED,
+                        resource_id=doc_id,
+                        description=f"Permanently deleted document '{filename}'",
+                    )
+            except Exception as exc:
+                logger.error("Atomic delete+audit failed for doc %s: %s", doc_id, exc)
+                return Response(
+                    {'error': 'Delete operation failed due to an internal error.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
-            doc.is_archived = True
-            doc.save(update_fields=['is_archived', 'updated_at'])
-
-            log_audit(
-                request=request,
-                event_type=AuditEventType.DOCUMENT_DELETED,
-                resource_id=doc.id,
-                description=f"Archived document '{doc.original_filename}'",
-            )
+            try:
+                with transaction.atomic():
+                    doc.is_archived = True
+                    doc.save(update_fields=['is_archived', 'updated_at'])
+                    log_audit(
+                        request=request,
+                        event_type=AuditEventType.DOCUMENT_DELETED,
+                        resource_id=doc.id,
+                        description=f"Archived document '{doc.original_filename}'",
+                    )
+            except Exception as exc:
+                logger.error("Atomic archive+audit failed for doc %s: %s", pk, exc)
+                return Response(
+                    {'error': 'Archive operation failed due to an internal error.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
             return Response({
                 'status': 'archived',
                 'id': doc.id,
@@ -438,6 +519,11 @@ def document_status(request, pk: int):
     GET /api/documents/<pk>/status/ -> Lightweight status polling endpoint
     """
     doc = get_object_or_404(Document, pk=pk)
+
+    denied = _require_owner(doc, request)
+    if denied:
+        return denied
+
     return Response({
         'id': doc.id,
         'title': doc.title,
@@ -456,6 +542,10 @@ def document_download(request, pk: int):
     GET /api/documents/<pk>/download/ -> Download original unmodified file
     """
     doc = get_object_or_404(Document, pk=pk)
+
+    denied = _require_owner(doc, request)
+    if denied:
+        return denied
 
     if not doc.storage_key:
         raise Http404("Document file reference is missing.")
@@ -490,6 +580,10 @@ def document_retry(request, pk: int):
     """
     doc = get_object_or_404(Document, pk=pk)
 
+    denied = _require_owner(doc, request)
+    if denied:
+        return denied
+
     allowed_retry_statuses = [DocumentStatus.FAILED, DocumentStatus.NEEDS_REVIEW]
     if doc.status not in allowed_retry_statuses:
         return Response(
@@ -511,23 +605,31 @@ def document_retry(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    doc.status = DocumentStatus.QUEUED
-    doc.error_message = ''
-    doc.save(update_fields=['status', 'error_message', 'updated_at'])
+    try:
+        with transaction.atomic():
+            doc.status = DocumentStatus.QUEUED
+            doc.error_message = ''
+            doc.save(update_fields=['status', 'error_message', 'updated_at'])
 
-    ProcessingJob.objects.create(
-        document=doc,
-        job_type=ProcessingJob.JobType.TEXT_EXTRACTION,
-        status=JobStatus.PENDING,
-        metadata={'retry': True, 'requested_at': dj_timezone.now().isoformat()},
-    )
+            ProcessingJob.objects.create(
+                document=doc,
+                job_type=ProcessingJob.JobType.TEXT_EXTRACTION,
+                status=JobStatus.PENDING,
+                metadata={'retry': True, 'requested_at': dj_timezone.now().isoformat()},
+            )
 
-    log_audit(
-        request=request,
-        event_type=AuditEventType.DOCUMENT_REVIEWED,
-        resource_id=doc.id,
-        description=f"Queued document '{doc.original_filename}' for processing retry.",
-    )
+            log_audit(
+                request=request,
+                event_type=AuditEventType.DOCUMENT_REVIEWED,
+                resource_id=doc.id,
+                description=f"Queued document '{doc.original_filename}' for processing retry.",
+            )
+    except Exception as exc:
+        logger.error("Atomic retry+audit failed for doc %s: %s", pk, exc)
+        return Response(
+            {'error': 'Retry operation failed due to an internal error.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     return Response(
         DocumentSerializer(doc, context={'request': request}).data,
@@ -542,20 +644,31 @@ def document_archive(request, pk: int):
     POST /api/documents/<pk>/archive/ -> Archive / soft-delete document
     """
     doc = get_object_or_404(Document, pk=pk)
-    doc.is_archived = True
-    doc.save(update_fields=['is_archived', 'updated_at'])
 
-    log_audit(
-        request=request,
-        event_type=AuditEventType.DOCUMENT_DELETED,
-        resource_id=doc.id,
-        description=f"Archived document '{doc.original_filename}'",
-    )
+    denied = _require_owner(doc, request)
+    if denied:
+        return denied
+
+    try:
+        with transaction.atomic():
+            doc.is_archived = True
+            doc.save(update_fields=['is_archived', 'updated_at'])
+
+            log_audit(
+                request=request,
+                event_type=AuditEventType.DOCUMENT_DELETED,
+                resource_id=doc.id,
+                description=f"Archived document '{doc.original_filename}'",
+            )
+    except Exception as exc:
+        logger.error("Atomic archive+audit failed for doc %s: %s", pk, exc)
+        return Response(
+            {'error': 'Archive operation failed due to an internal error.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     return Response({
         'status': 'archived',
         'id': doc.id,
         'message': f"Document '{doc.original_filename}' archived successfully.",
     }, status=status.HTTP_200_OK)
-
-

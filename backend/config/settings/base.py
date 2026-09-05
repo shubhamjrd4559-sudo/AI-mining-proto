@@ -37,6 +37,7 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
 ]
 
@@ -141,6 +142,7 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
@@ -225,4 +227,16 @@ ALLOWED_DOCUMENT_MIMETYPES = {
     'application/octet-stream', # common fallback for multipart clients
 }
 
-
+# ============================================================
+# Development / Demo User Seed Configuration
+# Used ONLY by the seed_dev_user management command.
+# NEVER commit real credentials. Set via .env.
+# DEV_USER_USERNAME and DEV_USER_PASSWORD default to None —
+# seed_dev_user will abort if either is not set, preventing
+# accidental creation of predictable default credentials.
+# ============================================================
+DEV_USER_USERNAME = config('DEV_USER_USERNAME', default=None)
+DEV_USER_PASSWORD = config('DEV_USER_PASSWORD', default=None)
+DEV_USER_EMAIL = config('DEV_USER_EMAIL', default='admin@cmpdi.local')
+# Show seed credentials hint on the login form only in DEBUG mode.
+SHOW_DEV_LOGIN_HINT = config('DEBUG', default=True, cast=bool)

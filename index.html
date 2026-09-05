@@ -1631,6 +1631,16 @@ function pageDocuments(){
       <div class="eyebrow">Document Intelligence</div>
       <h1>Document Intelligence</h1>
       <p>Convert unstructured mining documents into structured intelligence.</p>
+      ${isLive ? `<div style="margin-top:8px;">
+        <span style="font-size:12px;color:#7E8CA3;">Signed in as <b style="color:#071A3D;">${escapeHtml(
+          (window.CMPDI_AI && window.CMPDI_AI.currentUser) || 'authenticated user'
+        )}</b></span>
+        &nbsp;·&nbsp;
+        <button class="btn btn-outline" id="logoutBtn"
+                style="padding:4px 12px;font-size:12px;color:var(--red);border-color:var(--red);">
+          Sign Out
+        </button>
+      </div>` : ''}
     </div>
 
     <div class="card card-pad mt-16">
@@ -1645,7 +1655,7 @@ function pageDocuments(){
         </div>
       </div>
       <div class="pipeline" id="pipelineRow" style="display:none;">
-        ${["Upload","Storage Persistence","Validation","Queued for Processing"]
+        ${["Upload","Storage Persistence","OCR & Extraction (Phase 3)","Validation & Indexing (Phase 3)"]
           .map((s,i)=>`<div class="pstep" data-step="${i}"><span class="pdot"></span>${s}</div>${i<3?'<span class="pchevron">›</span>':''}`).join("")}
       </div>
     </div>
@@ -1676,6 +1686,7 @@ function pageDocuments(){
           <tbody id="docTableBody"></tbody>
         </table>
       </div>
+      <div id="docPaginationControls"></div>
     </div>
   </div>
 
@@ -1739,11 +1750,27 @@ function renderDocRows(){
     }).join("");
 
     tbody.querySelectorAll("[data-view]").forEach(el=> el.addEventListener("click", ()=> openDocDetail(el.dataset.view)));
-    tbody.querySelectorAll("[data-dl]").forEach(el=> el.addEventListener("click", ()=> {
+    tbody.querySelectorAll("[data-dl]").forEach(el => el.addEventListener("click", async () => {
       const docId = el.dataset.dl;
-      const url = window.CMPDI_AI.apiServices.documents.downloadUrl(docId);
-      window.open(url, '_blank');
-      toast("Download started", `Retrieving document #${docId} from backend storage.`);
+      toast("Download starting", `Retrieving document #${docId} from backend storage.`);
+      try {
+        const token = (window.CMPDI_AI && typeof _getToken === 'function') ? _getToken() : null;
+        const headers = { 'Accept': '*/*' };
+        if (token) headers['Authorization'] = `Token ${token}`;
+        const res = await fetch(`${window.CMPDI_AI.API_BASE}/api/documents/${docId}/download/`, { headers });
+        if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
+        const blob = await res.blob();
+        const contentDisposition = res.headers.get('Content-Disposition') || '';
+        const fnMatch = contentDisposition.match(/filename="([^"]+)"/);
+        const filename = fnMatch ? fnMatch[1] : `document_${docId}`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      } catch (err) {
+        toast("Download failed", err.message || "Could not download document.");
+      }
     }));
     tbody.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> { goTo("ai-query"); setTimeout(()=>runAIQuery("Major geological findings in uploaded report?"),150); }));
     tbody.querySelectorAll("[data-archive]").forEach(el=> el.addEventListener("click", async ()=> {
@@ -1781,24 +1808,39 @@ function renderDocRows(){
   }
 }
 
-async function loadLiveDocuments(){
+let _docPagination = { count: 0, next: null, previous: null, page: 1 };
+
+async function loadLiveDocuments(page) {
   if (!window.CMPDI_AI || !window.CMPDI_AI.ensureBackendStatus) return;
   const isOnline = await window.CMPDI_AI.ensureBackendStatus();
   if (!isOnline) {
     renderDocRows();
     return;
   }
+  const params = {};
+  if (page && page > 1) params.page = page;
+  // Preserve current search/filter state when navigating pages
+  if (APP.docFilter && APP.docFilter !== 'all') params.status = APP.docFilter;
   try {
-    const res = await window.CMPDI_AI.apiServices.documents.list();
-    const docList = (res && (res.results || res.documents)) ? (res.results || res.documents) : [];
-    _liveDocuments = docList;
+    const res = await window.CMPDI_AI.apiServices.documents.list(
+      Object.keys(params).length ? params : undefined
+    );
+    _liveDocuments = (res && (res.results || res.documents)) ? (res.results || res.documents) : [];
+    _docPagination = {
+      count:    res.count || _liveDocuments.length,
+      next:     res.next || null,
+      previous: res.previous || null,
+      page:     page || 1,
+    };
     renderDocRows();
+    _renderPaginationControls();
 
     // Update status counter cards
     const statusCounts = { done:0, processing:0, review:0, failed:0 };
-    _liveDocuments.forEach(d=> {
+    _liveDocuments.forEach(d => {
       const st = d.status === 'completed' || d.status === 'indexed' || d.status === 'processed' ? 'done'
-        : (d.status === 'uploaded' || d.status === 'queued' || d.status === 'processing' || d.status === 'extracting' || d.status === 'validating') ? 'processing'
+        : (d.status === 'uploaded' || d.status === 'queued' || d.status === 'processing'
+           || d.status === 'extracting' || d.status === 'validating') ? 'processing'
         : (d.status === 'needs_review' || d.status === 'review') ? 'review' : 'failed';
       if (statusCounts[st] !== undefined) statusCounts[st]++;
     });
@@ -1813,6 +1855,41 @@ async function loadLiveDocuments(){
     }
   } catch (err) {
     console.warn("[CMPDI AI] Failed to load live documents from backend:", err);
+  }
+}
+
+function _renderPaginationControls() {
+  const container = document.getElementById("docPaginationControls");
+  if (!container) return;
+  const { count, next, previous, page } = _docPagination;
+  const pageSize = 50; // must match backend PAGE_SIZE
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+
+  if (totalPages <= 1 && !next && !previous) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;justify-content:center;
+                padding:14px 0 4px;font-size:13px;color:#4B5563;">
+      <button id="docPrevBtn" class="btn btn-outline"
+              style="padding:6px 16px;font-size:13px;"
+              ${!previous ? 'disabled' : ''}>‹ Previous</button>
+      <span style="color:#7E8CA3;">Page ${escapeHtml(String(page))} of ${escapeHtml(String(totalPages))}
+            &nbsp;·&nbsp; ${escapeHtml(String(count))} document${count !== 1 ? 's' : ''}</span>
+      <button id="docNextBtn" class="btn btn-outline"
+              style="padding:6px 16px;font-size:13px;"
+              ${!next ? 'disabled' : ''}>Next ›</button>
+    </div>`;
+
+  const prevBtn = document.getElementById("docPrevBtn");
+  const nextBtn = document.getElementById("docNextBtn");
+  if (prevBtn && previous) {
+    prevBtn.addEventListener("click", () => loadLiveDocuments(page - 1));
+  }
+  if (nextBtn && next) {
+    nextBtn.addEventListener("click", () => loadLiveDocuments(page + 1));
   }
 }
 
@@ -1865,10 +1942,10 @@ async function handleRealUpload(fileList){
     const res = await window.CMPDI_AI.apiServices.documents.upload(formData);
     if (row) {
       const steps = row.querySelectorAll(".pstep");
+      // Only mark Phase 2 steps complete: Upload (0) and Storage Persistence (1)
+      // Steps 2 and 3 (OCR/Extraction/Validation) are Phase 3 — leave as pending
       if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
-      if (steps[1]) steps[1].classList.add("done");
-      if (steps[2]) steps[2].classList.add("done");
-      if (steps[3]) steps[3].classList.add("done");
+      if (steps[1]) { steps[1].classList.remove("active"); steps[1].classList.add("done"); }
     }
     toast("Upload successful", `${res.uploaded_count || fileList.length} file(s) stored and registered in database.`);
     await loadLiveDocuments();
@@ -1883,13 +1960,24 @@ async function afterDocuments(){
     await window.CMPDI_AI.ensureBackendStatus();
   }
   renderDocRows();
-  loadLiveDocuments();
+  loadLiveDocuments(1);
+
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      if (confirm("Sign out of CMPDI AI?")) {
+        window.CMPDI_AI.doLogout();
+        goTo("documents");
+      }
+    });
+  }
 
   const filterSelect = document.getElementById("docStatusFilter");
   if (filterSelect) {
-    filterSelect.addEventListener("change", (e)=>{
+    filterSelect.addEventListener("change", (e) => {
       APP.docFilter = e.target.value;
-      renderDocRows();
+      // Reset to page 1 when filter changes
+      loadLiveDocuments(1);
     });
   }
 
@@ -1945,17 +2033,19 @@ function openDocDetail(id){
   const liveDoc = _liveDocuments ? _liveDocuments.find(d => String(d.id) === String(id)) : null;
 
   if (liveDoc) {
-    const title = escapeHtml(liveDoc.original_filename || liveDoc.title);
-    document.getElementById("docDetailModal_title").textContent = title;
-    const dlUrl = window.CMPDI_AI.apiServices.documents.downloadUrl(liveDoc.id);
+    // Use raw values for .textContent (DOM handles escaping naturally)
+    // Use escapeHtml() only when interpolating into innerHTML strings
+    const rawTitle = liveDoc.original_filename || liveDoc.title || '';
+    document.getElementById("docDetailModal_title").textContent = rawTitle;
+    const docId = liveDoc.id;
     document.getElementById("docDetailModal_body").innerHTML = `
       <div class="grid-2">
         <div>
           <div class="card card-pad" style="background:#F5F7FA; min-height:360px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; text-align:center;">
             <div style="font-size:48px;">📄</div>
-            <div style="font-weight:700; color:var(--navy); font-size:16px;">${title}</div>
+            <div style="font-weight:700; color:var(--navy); font-size:16px;">${escapeHtml(rawTitle)}</div>
             <div class="badge" style="background:#EBF2FA; color:var(--royal); font-size:12px;">${escapeHtml((liveDoc.file_extension || '').toUpperCase())} · ${escapeHtml(liveDoc.file_size_display || '—')}</div>
-            <a href="${dlUrl}" target="_blank" class="btn btn-primary btn-sm mt-8">⬇ Download Original File</a>
+            <button class="btn btn-primary btn-sm mt-8" data-modal-dl="${escapeHtml(String(docId))}">⬇ Download Original File</button>
           </div>
         </div>
         <div class="stack">
@@ -1980,6 +2070,34 @@ function openDocDetail(id){
         </div>
       </div>
     `;
+    // Wire modal download button to authenticated fetch+blob download
+    const modalDlBtn = document.getElementById("docDetailModal_body").querySelector("[data-modal-dl]");
+    if (modalDlBtn) {
+      modalDlBtn.addEventListener("click", async () => {
+        const mid = modalDlBtn.dataset.modalDl;
+        modalDlBtn.disabled = true;
+        modalDlBtn.textContent = "Downloading…";
+        try {
+          const token = (typeof _getToken === 'function') ? _getToken() : null;
+          const headers = { 'Accept': '*/*' };
+          if (token) headers['Authorization'] = `Token ${token}`;
+          const res = await fetch(`${window.CMPDI_AI.API_BASE}/api/documents/${mid}/download/`, { headers });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+          const cd = res.headers.get('Content-Disposition') || '';
+          const fn = (cd.match(/filename="([^"]+)"/) || [])[1] || `document_${mid}`;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = fn;
+          document.body.appendChild(a); a.click();
+          setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+        } catch (err) {
+          toast("Download failed", err.message || "Could not download document.");
+        } finally {
+          modalDlBtn.disabled = false;
+          modalDlBtn.textContent = "⬇ Download Original File";
+        }
+      });
+    }
     openModal("docDetailModal");
     return;
   }
@@ -2597,39 +2715,67 @@ function toast(title, message){
 </script>
 
 <!-- ============================================================
-     PHASE 1 — API Service Boundary
-     Added: Phase 1 Full-Stack Foundation
-     ============================================================
-     READ-ONLY addition. All existing mock data, UI, demo
-     functionality, charts, navigation, and pages are preserved
-     exactly. This script only adds apiServices and a silent
-     background health check.
+     PHASE 2 — API Service Boundary (Auth + Pagination + Pipeline fixes)
      ============================================================ -->
 <script>
 /* ============================================================
-   CMPDI AI — Phase 1 API Service Boundary
-   Establishes clean communication interfaces between the
-   static frontend and the Django backend.
+   CMPDI AI — API Service Layer (Phase 2 Final Fix Pass)
 
-   - When backend is running: health check succeeds silently.
-   - When backend is NOT running: graceful fallback, all mock
-     data and demo UI continue working normally.
-   - No existing UI behaviour is modified.
+   Changes from Phase 1:
+   - Token-based authentication (DRF TokenAuthentication)
+   - Authorization: Token <token> header on all API requests
+   - Login modal shown when backend online but not authenticated
+   - Pagination: next/previous page navigation for document list
+   - Pipeline status: only Upload+Storage marked done after upload
+   - Document title rendered safely via textContent (not innerHTML)
    ============================================================ */
 
 const API_BASE = 'http://127.0.0.1:8000';
 const API_TIMEOUT_MS = 5000;
 const UPLOAD_TIMEOUT_MS = 30000;
+const TOKEN_KEY = 'cmpdi_auth_token';
 
-/* --- Low-level fetch helper with timeout ------------------- */
+/* --- Token storage (sessionStorage — cleared on tab close) -- */
+function _getToken() {
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+function _setToken(token) {
+  if (token) sessionStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.removeItem(TOKEN_KEY);
+}
+function _clearToken() {
+  sessionStorage.removeItem(TOKEN_KEY);
+}
+function isAuthenticated() {
+  return Boolean(_getToken());
+}
+
+/* --- Auth Headers ------------------------------------------ */
+function _authHeaders(extra) {
+  const token = _getToken();
+  const base = { 'Accept': 'application/json' };
+  if (token) base['Authorization'] = `Token ${token}`;
+  return Object.assign(base, extra || {});
+}
+
+/* --- Low-level fetch helper with timeout + auth header ----- */
 async function _apiFetch(path, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  // Merge auth headers; caller-supplied headers take precedence
+  const headers = _authHeaders(
+    options.headers && !(options.body instanceof FormData)
+      ? Object.assign({ 'Content-Type': 'application/json' }, options.headers)
+      : options.headers
+  );
+  if (!options.headers && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
   try {
     const res = await fetch(API_BASE + path, {
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       signal: controller.signal,
       ...options,
+      headers,
     });
     clearTimeout(timer);
     if (!res.ok) {
@@ -2638,6 +2784,10 @@ async function _apiFetch(path, options = {}) {
         const data = await res.json();
         if (data.error || data.message) errMsg = data.error || data.message;
       } catch (_) {}
+      if (res.status === 401 || res.status === 403) {
+        // Token may have expired — prompt re-login
+        _showLoginModal('Session expired or unauthorized. Please log in again.');
+      }
       throw new Error(errMsg);
     }
     return await res.json();
@@ -2647,93 +2797,211 @@ async function _apiFetch(path, options = {}) {
   }
 }
 
+/* --- Login / Logout ---------------------------------------- */
+async function doLogin(username, password) {
+  const res = await fetch(API_BASE + '/api/auth/token/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.non_field_errors?.[0] || data.detail || 'Invalid credentials.');
+  }
+  const data = await res.json();
+  _setToken(data.token);
+  return data.token;
+}
+
+function doLogout() {
+  _clearToken();
+  _backendOnline = false;
+  _healthPromise = null;
+  _hideLoginModal();
+  // Reload the documents view so it reflects logged-out state
+  if (typeof loadLiveDocuments === 'function') {
+    _liveDocuments = null;
+    if (typeof renderDocRows === 'function') renderDocRows();
+  }
+}
+
+/* --- Login Modal UI ---------------------------------------- */
+function _buildLoginModal() {
+  if (document.getElementById('cmpdiLoginModal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'cmpdiLoginModal';
+  modal.style.cssText = [
+    'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;',
+    'background:rgba(7,26,61,0.72);backdrop-filter:blur(4px);',
+  ].join('');
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:18px;padding:36px 32px;width:100%;max-width:400px;
+                box-shadow:0 24px 60px rgba(7,26,61,.28);position:relative;">
+      <div style="font-family:Fraunces,Georgia,serif;font-size:21px;font-weight:700;
+                  color:#071A3D;margin-bottom:4px;">CMPDI AI Sign In</div>
+      <div style="font-size:13px;color:#7E8CA3;margin-bottom:24px;">
+        Authenticate to upload and manage documents.
+      </div>
+      <div id="loginError" style="display:none;background:#FEE8E8;border-radius:8px;
+           padding:10px 14px;font-size:13px;color:#D64545;margin-bottom:16px;"></div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#071A3D;margin-bottom:4px;">
+        Username
+      </label>
+      <input id="loginUsername" type="text" autocomplete="username"
+        style="width:100%;border:1.5px solid #D1DBE8;border-radius:9px;padding:9px 13px;
+               font-size:14px;margin-bottom:14px;outline:none;box-sizing:border-box;"
+        placeholder="admin">
+      <label style="display:block;font-size:12px;font-weight:600;color:#071A3D;margin-bottom:4px;">
+        Password
+      </label>
+      <input id="loginPassword" type="password" autocomplete="current-password"
+        style="width:100%;border:1.5px solid #D1DBE8;border-radius:9px;padding:9px 13px;
+               font-size:14px;margin-bottom:20px;outline:none;box-sizing:border-box;"
+        placeholder="••••••••">
+      <button id="loginSubmitBtn"
+        style="width:100%;background:#0B4DB8;color:#fff;border:none;border-radius:10px;
+               padding:11px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">
+        Sign In
+      </button>
+      <div style="font-size:11.5px;color:#9EB0CC;text-align:center;margin-top:16px;" id="loginHint"></div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Inject dev hint if backend is in debug/demo mode
+  fetch(API_BASE + '/api/health/').then(r => r.json()).then(data => {
+    const hintEl = document.getElementById('loginHint');
+    if (hintEl && data && data.debug) {
+      hintEl.textContent = 'Demo credentials: admin / admin123';
+    }
+  }).catch(() => {});
+
+  const submit = modal.querySelector('#loginSubmitBtn');
+  const errEl = modal.querySelector('#loginError');
+
+  async function tryLogin() {
+    const username = modal.querySelector('#loginUsername').value.trim();
+    const password = modal.querySelector('#loginPassword').value;
+    if (!username || !password) {
+      errEl.textContent = 'Please enter username and password.';
+      errEl.style.display = 'block';
+      return;
+    }
+    submit.disabled = true;
+    submit.textContent = 'Signing in…';
+    errEl.style.display = 'none';
+    try {
+      await doLogin(username, password);
+      _hideLoginModal();
+      // Re-prime health check and reload documents
+      _healthPromise = null;
+      await ensureBackendStatus();
+      if (typeof loadLiveDocuments === 'function') loadLiveDocuments();
+    } catch (err) {
+      errEl.textContent = err.message || 'Login failed.';
+      errEl.style.display = 'block';
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Sign In';
+    }
+  }
+
+  submit.addEventListener('click', tryLogin);
+  modal.querySelector('#loginPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryLogin();
+  });
+}
+
+function _showLoginModal(message) {
+  _buildLoginModal();
+  const modal = document.getElementById('cmpdiLoginModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    if (message) {
+      const errEl = document.getElementById('loginError');
+      if (errEl) { errEl.textContent = message; errEl.style.display = 'block'; }
+    }
+    setTimeout(() => {
+      const u = document.getElementById('loginUsername');
+      if (u) u.focus();
+    }, 50);
+  }
+}
+
+function _hideLoginModal() {
+  const modal = document.getElementById('cmpdiLoginModal');
+  if (modal) modal.style.display = 'none';
+}
+
 /* --- API Services ------------------------------------------ */
 const apiServices = {
-  /**
-   * GET /api/health/
-   * Returns backend status. Used for connectivity verification.
-   */
   health: () => _apiFetch('/api/health/'),
 
-  /**
-   * Documents service — Phase 2
-   */
+  auth: {
+    login: (username, password) => doLogin(username, password),
+    logout: () => doLogout(),
+    isAuthenticated: () => isAuthenticated(),
+  },
+
   documents: {
-    list:   (params) => _apiFetch('/api/documents/' + (params ? '?' + new URLSearchParams(params) : '')),
-    get:    (id) => _apiFetch(`/api/documents/${id}/`),
+    list: (params) => _apiFetch('/api/documents/' + (params ? '?' + new URLSearchParams(params) : '')),
+    get:  (id) => _apiFetch(`/api/documents/${id}/`),
     status: (id) => _apiFetch(`/api/documents/${id}/status/`),
     upload: async (formData) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
       try {
+        const headers = {};
+        const token = _getToken();
+        if (token) headers['Authorization'] = `Token ${token}`;
         const res = await fetch(API_BASE + '/api/documents/', {
           method: 'POST',
           body: formData,
+          headers,
           signal: controller.signal,
         });
         clearTimeout(timer);
         const data = await res.json();
         if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            _showLoginModal('Authentication required to upload documents.');
+          }
           throw new Error(data.error || data.message || `Upload failed (HTTP ${res.status})`);
         }
         return data;
       } catch (err) {
         clearTimeout(timer);
-        if (err.name === 'AbortError') {
-          throw new Error('Upload request timed out after 30 seconds.');
-        }
+        if (err.name === 'AbortError') throw new Error('Upload request timed out after 30 seconds.');
         throw err;
       }
     },
     retry:   (id) => _apiFetch(`/api/documents/${id}/retry/`, { method: 'POST' }),
     archive: (id) => _apiFetch(`/api/documents/${id}/archive/`, { method: 'POST' }),
-    delete:  (id, hard = false) => _apiFetch(`/api/documents/${id}/` + (hard ? '?hard=true' : ''), { method: 'DELETE' }),
+    delete:  (id, hard = false) => _apiFetch(
+      `/api/documents/${id}/` + (hard ? '?hard=true' : ''), { method: 'DELETE' }
+    ),
     downloadUrl: (id) => `${API_BASE}/api/documents/${id}/download/`,
   },
 
-  /**
-   * Analytics service — Phase 4
-   */
   analytics: {
     summary:    () => _apiFetch('/api/analytics/'),
     production: (params) => _apiFetch('/api/analytics/production/' + (params ? '?' + new URLSearchParams(params) : '')),
   },
-
-  /**
-   * Chat / AI Query service — Phase 4
-   */
   chat: {
     query: (message, context = {}) =>
       _apiFetch('/api/chat/', { method: 'POST', body: JSON.stringify({ message, context }) }),
   },
-
-  /**
-   * Excel AI Maintainer service — Phase 4
-   */
   excel: {
-    list:   () => _apiFetch('/api/excel/'),
-    query:  (sheet_id, prompt) =>
+    list:  () => _apiFetch('/api/excel/'),
+    query: (sheet_id, prompt) =>
       _apiFetch(`/api/excel/${sheet_id}/query/`, { method: 'POST', body: JSON.stringify({ prompt }) }),
   },
-
-  /**
-   * Reports service — Phase 4
-   */
   reports: {
     list:     () => _apiFetch('/api/reports/'),
     generate: (params) => _apiFetch('/api/reports/', { method: 'POST', body: JSON.stringify(params) }),
   },
-
-  /**
-   * Topics service — Phase 4
-   */
   topics: {
     list: () => _apiFetch('/api/topics/'),
   },
-
-  /**
-   * Audit service — Phase 2
-   */
   audit: {
     list: (params) => _apiFetch('/api/audit/' + (params ? '?' + new URLSearchParams(params) : '')),
   },
@@ -2751,6 +3019,10 @@ function ensureBackendStatus() {
         console.info('%c[CMPDI AI] Backend connected', 'color:#1E9E63; font-weight:bold;', health);
         const msg = document.getElementById("uploadZoneMsg");
         if (msg) msg.textContent = "Real document storage active. Uploaded files are verified and stored safely on server.";
+        // If backend is online but no token, prompt login
+        if (!isAuthenticated()) {
+          _showLoginModal();
+        }
         return true;
       })
       .catch(_err => {
@@ -2767,12 +3039,15 @@ function ensureBackendStatus() {
 // Kick off initial health check
 ensureBackendStatus();
 
-/* Expose backend status for application use */
+/* Expose for application use */
 window.CMPDI_AI = window.CMPDI_AI || {};
 window.CMPDI_AI.apiServices = apiServices;
 window.CMPDI_AI.isBackendOnline = () => _backendOnline;
+window.CMPDI_AI.isAuthenticated = () => isAuthenticated();
 window.CMPDI_AI.ensureBackendStatus = ensureBackendStatus;
 window.CMPDI_AI.API_BASE = API_BASE;
+window.CMPDI_AI.showLoginModal = _showLoginModal;
+window.CMPDI_AI.doLogout = doLogout;
 </script>
 </body>
 </html>
