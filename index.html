@@ -2181,38 +2181,125 @@ function afterAIQuery(){
   document.getElementById("aiInput").addEventListener("keydown", e=>{ if(e.key==="Enter") runAIQuery(e.target.value.trim()); });
   document.querySelectorAll("[data-q]").forEach(el=> el.addEventListener("click", ()=> runAIQuery(decodeURIComponent(el.dataset.q))));
 }
-function runAIQuery(question){
+async function runAIQuery(question){
   if(!question) return;
   const area = document.getElementById("aiAnswerArea");
   if(!area) return;
   const input = document.getElementById("aiInput");
   if(input) input.value = question;
+
+  // Show loading state
   area.innerHTML = `
     <div class="answer-card">
-      <h4>AI Answer</h4>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h4>AI Query &amp; Mining Intelligence</h4>
+        <span class="badge" style="background:#EBF2FA; color:var(--royal); font-size:11px;">ANALYZING</span>
+      </div>
       <div class="typing-dots"><span></span><span></span><span></span></div>
+      <div style="font-size:12px; color:#7E8CA3; margin-top:8px;">Searching authorized documents and structured datasets...</div>
     </div>`;
-  setTimeout(()=>{
-    const match = MOCK.aiQA.find(q=> q.q.toLowerCase() === question.toLowerCase());
-    const result = match || MOCK.aiFallback;
+
+  try {
+    const isOnline = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
+    if (!isOnline) {
+      throw new Error("Backend service is offline. Please start the Django backend on port 8000 to query real project data.");
+    }
+
+    if (!window.CMPDI_AI.isAuthenticated()) {
+      window.CMPDI_AI.showLoginModal("Authentication required to query Mining Intelligence.");
+      area.innerHTML = `
+        <div class="answer-card" style="border-left: 4px solid var(--gold);">
+          <h4>Authentication Required</h4>
+          <div class="answer-text">Please sign in to access project documents and execute AI queries.</div>
+        </div>`;
+      return;
+    }
+
+    const data = await window.CMPDI_AI.apiServices.chat.query(question);
+
+    const confLevel = (data.confidence || 'LOW').toUpperCase();
+    let confBg = '#8593A8';
+    if (confLevel === 'HIGH') confBg = '#1E9E63';
+    else if (confLevel === 'MEDIUM') confBg = '#DFAE24';
+
+    const queryType = escapeHtml(data.query_type || 'DOCUMENT');
+    const isNoEvidence = !data.sources || data.sources.length === 0;
+
+    let sourcesHtml = '';
+    if (!isNoEvidence) {
+      sourcesHtml = `
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:24px; margin-bottom:10px;">
+          <h4 style="margin:0;">Source References (${data.source_count || data.sources.length} sources, ${data.evidence_count || data.sources.length} evidence items)</h4>
+          <span style="font-size:11px; color:#7E8CA3;">Traceable to indexed records</span>
+        </div>
+        <div class="source-grid">
+          ${data.sources.map(s => {
+            const title = escapeHtml(s.document_title || s.dataset_name || 'Project Document');
+            let locParts = [];
+            if (s.page_number) locParts.push(`Page ${s.page_number}`);
+            if (s.section_heading) locParts.push(s.section_heading);
+            if (s.table_reference) locParts.push(s.table_reference);
+            if (s.sheet_name) locParts.push(`Sheet: ${s.sheet_name}`);
+            if (s.row_index !== null && s.row_index !== undefined) locParts.push(`Row ${s.row_index}`);
+            const locText = locParts.join(' · ') || 'Extracted content';
+
+            let tag = s.extraction_method || 'Verified Extraction';
+            if (s.ocr_used) tag += ' (OCR)';
+            if (s.field && s.value !== undefined && s.value !== null) tag += ` · ${s.field}: ${s.value}`;
+
+            return `
+              <div class="source-card">
+                <div class="sname">${title}</div>
+                <div class="spage">${escapeHtml(locText)}</div>
+                <div class="sconf" style="color:var(--royal); font-size:11px; margin-top:6px;">${escapeHtml(tag)}</div>
+                ${s.source_ref ? `<div class="svb" style="font-family:var(--font-mono); font-size:10px; color:#8593A8; word-break:break-all;">${escapeHtml(s.source_ref)}</div>` : ''}
+              </div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    let evidenceSnippetsHtml = '';
+    if (data.evidence && data.evidence.length > 0) {
+      evidenceSnippetsHtml = `
+        <div style="margin-top:18px; padding-top:14px; border-top:1px dashed #E4E9F2;">
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#7E8CA3; font-weight:700; margin-bottom:8px;">Retrieved Context Snippets</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${data.evidence.slice(0, 3).map(ev => `
+              <div style="font-size:12px; line-height:1.5; background:#F8FAFC; border-left:3px solid var(--blue); padding:8px 12px; border-radius:4px; color:#334155;">
+                "${escapeHtml(ev.text)}"
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+
     area.innerHTML = `
       <div class="answer-card">
-        <h4>AI Answer</h4>
-        <div class="answer-text">“${result.a}”</div>
-        <h4 class="mt-24">Source References</h4>
-        <div class="source-grid">
-          ${result.sources.map(s=>`
-            <div class="source-card">
-              <div class="sname">${s.name}</div>
-              <div class="spage">${s.page}</div>
-              <div class="confidence-track"><div class="confidence-fill" style="width:${s.confidence}%"></div></div>
-              <div class="sconf">${s.confidence}% confidence · ${s.tag}</div>
-              <div class="svb">View Source →</div>
-            </div>`).join("")}
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <h4 style="margin:0;">AI Answer</h4>
+            <span class="badge" style="background:#EBF2FA; color:var(--royal); font-size:11px;">${queryType}</span>
+          </div>
+          <span class="badge" style="background:${confBg}; color:#fff; font-size:11px; font-weight:600;">
+            ${confLevel} CONFIDENCE
+          </span>
         </div>
+        <div class="answer-text" style="font-size:14.5px; color:var(--charcoal);">
+          ${escapeHtml(data.answer)}
+        </div>
+        ${sourcesHtml}
+        ${evidenceSnippetsHtml}
       </div>`;
-  }, 900);
+
+  } catch (err) {
+    area.innerHTML = `
+      <div class="answer-card" style="border-left: 4px solid var(--red);">
+        <h4 style="color:var(--red);">Query Failed</h4>
+        <div class="answer-text" style="color:#202936;">${escapeHtml(err.message || "An unexpected error occurred.")}</div>
+      </div>`;
+  }
 }
+
 
 /* ============================================================
    ANALYTICS

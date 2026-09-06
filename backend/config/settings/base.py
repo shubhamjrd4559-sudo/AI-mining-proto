@@ -48,6 +48,7 @@ LOCAL_APPS = [
     'apps.audit',
     'apps.storage',
     'apps.pipeline',
+    'apps.intelligence',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -241,3 +242,12 @@ DEV_USER_PASSWORD = config('DEV_USER_PASSWORD', default=None)
 DEV_USER_EMAIL = config('DEV_USER_EMAIL', default='admin@cmpdi.local')
 # Show seed credentials hint on the login form only in DEBUG mode.
 SHOW_DEV_LOGIN_HINT = config('DEBUG', default=True, cast=bool)
+
+# ============================================================
+# Phase 5: RAG Mining Intelligence & LLM Configuration
+# ============================================================
+GEMINI_API_KEY = config('GEMINI_API_KEY', default=config('GOOGLE_API_KEY', default=None))
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
+AI_QUERY_MAX_LENGTH = config('AI_QUERY_MAX_LENGTH', default=1000, cast=int)
+AI_RETRIEVAL_TOP_K = config('AI_RETRIEVAL_TOP_K', default=5, cast=int)
+AI_RETRIEVAL_MIN_SCORE = config('AI_RETRIEVAL_MIN_SCORE', default=0.05, cast=float)
