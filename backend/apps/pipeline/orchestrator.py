@@ -410,6 +410,17 @@ def _run_pipeline(document_id: int) -> None:
         _update_doc_status(doc, final_status)
         logger.info('Pipeline complete: document %d → %s', document_id, final_status)
 
+        # --- Step 7: Phase 5 RAG Indexing ---
+        try:
+            from apps.intelligence.indexing.indexer import index_document
+            chunks_count, index_err = index_document(doc.pk)
+            if index_err:
+                logger.info('RAG indexing note for doc %d: %s', document_id, index_err)
+            else:
+                logger.info('RAG indexing complete for doc %d: %d chunks created.', document_id, chunks_count)
+        except Exception as idx_exc:
+            logger.warning('RAG indexing non-fatal exception for doc %d: %s', document_id, idx_exc)
+
     except Exception as exc:
         logger.error('Unhandled pipeline exception for doc %d: %s', document_id, exc, exc_info=True)
         _fail(doc or document_id, extraction_job, f'Pipeline error: {exc}')

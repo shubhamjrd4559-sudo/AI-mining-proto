@@ -88,7 +88,18 @@ def analytics_stub(request):
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def chat_stub(request):
-    """GET /api/chat/ — Phase 4 stub"""
+    """
+    GET /api/chat/  — Phase 1 stub compatibility
+    POST /api/chat/ — Phase 5 authenticated RAG Mining Intelligence Query
+    """
+    if request.method == 'POST':
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        from apps.intelligence.views import query_view
+        return query_view(request)
     return _stub_response('chat')
 
 

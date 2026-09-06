@@ -1,6 +1,6 @@
 # CMPDI AI — Implementation Progress
 
-**Last updated:** 2026-09-05 (IST)
+**Last updated:** 2026-09-06 (IST)
 **Project:** SIH26023 — AI-Powered Geological, Mining and Other Reporting Solution for CMPDI/CIL
 
 ---
@@ -9,31 +9,33 @@
 
 **PHASE 6 — DYNAMIC ANALYTICS + DATA EXPLORER (COMPLETE)**
 **Status: READY FOR REVIEW**
-**All 169 tests passing (19 analytics + 7 datasets + 143 existing). Verification complete.**
+**All Phase 1–6 tests passing (191 total tests: 22 Phase 5 intelligence + 19 Phase 6 analytics + 7 datasets + 143 existing). Verification complete.**
 
 ---
 
 ## Completed Work
 
-### Phase 1 — Foundation (previously completed)
+### Phase 1 — Foundation
 - Django backend, health endpoint, stub API, git baseline
 
-### Phase 2 — Real Document Upload & Storage (previously completed)
+### Phase 2 — Real Document Upload & Storage
 - Multipart upload with magic-byte validation, LocalStorageBackend
 - `Document`, `ProcessingJob`, `AuditEvent` models with migrations
-- IsAuthenticated on all document endpoints, owner-scoping
-- TokenAuthentication login flow, seed_dev_user management command
-- 71 Phase 2 tests passing (all preserved)
+- `IsAuthenticated` on all document endpoints, owner-scoping
+- TokenAuthentication login flow, `seed_dev_user` management command
+- 71 Phase 2 tests passing
 
-### Phase 3 — Document Processing Pipeline (previously completed)
-- Extractor modules (PDF, DOCX, XLSX, CSV, TXT, OCR)
-- Dynamic Schema Detection (25+ mining concepts)
-- Normalization (financial year, numeric units, dates)
-- Validation Engine (10 issue types, severity levels)
-- Orchestrator and thread safety
-- 30 Phase 3 pipeline tests passing
+### Phase 3 — Document Processing Pipeline
+- Extractor modules (PDF with pdfplumber + OCR fallback, DOCX, XLSX, CSV, TXT, Image OCR)
+- Dynamic schema detection (25+ mining concepts)
+- Normalization engine (FY, units, dates)
+- Quality validation engine with 10 issue types
+- Pipeline orchestrator with retry and SQLite concurrency resilience
+- `ExtractionResult`, `ExtractionProvenance`, `ValidationResult`, `StructuredDataset`, `StructuredRecord`
 
-### Phase 4 — AI Excel/CSV Maintainer (this phase)
+---
+
+### Phase 4 — AI Excel/CSV Maintainer
 
 - [x] **New Django App: `apps.maintainer`**
   - Registered in `LOCAL_APPS` and `INSTALLED_APPS`
@@ -82,9 +84,63 @@
   - Three-tab workspace: Suggested Fixes (Before → After), Dataset Records, Validation Issues.
   - Interactive single & batch approve/reject actions, explicit "Apply Changes" button, and XLSX/CSV export downloads.
 
-- [x] **Test Suite Expansion**
+- [x] **Phase 4 Test Suite**
   - 45 focused Phase 4 tests in `apps.maintainer.tests`.
-  - Full project suite: 146/146 tests passing.
+
+---
+
+### Phase 5 — RAG Mining Intelligence
+
+- [x] **New Django App: `apps.intelligence`**
+  - Registered in `INSTALLED_APPS` and URL configuration
+  - Models:
+    - `DocumentChunk`: Text chunks with `document`, `chunk_index`, `content`, `content_hash`, `page_number`, `section_heading`, `metadata`, `token_count`
+    - `AIQueryLog`: Query history tracking `user`, `question`, `query_type`, `answer`, `confidence`, `sources`, `evidence_count`, `source_count`, `created_at`
+
+- [x] **Deterministic Chunking & Fingerprinting** (`apps/intelligence/indexing/chunker.py`)
+  - Sentence and paragraph boundary preservation
+  - Page number and section context retention
+  - Structured table chunking with row indices and column headers
+  - Idempotent SHA-256 fingerprinting for duplicate detection
+
+- [x] **Indexing Lifecycle & Safe Re-Indexing** (`apps/intelligence/indexing/indexer.py`)
+  - Only successfully processed documents (`INDEXED`, `NEEDS_REVIEW`, `COMPLETED`) are indexable
+  - Unchanged content skipped automatically
+  - Atomic deletion and recreation during re-indexing
+  - Pipeline hook in `orchestrator.py` automatically indexes documents upon extraction completion
+  - Management command `reindex_documents` for batch and individual document indexing
+
+- [x] **Intelligent Query Routing** (`apps/intelligence/router/query_router.py`)
+  - Classifies queries into:
+    1. `STRUCTURED`: Numerical queries, subsidiary comparisons, aggregations (max, min, sum, avg)
+    2. `DOCUMENT`: Narrative, qualitative exploration methods, and geological overviews
+    3. `HYBRID`: Combines numerical facts with document context
+  - Rule-based regex entity extraction (subsidiaries MCL, ECL, BCCL, CCL, WCL, SECL, NCL, CMPDI, metrics, FYs)
+
+- [x] **User-Scoped Multi-Tenant Retrieval** (`apps/intelligence/retrieval/retriever.py`)
+  - Strict owner filtering during retrieval (`uploaded_by=request.user`) — cross-user leakage blocked
+  - BM25 ranked document chunk retrieval with heading and phrase boosts
+  - Deterministic structured database querying and calculations (no hallucinated numbers)
+  - Full provenance extraction via `ExtractionProvenance`
+
+- [x] **Prompt Injection Defense & LLM Client** (`apps/intelligence/generator/`)
+  - `llm_client.py`: Configurable Gemini client (`GEMINI_API_KEY`, model `gemini-2.5-flash`), safe timeouts, and error handling
+  - `answer_engine.py`: Encapsulates retrieved content in passive `<document_evidence>` blocks with explicit refusal rules
+  - Insufficient evidence refusal: *"I could not find sufficient evidence in the available project data."*
+  - Confidence assessment (`HIGH`, `MEDIUM`, `LOW`) based on retrieval score and evidence counts
+  - Offline grounded synthesis fallback when LLM provider is unavailable
+
+- [x] **Authenticated APIs** (`apps/intelligence/views.py`)
+  - `POST /api/chat/` and `POST /api/intelligence/query/` (`IsAuthenticated` enforced, no `AllowAny`)
+  - `GET /api/intelligence/history/` for user's past queries
+  - `POST /api/intelligence/reindex/` for user-triggered re-indexing
+  - Automatic `AuditEvent` logging (`ai.query`)
+
+- [x] **Frontend Integration** (`index.html`)
+  - `runAIQuery(question)` calls authenticated backend API
+  - Displays grounded answers, `STRUCTURED`/`DOCUMENT`/`HYBRID` query badges, and confidence indicators
+  - Displays traceable source cards with document title, page numbers, sections, tables, rows, and provenance references
+  - Clear no-evidence and error states
 
 ---
 
@@ -141,16 +197,11 @@
   - Seeds 26 multi-year CIL coal production & dispatch records across 7 subsidiaries (SECL, MCL, NCL, CCL, WCL, ECL, BCCL) covering FY21 through FY25.
   - Includes full provenance, validation issues (warnings/errors), and maintainer suggestions for testing.
 
-- [x] **Test Suite Expansion**
-  - 19 comprehensive tests in `apps.analytics.tests` (100% pass).
-  - 7 comprehensive tests in `apps.datasets.tests` (100% pass).
-  - Full project suite: 169/169 tests passing with zero regressions.
-
 ---
 
-## Test Suite Results (Phase 6 Complete)
+## Test Suite Results (Phase 1–6 Complete)
 
-**169/169 tests PASSED (exit code 0)**
+**191/191 tests PASSED (exit code 0)**
 
 | App | Tests | Result |
 |---|---|---|
@@ -161,104 +212,27 @@
 | `apps.storage` | 11 | ✅ PASS |
 | `apps.pipeline` | 30 | ✅ PASS |
 | `apps.maintainer` | 45 | ✅ PASS |
+| `apps.intelligence` | 22 | ✅ PASS |
 | `apps.analytics` | 19 | ✅ PASS |
-| **TOTAL** | **169** | **✅ ALL PASS** |
+| **TOTAL** | **191** | **✅ ALL PASS** |
+
+---
+
+## Security & Architecture Verification
+
+1. **Authentication**: All query, maintainer, datasets, analytics, and management endpoints require `IsAuthenticated`.
+2. **Access Control**: Retrieval, maintainer queries, datasets explorer, and analytics enforce `document__uploaded_by=user` preventing cross-user data leakage.
+3. **Immutability**: Source files and audit records remain immutable.
+4. **Conflict Protection**: Maintainer applies changes atomically with row locking and value verification.
+5. **Prompt Injection Defense**: Untrusted chunk text is wrapped in data blocks with strict instructions.
+6. **No Hallucinated Calculations**: Structured queries execute deterministic database aggregations.
+7. **Zero External Test Dependencies**: Tests mock external AI/LLM boundaries while keeping retrieval, business logic, and access control real.
+8. **Data Quality Safety**: `AnalyticsQueryEngine` excludes `ERROR`-level validation results and invalid records from analytics.
 
 ---
 
 ## Known Limitations
 
-- **OCR requires Tesseract binary**: Must install Tesseract OCR separately if OCR for scanned images is required. Graceful fallback is tested and supported.
-- **SQLite Concurrency in Dev**: In multi-threaded development environments, SQLite file locks are mitigated by bounded exponential retries. Production deployments should use PostgreSQL.
-- **AI Token Configuration**: AI contextual analysis requires `OPENAI_API_KEY` or `GEMINI_API_KEY` in `.env`. When absent, deterministic rules operate at 100% functionality without error.
-
-- [x] **Pipeline Orchestrator** (`apps/pipeline/orchestrator.py`)
-  - Daemon thread launched after each successful upload (non-blocking)
-  - Correct status sequence: `UPLOADED → PROCESSING → EXTRACTING → VALIDATING → INDEXED/NEEDS_REVIEW/FAILED`
-  - Storage accessed read-only (original file immutable)
-  - `update_or_create` for retry safety; `close_old_connections()` for thread DB safety
-
-- [x] **Persistence**
-  - `ExtractionResult` — per-document extraction record (OneToOne with Document)
-  - `ExtractionProvenance` — per-StructuredRecord source tracing
-  - `ValidationResult` — per-finding validation issues
-  - `StructuredDataset` + `StructuredRecord` — structured tables persisted in `apps.datasets`
-
-- [x] **API Endpoint**
-  - `GET /api/documents/<id>/extraction/` — authenticated, owner-only
-  - Returns extractor type, OCR used, page count, tables count, validation summary, top 50 findings
-
-- [x] **Document Detail Serializer Integration**
-  - `DocumentDetailSerializer.extraction_summary` field returns real-time extraction state
-
-- [x] **Minimal Frontend Integration** (`index.html`)
-  - Document detail modal shows extraction status, OCR used, type, tables, validation summary
-  - No frontend redesign; only extraction info appended in existing pipeline status section
-
-- [x] **Dependencies Added** (`requirements.txt`)
-  - `pdfplumber==0.11.4`
-  - `python-docx==1.1.2`
-  - `openpyxl==3.1.5`
-  - `Pillow==10.4.0`
-  - `pytesseract==0.3.13`
-
-- [x] **SQLite Concurrency & Lock Resilience**
-  - Added `is_transient_db_error` detection for SQLite table locks, busy states, and timeouts.
-  - Added `db_retry` decorator with bounded exponential backoff and jitter for database operations.
-  - Top-level exception safety ensuring documents reach `FAILED` state rather than hanging on error.
-  - Configured SQLite connection busy `timeout: 20` in development settings.
-  - Added dedicated regression tests (`ConcurrencyAndRetryTests`).
-
----
-
-## Test Suite Results (Phase 3 Complete)
-
-**101/101 tests PASSED (exit code 0)**
-
-| App | Tests | Result |
-|---|---|---|
-| `apps.core` | 6 | ✅ PASS |
-| `apps.documents` | 47 | ✅ PASS |
-| `apps.datasets` | 3 | ✅ PASS |
-| `apps.audit` | 4 | ✅ PASS |
-| `apps.storage` | 11 | ✅ PASS |
-| `apps.pipeline` | 30 | ✅ PASS |
-| **TOTAL** | **101** | **✅ ALL PASS** |
-
-**Notes:**
-- Transient SQLite database locks in background threads are handled gracefully via bounded retry and backoff, preventing unhandled thread crashes and ensuring documents cleanly reach terminal status.
-- OCR tests produce expected `"tesseract is not installed"` log messages when the Tesseract system binary is not on the host; graceful degradation confirmed working.
-
----
-
-## Known Limitations
-
-- **OCR requires Tesseract binary**: Must install Tesseract OCR (system package) separately.
-  `pytesseract` is installed; if Tesseract binary is absent, OCR returns `OCR_UNAVAILABLE` gracefully.
-  See installation notes below.
-- **SQLite test isolation**: Background pipeline threads contend with SQLite test transactions.
-  This is a SQLite limitation; harmless in development and irrelevant with PostgreSQL in production.
-- **Scanned PDF rendering**: `page.to_image()` in pdfplumber requires `pypdfium2` (auto-installed).
-  On constrained systems, PDF-to-image rendering may be slow for large documents.
-- **Thread-based processing**: No Celery/Redis. Pipeline runs in daemon threads. Under high upload
-  concurrency, threads accumulate. Acceptable for SIH demo; Celery migration planned for Phase N.
-
----
-
-## Tesseract Installation (for OCR support)
-
-**Windows**: Download installer from https://github.com/UB-Mannheim/tesseract/wiki
-Add Tesseract to system PATH, or set in `.env`:
-```
-TESSERACT_CMD=C:/Program Files/Tesseract-OCR/tesseract.exe
-```
-
-**Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
-**macOS**: `brew install tesseract`
-
----
-
-## Next Phase
-
-**PHASE 4** (not yet started — awaiting approval)
-
+- **OCR requires Tesseract binary**: System Tesseract must be installed on the host for image OCR.
+- **LLM API Key**: Requires `GEMINI_API_KEY` or `OPENAI_API_KEY` in `.env` for AI generation; otherwise uses deterministic / offline grounded synthesis fallback.
+- **SQLite Concurrency in Dev**: SQLite transactions lock the table briefly during heavy multi-threading.
