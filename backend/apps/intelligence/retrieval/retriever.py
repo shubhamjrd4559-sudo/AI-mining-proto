@@ -113,6 +113,13 @@ def retrieve_document_chunks(
     if not user or not user.is_authenticated:
         return []
 
+    # This is also a service boundary used by future callers; retain the UI's
+    # small default and prevent an accidental unbounded evidence/context load.
+    try:
+        top_k = max(1, min(int(top_k), 20))
+    except (TypeError, ValueError):
+        top_k = 5
+
     # Strict multi-tenancy: Only search user's unarchived documents
     qs = DocumentChunk.objects.filter(
         document__uploaded_by=user,
@@ -187,6 +194,14 @@ def _extract_numeric(val: Any) -> Optional[float]:
             return float(clean)
         except ValueError:
             return None
+    return None
+
+
+def _record_subsidiary(data: Dict[str, Any]) -> Optional[str]:
+    """Return the subsidiary value from a structured record, preserving its source value."""
+    for key, value in data.items():
+        if key.lower() in {'subsidiary', 'company', 'company_name'} and value not in (None, ''):
+            return str(value).strip()
     return None
 
 
@@ -316,11 +331,18 @@ def retrieve_structured_data(
             'source_ref': prov.source_reference if prov else f"record:{rec.pk}",
         })
 
+    # An aggregate query such as "Which subsidiary had the highest production?"
+    # does not supply a subsidiary entity.  Return the entity from the selected
+    # authoritative record so the answer can identify the actual winner.
+    result_subsidiary = sub_target
+    if not result_subsidiary and selected_items:
+        result_subsidiary = _record_subsidiary(selected_items[0]['data'])
+
     return {
         'found': True,
         'calculation_type': agg_type or 'lookup',
         'metric': metric_type,
-        'subsidiary': sub_target,
+        'subsidiary': result_subsidiary,
         'year': year_target,
         'result_value': round(result_val, 2) if result_val is not None else None,
         'unit': unit,

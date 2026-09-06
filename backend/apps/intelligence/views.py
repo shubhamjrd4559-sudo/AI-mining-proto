@@ -80,9 +80,11 @@ def query_view(request):
         return Response(result, status=status.HTTP_200_OK)
 
     except Exception as exc:
-        logger.error('Error executing AI query: %s', exc, exc_info=True)
+        # Generation/provider/database exceptions can include implementation or
+        # credential-adjacent details.  Keep the request path and logs generic.
+        logger.error('Error executing AI query.')
         return Response(
-            {'error': 'An internal error occurred while processing your query.', 'detail': str(exc)},
+            {'error': 'An internal error occurred while processing your query.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

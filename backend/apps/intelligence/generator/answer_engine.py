@@ -91,6 +91,27 @@ def _synthesize_offline_chunk_answer(query: str, chunks: List[Dict[str, Any]]) -
     return f"According to verified project records in {doc_title}{page_info}: {chosen}"
 
 
+def _format_structured_answer(structured_res: Dict[str, Any]) -> str:
+    """Create a deterministic answer from authoritative structured evidence."""
+    sub = structured_res.get('subsidiary') or 'the specified subsidiary'
+    val = structured_res.get('result_value')
+    unit = structured_res.get('unit') or 'MT'
+    yr = structured_res.get('year')
+    calc = structured_res.get('calculation_type')
+    metric = structured_res.get('metric') or 'production'
+    yr_str = f" in {yr}" if yr else ""
+
+    if calc == 'max':
+        return f"Based on verified project records, {sub} achieved the highest {metric} of {val} {unit}{yr_str}."
+    if calc == 'min':
+        return f"Based on verified project records, {sub} recorded the lowest {metric} of {val} {unit}{yr_str}."
+    if calc == 'sum':
+        return f"Total verified {metric}{yr_str} across matching records is {val} {unit}."
+    if calc == 'avg':
+        return f"Average verified {metric}{yr_str} across matching records is {val} {unit}."
+    return f"According to extracted dataset records, {sub} {metric}{yr_str} was {val} {unit}."
+
+
 def generate_grounded_answer(user, question: str) -> Dict[str, Any]:
     """
     Primary RAG query execution pipeline.
@@ -209,26 +230,18 @@ def generate_grounded_answer(user, question: str) -> Dict[str, Any]:
 
     if query_type == 'STRUCTURED' and has_structured_evidence:
         # Deterministic generation for numerical/structured queries
-        sub = structured_res.get('subsidiary') or 'the specified subsidiary'
-        val = structured_res.get('result_value')
-        unit = structured_res.get('unit') or 'MT'
-        yr = structured_res.get('year')
-        calc = structured_res.get('calculation_type')
-        metric = structured_res.get('metric') or 'production'
-
-        yr_str = f" in {yr}" if yr else ""
-        if calc == 'max':
-            final_answer = f"Based on verified project records, {sub} achieved the highest {metric} of {val} {unit}{yr_str}."
-        elif calc == 'min':
-            final_answer = f"Based on verified project records, {sub} recorded the lowest {metric} of {val} {unit}{yr_str}."
-        elif calc == 'sum':
-            final_answer = f"Total verified {metric}{yr_str} across matching records is {val} {unit}."
-        elif calc == 'avg':
-            final_answer = f"Average verified {metric}{yr_str} across matching records is {val} {unit}."
-        else:
-            final_answer = f"According to extracted dataset records, {sub} {metric}{yr_str} was {val} {unit}."
-
+        final_answer = _format_structured_answer(structured_res)
         confidence = 'HIGH'
+
+    elif query_type == 'HYBRID' and has_structured_evidence and not has_chunk_evidence:
+        # Do not discard authoritative structured evidence merely because the
+        # requested narrative/report context was not indexed.  State the gap
+        # explicitly rather than implying that a document corroborates it.
+        final_answer = (
+            f"{_format_structured_answer(structured_res)} "
+            "I could not find supporting document evidence for the requested report context."
+        )
+        confidence = 'MEDIUM'
 
     else:
         # Document or Hybrid generation via LLM

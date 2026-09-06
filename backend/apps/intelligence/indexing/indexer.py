@@ -62,7 +62,7 @@ def index_document(doc_or_id, force: bool = False) -> Tuple[int, Optional[str]]:
     except ExtractionResult.DoesNotExist:
         return 0, f'No ExtractionResult found for document {doc.pk}.'
 
-    if extraction.status not in ('completed', 'ocr_unavailable') and not extraction.raw_text and not extraction.extracted_tables:
+    if extraction.status not in ('completed', 'ocr_unavailable'):
         return 0, f'ExtractionResult for document {doc.pk} is incomplete ({extraction.status}).'
 
     raw_text = extraction.raw_text or ''

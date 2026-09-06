@@ -143,6 +143,17 @@ class ChunkingAndIndexingTests(TestCase):
         self.assertEqual(count, 0)
         self.assertIn('not ready for indexing', err)
 
+    def test_failed_extraction_is_never_indexed_even_if_partial_text_exists(self):
+        """Partial text from a failed extraction is not approved evidence."""
+        self.extraction.status = 'failed'
+        self.extraction.save(update_fields=['status'])
+
+        count, err = index_document(self.doc)
+
+        self.assertEqual(count, 0)
+        self.assertIn('incomplete (failed)', err)
+        self.assertFalse(DocumentChunk.objects.filter(document=self.doc).exists())
+
 
 class QueryRoutingTests(TestCase):
     def test_structured_query_routing(self):
@@ -239,6 +250,21 @@ class RetrievalAndAccessControlTests(TestCase):
         results = retrieve_document_chunks(self.user_a, "SECL confidential expansion strategy")
         self.assertEqual(len(results), 0)
 
+    def test_chunk_retrieval_caps_requested_result_count(self):
+        """The retrieval boundary keeps context size bounded for all callers."""
+        for index in range(30):
+            DocumentChunk.objects.create(
+                document=self.doc_a,
+                chunk_index=index + 1,
+                content=f'MCL production evidence {index}',
+                content_hash=f'test-hash-{index}',
+                metadata={},
+            )
+
+        results = retrieve_document_chunks(self.user_a, 'MCL production', top_k=999)
+
+        self.assertLessEqual(len(results), 20)
+
     def test_owner_only_structured_retrieval(self):
         """User A retrieves and calculates structured data with full provenance."""
         entities = {'subsidiary': 'MCL', 'year': '2024-25', 'metric': 'production', 'aggregation': None}
@@ -250,6 +276,25 @@ class RetrievalAndAccessControlTests(TestCase):
         self.assertEqual(cit['document_id'], self.doc_a.pk)
         self.assertEqual(cit['page_number'], 3)
         self.assertEqual(cit['table_reference'], 'table:1')
+
+    def test_aggregate_structured_retrieval_identifies_winning_subsidiary(self):
+        """An aggregate result must identify the subsidiary from the selected record."""
+        second_record = StructuredRecord.objects.create(
+            dataset=self.dataset_a,
+            row_index=1,
+            data_json={'subsidiary': 'SECL', 'production': 180.2, 'year': '2024-25'},
+            is_valid=True,
+        )
+        ExtractionProvenance.objects.create(record=second_record, document=self.doc_a, page_number=3)
+
+        res = retrieve_structured_data(
+            self.user_a,
+            {'subsidiary': None, 'year': None, 'metric': 'production', 'aggregation': 'max'},
+        )
+
+        self.assertTrue(res['found'])
+        self.assertEqual(res['result_value'], 204.5)
+        self.assertEqual(res['subsidiary'], 'MCL')
 
     def test_cross_user_structured_retrieval_blocked(self):
         """User A querying for User B's data gets no results."""
@@ -347,6 +392,28 @@ class AnswerGenerationAndSecurityTests(TestCase):
             self.assertIn(res['confidence'], ['HIGH', 'MEDIUM'])
             self.assertGreater(len(res['sources']), 0)
 
+    def test_hybrid_keeps_structured_answer_when_report_evidence_is_unavailable(self):
+        """Missing document evidence must not turn an authoritative value into a false no-evidence result."""
+        dataset = StructuredDataset.objects.create(name='Unindexed Production Data', source_document=self.doc)
+        record = StructuredRecord.objects.create(
+            dataset=dataset,
+            row_index=2,
+            data_json={'subsidiary': 'MCL', 'production': 204.5, 'year': '2024-25'},
+            is_valid=True,
+        )
+        ExtractionProvenance.objects.create(record=record, document=self.doc, page_number=2)
+
+        with patch('apps.intelligence.generator.answer_engine.retrieve_document_chunks', return_value=[]):
+            res = generate_grounded_answer(
+                self.user,
+                'What was MCL production in FY 2024-25 according to the annual report?',
+            )
+
+        self.assertEqual(res['query_type'], 'HYBRID')
+        self.assertIn('204.5 MT', res['answer'])
+        self.assertIn('could not find supporting document evidence', res['answer'])
+        self.assertEqual(res['confidence'], 'MEDIUM')
+
 
 class AIQueryAPITests(TestCase):
     def setUp(self):
@@ -428,6 +495,16 @@ class AIQueryAPITests(TestCase):
         # Oversized
         res3 = self.client.post(url, {'question': 'a' * 1005}, format='json')
         self.assertEqual(res3.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch('apps.intelligence.views.generate_grounded_answer', side_effect=RuntimeError('database password: secret-value'))
+    def test_query_error_does_not_expose_internal_exception_details(self, _mock_answer):
+        """API failures must not disclose internal configuration or database errors."""
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(reverse('intelligence-query'), {'question': 'Coal production?'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.json(), {'error': 'An internal error occurred while processing your query.'})
 
     def test_reindex_api_endpoint(self):
         """POST /api/intelligence/reindex/ reindexes user documents."""
