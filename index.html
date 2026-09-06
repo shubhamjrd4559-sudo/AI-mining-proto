@@ -12,18 +12,18 @@
    Design tokens
    ============================================================ */
 :root{
-  --navy:#071A3D;
-  --navy-2:#0A2451;
-  --royal:#0B4DB8;
-  --blue:#1976D2;
-  --light-blue:#EAF4FF;
-  --gold:#DFAE24;
-  --yellow:#F4C542;
+  --navy:#123524;
+  --navy-2:#185238;
+  --royal:#18794E;
+  --blue:#24945F;
+  --light-blue:#EAF7F0;
+  --gold:#C9A227;
+  --yellow:#E4C44A;
   --white:#FFFFFF;
-  --gray:#F5F7FA;
-  --charcoal:#202936;
-  --earth:#8B6B4A;
-  --earth-dark:#5E4530;
+  --gray:#F4F8F5;
+  --charcoal:#202A24;
+  --earth:#756044;
+  --earth-dark:#57442D;
   --green:#1E9E63;
   --red:#D64545;
 
@@ -943,8 +943,14 @@ const SEARCH_INDEX = [
    ============================================================ */
 
 const COLORS = {
-  navy:"#071A3D", royal:"#0B4DB8", blue:"#1976D2", lightBlue:"#EAF4FF",
-  gold:"#DFAE24", yellow:"#F4C542", earth:"#8B6B4A", green:"#1E9E63"
+  navy:"#123524",
+  royal:"#18794E",
+  blue:"#24945F",
+  lightBlue:"#EAF7F0",
+  gold:"#C9A227",
+  yellow:"#E4C44A",
+  earth:"#756044",
+  green:"#1E9E63"
 };
 
 function svgEl(tag, attrs){
@@ -1508,16 +1514,7 @@ function pageDashboard(){
         </div>
         <div class="hero-mini-note">🛈 Demo metrics are simulated for this prototype; production figures are sourced from official Ministry of Coal statistics.</div>
       </div>
-      <div class="hero-visual" id="heroVisual">
-        <div class="hero-visual-caption">BLOCK-A · SEAM-IV<br>23.4567°N 85.3211°E</div>
-        ${buildHeroGeoBlock()}
-        <div class="hero-visual-controls">
-          <button class="vc-btn" id="heroRotateL">↺</button>
-          <button class="vc-btn" id="heroZoomIn">+</button>
-          <button class="vc-btn" id="heroZoomOut">−</button>
-          <button class="vc-btn" id="heroReset">⟳</button>
-        </div>
-      </div>
+
     </div>
 
     <div class="kpi-grid" id="kpiGrid">
@@ -1586,24 +1583,24 @@ function afterDashboard(){
   });
   document.getElementById("heroUploadBtn").addEventListener("click", ()=> goTo("documents"));
 
-  // hero visual rotate/zoom
-  let rot = -8, scale = 1;
-  const group = ()=> document.getElementById("heroGeoGroup");
-  const apply = ()=> { const g = group(); if(g) g.style.transform = `translate(200px,140px) rotate(${rot*0.2}deg) scale(${scale})`; };
-  document.getElementById("heroRotateL").addEventListener("click", ()=>{ rot -= 12; applyHeroTransform(rot, scale); });
-  document.getElementById("heroZoomIn").addEventListener("click", ()=>{ scale = Math.min(1.4, scale+0.12); applyHeroTransform(rot, scale); });
-  document.getElementById("heroZoomOut").addEventListener("click", ()=>{ scale = Math.max(0.7, scale-0.12); applyHeroTransform(rot, scale); });
-  document.getElementById("heroReset").addEventListener("click", ()=>{ rot=-8; scale=1; applyHeroTransform(rot, scale); });
-
+  // The optional hero visual may be omitted by the current dashboard layout.
   const visual = document.getElementById("heroVisual");
-  let dragging=false, lastX=0;
-  visual.addEventListener("mousedown", e=>{ dragging=true; lastX=e.clientX; });
-  window.addEventListener("mouseup", ()=> dragging=false);
-  window.addEventListener("mousemove", e=>{
-    if(!dragging) return;
-    const dx = e.clientX-lastX; lastX=e.clientX;
-    rot += dx*0.6; applyHeroTransform(rot, scale);
-  });
+  if (visual) {
+    let rot = -8, scale = 1;
+    document.getElementById("heroRotateL").addEventListener("click", ()=>{ rot -= 12; applyHeroTransform(rot, scale); });
+    document.getElementById("heroZoomIn").addEventListener("click", ()=>{ scale = Math.min(1.4, scale+0.12); applyHeroTransform(rot, scale); });
+    document.getElementById("heroZoomOut").addEventListener("click", ()=>{ scale = Math.max(0.7, scale-0.12); applyHeroTransform(rot, scale); });
+    document.getElementById("heroReset").addEventListener("click", ()=>{ rot=-8; scale=1; applyHeroTransform(rot, scale); });
+
+    let dragging=false, lastX=0;
+    visual.addEventListener("mousedown", e=>{ dragging=true; lastX=e.clientX; });
+    window.addEventListener("mouseup", ()=> dragging=false);
+    window.addEventListener("mousemove", e=>{
+      if(!dragging) return;
+      const dx = e.clientX-lastX; lastX=e.clientX;
+      rot += dx*0.6; applyHeroTransform(rot, scale);
+    });
+  }
 }
 function applyHeroTransform(rot, scale){
   const g = document.getElementById("heroGeoGroup");
