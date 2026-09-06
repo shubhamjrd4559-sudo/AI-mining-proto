@@ -7,9 +7,9 @@
 
 ## Current Phase
 
-**PHASE 4 — AI EXCEL/CSV MAINTAINER (COMPLETE)**
+**PHASE 6 — DYNAMIC ANALYTICS + DATA EXPLORER (COMPLETE)**
 **Status: READY FOR REVIEW**
-**All 146 tests passing. Verification complete.**
+**All 169 tests passing (19 analytics + 7 datasets + 143 existing). Verification complete.**
 
 ---
 
@@ -88,20 +88,81 @@
 
 ---
 
-## Test Suite Results (Phase 4 Complete)
+### Phase 6 — Dynamic Analytics + Data Explorer (this phase)
 
-**146/146 tests PASSED (exit code 0)**
+- [x] **New Django App: `apps.analytics`**
+  - Registered in `LOCAL_APPS` and mounted at `path('api/analytics/', ...)`
+  - Reuses existing models (`StructuredDataset`, `StructuredRecord`, `ExtractionProvenance`, `ValidationResult`, `MaintainerSuggestion`) with **zero new database models and zero new migrations** (`makemigrations --check` detects no changes).
+
+- [x] **High-Performance Query Engine (`apps/analytics/query_engine.py`)**
+  - Dynamic column and concept discovery (`production`, `dispatch`, `target`, `financial_year`, `subsidiary`, `mine`, `grade`, etc.).
+  - Chronological Financial Year parsing & sorting (e.g. `2021-22`, `FY22-23`, `2023-2024`).
+  - Dynamic KPI calculations: Total production, target, dispatch, achievement %, period-over-period growth %, active mines, active subsidiaries.
+  - Data Quality metrics: total records, valid records, warnings, errors, valid percentage.
+  - Data Quality safety: automatically excludes records flagged with errors (`is_valid=False` or error-level validations).
+  - Time-series trends calculation with growth % and provenance record tracking.
+  - Categorical breakdown calculations (subsidiary, mine, grade) with share percentages and drill-down record IDs.
+  - Dynamic arbitrary query execution: supports `SUM`, `AVG`, `MIN`, `MAX`, `COUNT` over any numeric column, grouped by any categorical dimension.
+
+- [x] **Analytics REST API Endpoints (`apps/analytics/views.py`)**
+  - `GET /api/analytics/datasets/` — Owner-scoped dataset selector with concept detection
+  - `GET /api/analytics/kpi/` — Real-time dynamic KPIs and available filter options
+  - `GET /api/analytics/trends/` — Chronological time-series trends with target/dispatch overlay
+  - `GET /api/analytics/breakdown/` — Grouped comparisons (subsidiary, grade, mine)
+  - `GET /api/analytics/query/` — Flexible dynamic aggregation endpoint
+  - `GET /api/analytics/drilldown/` — Deep-dive record details with extraction provenance
+
+- [x] **Data Explorer REST API Endpoints (`apps/datasets/views.py`)**
+  - `GET /api/datasets/list/` — Owner-scoped dataset library
+  - `GET /api/datasets/<id>/schema/` — Dynamic schema discovery and distinct filter options
+  - `GET /api/datasets/<id>/records/` — Server-side pagination, global text search, safe sorting, multi-concept filtering
+  - `GET /api/datasets/<id>/records/<record_id>/` — Full record detail with complete extraction provenance, validation findings, and maintainer suggestions
+  - `GET /api/datasets/<id>/export/csv/` — Export filtered dataset rows to RFC-4180 CSV
+  - Preserved `GET /api/datasets/` for Phase 1 backwards compatibility
+
+- [x] **Interactive Frontend Integration (`index.html`)**
+  - **Dynamic Analytics Dashboard**:
+    - Real-time KPI summary cards (Production, Achievement %, Growth %, Active Mines/Subsidiaries, Valid Data %).
+    - Dynamic filter bar: Subsidiary, Financial Year, Sheet, and Metric selectors.
+    - Chart.js time-series trend line/bar chart with chronological FY axis.
+    - Subsidiary production breakdown chart + Coal Grade distribution chart.
+    - Top producing mines leaderboard.
+    - Interactive chart drill-down modal showing exact records and document provenance.
+  - **Live Data Explorer**:
+    - Dataset dropdown with record counts.
+    - Dynamic schema-driven table headers with sort indicators (asc/desc).
+    - Global keyword search input and dynamic concept filter dropdowns (Subsidiary, FY, Sheet, Quality).
+    - Server-side pagination controls (Previous, Next, Page X of Y, Record range display).
+    - Filtered CSV export button.
+    - Inspect Record modal showing full JSON fields, extraction provenance (document, sheet, row, extractor method, confidence), validation findings, and maintainer history.
+
+- [x] **Database Seeding (`seed_sample_mining_data`)**
+  - Command `python manage.py seed_sample_mining_data` created.
+  - Seeds 26 multi-year CIL coal production & dispatch records across 7 subsidiaries (SECL, MCL, NCL, CCL, WCL, ECL, BCCL) covering FY21 through FY25.
+  - Includes full provenance, validation issues (warnings/errors), and maintainer suggestions for testing.
+
+- [x] **Test Suite Expansion**
+  - 19 comprehensive tests in `apps.analytics.tests` (100% pass).
+  - 7 comprehensive tests in `apps.datasets.tests` (100% pass).
+  - Full project suite: 169/169 tests passing with zero regressions.
+
+---
+
+## Test Suite Results (Phase 6 Complete)
+
+**169/169 tests PASSED (exit code 0)**
 
 | App | Tests | Result |
 |---|---|---|
 | `apps.core` | 6 | ✅ PASS |
 | `apps.documents` | 47 | ✅ PASS |
-| `apps.datasets` | 3 | ✅ PASS |
+| `apps.datasets` | 7 | ✅ PASS |
 | `apps.audit` | 4 | ✅ PASS |
 | `apps.storage` | 11 | ✅ PASS |
 | `apps.pipeline` | 30 | ✅ PASS |
 | `apps.maintainer` | 45 | ✅ PASS |
-| **TOTAL** | **146** | **✅ ALL PASS** |
+| `apps.analytics` | 19 | ✅ PASS |
+| **TOTAL** | **169** | **✅ ALL PASS** |
 
 ---
 

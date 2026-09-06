@@ -1377,6 +1377,17 @@ const APP = {
   selectedYear: 2025,
   docFilter: "all",
   explorerTab: "Production",
+  explorerDatasetId: null,
+  explorerSheet: "all",
+  explorerPage: 1,
+  explorerPageSize: 25,
+  explorerSortBy: "",
+  explorerSortDir: "asc",
+  explorerFilters: {},
+  explorerSearch: "",
+  explorerDataQuality: "all",
+  analyticsDatasetId: null,
+  analyticsFilters: {},
   mapFilter: "all",
   geo3d: { strata:true, coal:true, boreholes:true, exploration:true, faults:false, seismic:false },
   wizard: { step:1, type:null, org:null, range:null, sources:[], format:null },
@@ -2218,67 +2229,585 @@ function runAIQuery(question){
 }
 
 /* ============================================================
-   ANALYTICS
+   ANALYTICS (Phase 6 Real Persisted Data Layer)
    ============================================================ */
+let _analyticsDatasets = [];
+let _analyticsCurrentDataset = null;
+let _analyticsFilters = {};
+
 function pageAnalytics(){
   return `
   <div class="page active">
     <div class="page-head">
-      <div class="eyebrow">Analytics</div>
+      <div class="eyebrow">Dynamic Analytics</div>
       <h1>Mining &amp; Production Analytics</h1>
-      <p>Explore production, dispatch, geology and exploration data across subsidiaries.</p>
+      <p>Real-time production, dispatch, targets, and data quality intelligence computed directly from validated datasets.</p>
     </div>
-    <div class="filters">
-      <select><option>All Years</option>${MOCK.productionByYear.map(y=>`<option>${y.year}</option>`).join("")}</select>
-      <select><option>All States</option><option>Chhattisgarh</option><option>Odisha</option><option>Jharkhand</option><option>Madhya Pradesh</option></select>
-      <select><option>All Subsidiaries</option>${MOCK.subsidiaries.map(s=>`<option>${s.code}</option>`).join("")}</select>
-      <select><option>All Coal Types</option><option>Coking</option><option>Non-Coking</option></select>
-      <select><option>All Grades</option><option>G6</option><option>G8</option><option>G10</option></select>
+
+    <!-- Active Dataset & Dynamic Filter Bar -->
+    <div class="card card-pad mb-16" style="padding:14px 18px;">
+      <div class="row wrap between" style="gap:12px; align-items:center;">
+        <div class="row wrap" style="gap:12px; align-items:center;">
+          <div class="row" style="gap:6px; align-items:center;">
+            <label style="font-size:12px; font-weight:700; color:var(--navy); white-space:nowrap;">Dataset:</label>
+            <select id="anDatasetSelect" style="padding:6px 12px; border-radius:6px; border:1px solid #CBD5E1; font-size:13px; font-weight:600; min-width:260px;"></select>
+          </div>
+          <div id="anDynamicFilters" class="row wrap" style="gap:8px;"></div>
+        </div>
+        <div class="row" style="gap:8px; align-items:center;">
+          <button class="btn btn-outline btn-sm" id="anResetFiltersBtn">↺ Reset Filters</button>
+          <button class="btn btn-primary btn-sm" id="anRefreshBtn">Refresh Data</button>
+        </div>
+      </div>
+      <div class="row mt-8 small muted" style="gap:16px;">
+        <span>💡 <em>Click on any chart bar, slice, or KPI card to drill down into the Data Explorer with provenance.</em></span>
+      </div>
     </div>
+
+    <!-- KPI Cards Row -->
+    <div id="anKpiContainer" class="grid-4 mb-16">
+      <div class="card card-pad" style="text-align:center; padding:16px;"><span class="muted small">Loading KPIs...</span></div>
+    </div>
+
+    <!-- Charts Grid 1: Trend & Grade -->
     <div class="grid-2">
       <div class="card card-pad">
-        <div class="card-title-row"><h3>Coal Production Trend</h3><div class="sub">FY21–FY25</div></div>
-        <div style="position:relative;"><div id="anProdChart"></div><div class="chart-tooltip" id="anProdTooltip"></div></div>
-      </div>
-      <div class="card card-pad">
-        <div class="card-title-row"><h3>Coal Grade Distribution</h3><div class="sub">Sample assay data</div></div>
-        <div style="display:flex; align-items:center; gap:18px;">
-          <div id="gradeDonut"></div>
-          <div class="stack" style="gap:8px;">
-            <div class="row small"><span class="legend-dot" style="background:#0B4DB8"></span>G6 — 34%</div>
-            <div class="row small"><span class="legend-dot" style="background:#1976D2"></span>G8 — 28%</div>
-            <div class="row small"><span class="legend-dot" style="background:#DFAE24"></span>G10 — 22%</div>
-            <div class="row small"><span class="legend-dot" style="background:#8B6B4A"></span>G12 — 16%</div>
+        <div class="card-title-row">
+          <div>
+            <h3 id="anTrendTitle">Coal Production &amp; Dispatch Trend</h3>
+            <div class="sub" id="anTrendSubtitle">Financial-year chronological breakdown</div>
           </div>
+          <div class="row small" style="gap:8px;" id="anTrendLegend">
+            <span class="row"><span class="legend-dot" style="background:#0B4DB8"></span>Production</span>
+            <span class="row"><span class="legend-dot" style="background:#1976D2"></span>Dispatch</span>
+            <span class="row"><span class="legend-dot" style="background:#DFAE24"></span>Target</span>
+          </div>
+        </div>
+        <div style="position:relative; min-height:260px;">
+          <div id="anProdTrendChart"></div>
+          <div class="chart-tooltip" id="anProdTooltip"></div>
+        </div>
+      </div>
+
+      <div class="card card-pad">
+        <div class="card-title-row">
+          <div>
+            <h3>Coal Grade Distribution</h3>
+            <div class="sub">Record proportion by coal quality grade</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:20px; min-height:260px;" id="anGradeWrap">
+          <div id="anGradeDonut"></div>
+          <div id="anGradeLegend" class="stack" style="gap:8px;"></div>
         </div>
       </div>
     </div>
+
+    <!-- Charts Grid 2: Subsidiary & Top Mines -->
     <div class="grid-2 mt-16">
       <div class="card card-pad">
-        <div class="card-title-row"><h3>Production by Subsidiary</h3></div>
-        <div style="position:relative;"><div id="anSubChart"></div><div class="chart-tooltip" id="anSubTooltip"></div></div>
+        <div class="card-title-row">
+          <div>
+            <h3>Production by Subsidiary</h3>
+            <div class="sub">Total subsidiary output in MT and national share %</div>
+          </div>
+        </div>
+        <div style="position:relative; min-height:260px;">
+          <div id="anSubBreakdownChart"></div>
+          <div class="chart-tooltip" id="anSubTooltip"></div>
+        </div>
       </div>
+
       <div class="card card-pad">
-        <div class="card-title-row"><h3>Geological &amp; Geophysical Activity Trend</h3><div class="sub">Boreholes, surveys, exploration targets</div></div>
-        <div id="areaChart"></div>
-        <div class="row wrap mt-8 small muted">
-          <span class="row"><span class="legend-dot" style="background:var(--royal)"></span>Boreholes</span>
-          <span class="row" style="margin-left:12px;"><span class="legend-dot" style="background:var(--gold)"></span>Surveys</span>
+        <div class="card-title-row">
+          <div>
+            <h3>Top Producing Mines</h3>
+            <div class="sub">Highest output opencast and underground mines</div>
+          </div>
+        </div>
+        <div style="position:relative; min-height:260px;">
+          <div id="anTopMinesChart"></div>
+          <div class="chart-tooltip" id="anMinesTooltip"></div>
         </div>
       </div>
     </div>
   </div>`;
 }
-function afterAnalytics(){
-  buildProductionChart(document.getElementById("anProdChart"), MOCK.productionByYear, APP.selectedYear, document.getElementById("anProdTooltip"));
-  buildSubsidiaryChart(document.getElementById("anSubChart"), MOCK.subsidiaries, document.getElementById("anSubTooltip"));
-  buildDonutChart(document.getElementById("gradeDonut"), [
-    {value:34,color:"#0B4DB8"},{value:28,color:"#1976D2"},{value:22,color:"#DFAE24"},{value:16,color:"#8B6B4A"}
-  ]);
-  buildAreaChart(document.getElementById("areaChart"), [
-    { color:"#0B4DB8", values:[18,22,26,29,33] },
-    { color:"#DFAE24", values:[10,13,15,19,24] },
-  ]);
+
+async function afterAnalytics(){
+  const isLive = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
+  if (!isLive) {
+    document.getElementById("anKpiContainer").innerHTML = `
+      <div class="card card-pad" style="grid-column:1/-1; text-align:center; padding:24px;">
+        <h3>Backend Disconnected</h3>
+        <p class="muted mt-8">Connect to the Django backend to load live dynamic analytics and KPI intelligence.</p>
+      </div>`;
+    return;
+  }
+
+  try {
+    const res = await window.CMPDI_AI.apiServices.analytics.datasets();
+    _analyticsDatasets = res.datasets || [];
+
+    const selectEl = document.getElementById("anDatasetSelect");
+    if (!selectEl) return;
+
+    if (_analyticsDatasets.length === 0) {
+      selectEl.innerHTML = `<option value="">No datasets available</option>`;
+      document.getElementById("anKpiContainer").innerHTML = `
+        <div class="card card-pad" style="grid-column:1/-1; text-align:center; padding:32px;">
+          <div style="font-size:32px; margin-bottom:8px;">📊</div>
+          <h3>No Structured Datasets Found</h3>
+          <p class="muted mt-8">Upload documents or seed sample mining data to view dynamic analytics.</p>
+        </div>`;
+      return;
+    }
+
+    selectEl.innerHTML = _analyticsDatasets.map(ds =>
+      `<option value="${ds.id}" ${APP.analyticsDatasetId == ds.id ? 'selected' : ''}>${escapeHtml(ds.name)} (${ds.record_count} records)</option>`
+    ).join("");
+
+    if (!APP.analyticsDatasetId && _analyticsDatasets.length > 0) {
+      APP.analyticsDatasetId = _analyticsDatasets[0].id;
+    }
+
+    selectEl.addEventListener("change", (e) => {
+      APP.analyticsDatasetId = e.target.value;
+      APP.analyticsFilters = {};
+      loadAnalyticsData();
+    });
+
+    document.getElementById("anRefreshBtn")?.addEventListener("click", () => loadAnalyticsData());
+    document.getElementById("anResetFiltersBtn")?.addEventListener("click", () => {
+      APP.analyticsFilters = {};
+      loadAnalyticsData();
+    });
+
+    await loadAnalyticsData();
+  } catch (err) {
+    console.error("Failed to initialize Analytics:", err);
+    toast("Analytics Error", err.message || "Failed to load analytics datasets.");
+  }
+}
+
+async function loadAnalyticsData(){
+  const datasetId = APP.analyticsDatasetId;
+  if (!datasetId) return;
+
+  const kpiBox = document.getElementById("anKpiContainer");
+  if (kpiBox) kpiBox.innerHTML = `<div class="card card-pad" style="grid-column:1/-1; text-align:center; padding:16px;"><span class="muted small">Loading dynamic KPIs and charts...</span></div>`;
+
+  try {
+    // 1. Fetch KPIs & available filter options
+    const kpiRes = await window.CMPDI_AI.apiServices.analytics.kpi({
+      dataset_id: datasetId,
+      ...APP.analyticsFilters,
+    });
+
+    renderAnalyticsKPIs(kpiRes.kpis);
+    renderAnalyticsFilters(kpiRes.available_filters);
+
+    // 2. Fetch Time-Series Trends
+    const trendsRes = await window.CMPDI_AI.apiServices.analytics.trends({
+      dataset_id: datasetId,
+      metric: 'production',
+      time_field: 'financial_year',
+      ...APP.analyticsFilters,
+    });
+    renderAnalyticsTrends(trendsRes.series || []);
+
+    // 3. Fetch Subsidiary Breakdown
+    const subRes = await window.CMPDI_AI.apiServices.analytics.breakdown({
+      dataset_id: datasetId,
+      group_by: 'subsidiary',
+      metric: 'production',
+      ...APP.analyticsFilters,
+    });
+    renderAnalyticsSubsidiaries(subRes.series || []);
+
+    // 4. Fetch Grade Donut Breakdown
+    const gradeRes = await window.CMPDI_AI.apiServices.analytics.breakdown({
+      dataset_id: datasetId,
+      group_by: 'grade',
+      metric: 'count',
+      ...APP.analyticsFilters,
+    });
+    renderAnalyticsGrades(gradeRes.series || []);
+
+    // 5. Fetch Top Mines Breakdown
+    const minesRes = await window.CMPDI_AI.apiServices.analytics.breakdown({
+      dataset_id: datasetId,
+      group_by: 'mine',
+      metric: 'production',
+      limit: 6,
+      ...APP.analyticsFilters,
+    });
+    renderAnalyticsTopMines(minesRes.series || []);
+
+  } catch (err) {
+    console.error("Failed to load analytics details:", err);
+    if (kpiBox) {
+      kpiBox.innerHTML = `<div class="card card-pad" style="grid-column:1/-1; padding:20px; color:var(--red);">Failed to calculate analytics: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+}
+
+function renderAnalyticsFilters(options){
+  const container = document.getElementById("anDynamicFilters");
+  if (!container || !options) return;
+
+  const keys = ['financial_year', 'subsidiary', 'state', 'coal_type', 'grade'];
+  const labels = {
+    financial_year: 'Financial Year',
+    subsidiary: 'Subsidiary',
+    state: 'State',
+    coal_type: 'Coal Type',
+    grade: 'Grade',
+  };
+
+  let html = "";
+  keys.forEach(k => {
+    if (options[k] && options[k].length > 0) {
+      const activeVal = APP.analyticsFilters[k] || "";
+      html += `
+        <select class="an-filter-sel" data-filter="${k}" style="padding:5px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+          <option value="">All ${labels[k]}s</option>
+          ${options[k].map(v => `<option value="${escapeHtml(v)}" ${activeVal===v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join("")}
+        </select>`;
+    }
+  });
+
+  container.innerHTML = html;
+
+  container.querySelectorAll(".an-filter-sel").forEach(el => {
+    el.addEventListener("change", (e) => {
+      const fKey = el.dataset.filter;
+      const fVal = el.value;
+      if (fVal) {
+        APP.analyticsFilters[fKey] = fVal;
+      } else {
+        delete APP.analyticsFilters[fKey];
+      }
+      loadAnalyticsData();
+    });
+  });
+}
+
+function renderAnalyticsKPIs(kpis){
+  const container = document.getElementById("anKpiContainer");
+  if (!container || !kpis) return;
+
+  const totalProd = kpis.total_production !== undefined ? `${kpis.total_production} ${kpis.production_unit||'MT'}` : '—';
+  const totalDisp = kpis.total_dispatch !== undefined ? `${kpis.total_dispatch} ${kpis.dispatch_unit||'MT'}` : '—';
+  const targetAch = kpis.achievement_pct !== undefined ? `${kpis.achievement_pct}%` : '—';
+  const growthBadge = kpis.growth_pct !== undefined ? `<span class="badge ${kpis.growth_pct >= 0 ? 'badge-green' : 'badge-red'}" style="margin-left:6px; font-size:11px;">${kpis.growth_pct >= 0 ? '▲ +' : '▼ '}${kpis.growth_pct}% YoY</span>` : '';
+  const minesSubs = `${kpis.mine_count || 0} Mines · ${kpis.subsidiary_count || 0} Subsidiaries`;
+  const qual = kpis.quality || {};
+  const validPct = qual.valid_pct !== undefined ? `${qual.valid_pct}%` : '100%';
+
+  container.innerHTML = `
+    <div class="card card-pad kpi-card clickable" onclick="drilldownToExplorer({})" title="Click to view all records in Data Explorer">
+      <div class="row between"><div class="sub">Total Production</div>${growthBadge}</div>
+      <div class="kpi-num mt-8" style="color:#0B4DB8; font-size:24px; font-weight:800;">${totalProd}</div>
+      <div class="small muted mt-4">Contributing: ${kpis.total_records || 0} records</div>
+    </div>
+
+    <div class="card card-pad kpi-card clickable" onclick="drilldownToExplorer({})" title="Click to view in Data Explorer">
+      <div class="sub">Total Dispatch</div>
+      <div class="kpi-num mt-8" style="color:#1976D2; font-size:24px; font-weight:800;">${totalDisp}</div>
+      <div class="small muted mt-4">Actual Offtake across all coalfields</div>
+    </div>
+
+    <div class="card card-pad kpi-card clickable" onclick="drilldownToExplorer({})" title="Click to view in Data Explorer">
+      <div class="sub">Target Achievement</div>
+      <div class="kpi-num mt-8" style="color:${parseFloat(targetAch) >= 100 ? '#10B981' : '#F59E0B'}; font-size:24px; font-weight:800;">${targetAch}</div>
+      <div class="small muted mt-4">Target: ${kpis.total_target !== undefined ? kpis.total_target + ' MT' : '—'}</div>
+    </div>
+
+    <div class="card card-pad kpi-card" style="cursor:default;">
+      <div class="sub">Data Quality Health</div>
+      <div class="kpi-num mt-8" style="color:#10B981; font-size:24px; font-weight:800;">${validPct}</div>
+      <div class="small muted mt-4">${qual.error_count || 0} errors excluded · ${qual.warning_count || 0} warnings</div>
+    </div>
+  `;
+}
+
+function drilldownToExplorer(filterObj){
+  APP.explorerDatasetId = APP.analyticsDatasetId;
+  APP.explorerFilters = Object.assign({}, APP.analyticsFilters, filterObj);
+  APP.explorerPage = 1;
+  goTo("explorer");
+}
+
+function renderAnalyticsTrends(series){
+  const container = document.getElementById("anProdTrendChart");
+  const tooltipEl = document.getElementById("anProdTooltip");
+  if (!container) return;
+
+  if (!series || series.length === 0) {
+    container.innerHTML = `<div class="small muted" style="padding:40px; text-align:center;">No time-series data available for active filters.</div>`;
+    return;
+  }
+
+  container.innerHTML = "";
+  const W = container.clientWidth || 540, H = 260;
+  const padL = 46, padB = 30, padT = 20, padR = 16;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+
+  const maxV = Math.max(...series.map(d => Math.max(d.value, d.target || 0, d.dispatch || 0))) * 1.15 || 10;
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H });
+
+  // Gridlines
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (chartH / 4) * i;
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: "#EEF2F8", "stroke-width": 1 }));
+    const val = Math.round(maxV - (maxV / 4) * i);
+    const t = svgEl("text", { x: padL - 8, y: y + 4, "text-anchor": "end", "font-size": 9.5, fill: "#9AA7BC", "font-family": "Inter" });
+    t.textContent = val;
+    svg.appendChild(t);
+  }
+
+  const bw = chartW / series.length;
+  const linePoints = [];
+
+  series.forEach((d, i) => {
+    const x0 = padL + i * bw;
+    const barW = bw * 0.32;
+    const barX = x0 + bw * 0.15;
+    const barH = (d.value / maxV) * chartH;
+    const barY = padT + chartH - barH;
+
+    // Production bar
+    const rect = svgEl("rect", {
+      x: barX, y: barY, width: barW, height: Math.max(2, barH), rx: 4,
+      fill: "#0B4DB8", class: "bar-seg clickable",
+      "data-period": d.period, "data-val": d.value, "data-target": d.target || "", "data-dispatch": d.dispatch || "", "data-label": "Production"
+    });
+    rect.style.cursor = "pointer";
+    rect.addEventListener("click", () => drilldownToExplorer({ financial_year: d.period }));
+    svg.appendChild(rect);
+
+    // Dispatch bar (side by side)
+    if (d.dispatch !== undefined) {
+      const disW = bw * 0.26;
+      const disX = barX + barW + 2;
+      const disH = (d.dispatch / maxV) * chartH;
+      const disY = padT + chartH - disH;
+      const disRect = svgEl("rect", {
+        x: disX, y: disY, width: disW, height: Math.max(2, disH), rx: 3,
+        fill: "#1976D2", class: "bar-seg clickable",
+        "data-period": d.period, "data-val": d.dispatch, "data-label": "Dispatch"
+      });
+      disRect.style.cursor = "pointer";
+      disRect.addEventListener("click", () => drilldownToExplorer({ financial_year: d.period }));
+      svg.appendChild(disRect);
+    }
+
+    // Target point
+    if (d.target !== undefined) {
+      const px = x0 + bw / 2;
+      const py = padT + chartH - (d.target / maxV) * chartH;
+      linePoints.push([px, py, d]);
+    }
+
+    // X-axis label
+    const lbl = svgEl("text", {
+      x: x0 + bw / 2, y: H - 8, "text-anchor": "middle",
+      "font-size": 10, fill: "#64748B", "font-weight": 600, "font-family": "Inter"
+    });
+    lbl.textContent = d.period;
+    svg.appendChild(lbl);
+  });
+
+  // Target benchmark line
+  if (linePoints.length > 1) {
+    let dPath = "";
+    linePoints.forEach((p, i) => { dPath += (i === 0 ? "M" : "L") + p[0] + "," + p[1] + " "; });
+    svg.appendChild(svgEl("path", {
+      d: dPath, fill: "none", stroke: "#DFAE24", "stroke-width": 2, "stroke-dasharray": "4 3", opacity: 0.95
+    }));
+
+    linePoints.forEach(p => {
+      const c = svgEl("circle", {
+        cx: p[0], cy: p[1], r: 4, fill: "#fff", stroke: "#DFAE24", "stroke-width": 2,
+        class: "line-pt", "data-period": p[2].period, "data-val": p[2].target, "data-label": "Target"
+      });
+      svg.appendChild(c);
+    });
+  }
+
+  container.appendChild(svg);
+
+  // Tooltip
+  if (tooltipEl) {
+    svg.querySelectorAll(".bar-seg, .line-pt").forEach(node => {
+      node.addEventListener("mousemove", (e) => {
+        const box = container.getBoundingClientRect();
+        tooltipEl.style.left = (e.clientX - box.left + 10) + "px";
+        tooltipEl.style.top = (e.clientY - box.top - 20) + "px";
+        tooltipEl.style.opacity = 1;
+        const period = node.getAttribute("data-period");
+        const val = node.getAttribute("data-val");
+        const label = node.getAttribute("data-label");
+        tooltipEl.innerHTML = `<b>${label} (${period})</b>: ${val} MT<br><span style="font-size:10px; color:#DFAE24;">Click to drill down</span>`;
+      });
+      node.addEventListener("mouseleave", () => { tooltipEl.style.opacity = 0; });
+    });
+  }
+}
+
+function renderAnalyticsSubsidiaries(series){
+  const container = document.getElementById("anSubBreakdownChart");
+  const tooltipEl = document.getElementById("anSubTooltip");
+  if (!container) return;
+
+  if (!series || series.length === 0) {
+    container.innerHTML = `<div class="small muted" style="padding:40px; text-align:center;">No subsidiary data available.</div>`;
+    return;
+  }
+
+  container.innerHTML = "";
+  const W = container.clientWidth || 500;
+  const rowH = 26, gap = 12;
+  const H = Math.max(240, series.length * (rowH + gap) + 20);
+  const padL = 70, padR = 80;
+  const maxV = Math.max(...series.map(d => d.value)) * 1.1 || 10;
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H });
+
+  series.forEach((d, i) => {
+    const y = i * (rowH + gap) + 10;
+    const barMaxW = W - padL - padR;
+    const barW = (d.value / maxV) * barMaxW;
+
+    // Subsidiary Label
+    const label = svgEl("text", {
+      x: padL - 10, y: y + rowH / 2 + 4, "text-anchor": "end",
+      "font-size": 11.5, "font-weight": 700, fill: "var(--navy)", "font-family": "Inter"
+    });
+    label.textContent = d.group;
+    svg.appendChild(label);
+
+    // Background track
+    svg.appendChild(svgEl("rect", { x: padL, y: y, width: barMaxW, height: rowH, rx: 5, fill: "#F1F5F9" }));
+
+    // Value bar
+    const bar = svgEl("rect", {
+      x: padL, y: y, width: Math.max(4, barW), height: rowH, rx: 5, fill: "#0B4DB8",
+      class: "bar-sub clickable", "data-sub": d.group, "data-val": d.value, "data-pct": d.share_pct
+    });
+    bar.style.cursor = "pointer";
+    bar.addEventListener("click", () => drilldownToExplorer({ subsidiary: d.group }));
+    svg.appendChild(bar);
+
+    // Value text
+    const vText = svgEl("text", {
+      x: padL + barW + 8, y: y + rowH / 2 + 4,
+      "font-size": 11, "font-weight": 600, fill: "#1E293B", "font-family": "Inter"
+    });
+    vText.textContent = `${d.value} MT (${d.share_pct}%)`;
+    svg.appendChild(vText);
+  });
+
+  container.appendChild(svg);
+
+  if (tooltipEl) {
+    svg.querySelectorAll(".bar-sub").forEach(node => {
+      node.addEventListener("mousemove", (e) => {
+        const box = container.getBoundingClientRect();
+        tooltipEl.style.left = (e.clientX - box.left + 10) + "px";
+        tooltipEl.style.top = (e.clientY - box.top - 20) + "px";
+        tooltipEl.style.opacity = 1;
+        const sub = node.getAttribute("data-sub");
+        const val = node.getAttribute("data-val");
+        const pct = node.getAttribute("data-pct");
+        tooltipEl.innerHTML = `<b>${sub}</b>: ${val} MT (${pct}% national share)<br><span style="font-size:10px; color:#DFAE24;">Click to filter Data Explorer</span>`;
+      });
+      node.addEventListener("mouseleave", () => { tooltipEl.style.opacity = 0; });
+    });
+  }
+}
+
+function renderAnalyticsGrades(series){
+  const container = document.getElementById("anGradeDonut");
+  const legendEl = document.getElementById("anGradeLegend");
+  if (!container || !legendEl) return;
+
+  if (!series || series.length === 0) {
+    container.innerHTML = `<div class="small muted" style="padding:20px;">No grade data.</div>`;
+    legendEl.innerHTML = "";
+    return;
+  }
+
+  const colors = ["#0B4DB8", "#1976D2", "#DFAE24", "#8B6B4A", "#10B981", "#6366F1", "#EC4899"];
+  const total = series.reduce((acc, s) => acc + s.value, 0);
+
+  const chartData = series.map((s, idx) => ({
+    label: s.group,
+    value: s.value,
+    color: colors[idx % colors.length],
+    pct: total > 0 ? Math.round((s.value / total) * 100) : 0,
+  }));
+
+  buildDonutChart(container, chartData);
+
+  legendEl.innerHTML = chartData.map(d => `
+    <div class="row small clickable" style="gap:8px; cursor:pointer;" onclick="drilldownToExplorer({grade: '${escapeHtml(d.label)}'})">
+      <span class="legend-dot" style="background:${d.color};"></span>
+      <b>${escapeHtml(d.label)}</b> — ${d.pct}% (${d.value} records)
+    </div>
+  `).join("");
+}
+
+function renderAnalyticsTopMines(series){
+  const container = document.getElementById("anTopMinesChart");
+  const tooltipEl = document.getElementById("anMinesTooltip");
+  if (!container) return;
+
+  if (!series || series.length === 0) {
+    container.innerHTML = `<div class="small muted" style="padding:40px; text-align:center;">No colliery data available.</div>`;
+    return;
+  }
+
+  container.innerHTML = "";
+  const W = container.clientWidth || 500;
+  const rowH = 24, gap = 12;
+  const H = Math.max(240, series.length * (rowH + gap) + 20);
+  const padL = 90, padR = 70;
+  const maxV = Math.max(...series.map(d => d.value)) * 1.1 || 10;
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H });
+
+  series.forEach((d, i) => {
+    const y = i * (rowH + gap) + 10;
+    const barMaxW = W - padL - padR;
+    const barW = (d.value / maxV) * barMaxW;
+
+    const label = svgEl("text", {
+      x: padL - 10, y: y + rowH / 2 + 4, "text-anchor": "end",
+      "font-size": 11, "font-weight": 600, fill: "var(--navy)", "font-family": "Inter"
+    });
+    label.textContent = d.group.length > 12 ? d.group.substring(0, 11) + '…' : d.group;
+    svg.appendChild(label);
+
+    svg.appendChild(svgEl("rect", { x: padL, y: y, width: barMaxW, height: rowH, rx: 4, fill: "#F1F5F9" }));
+
+    const bar = svgEl("rect", {
+      x: padL, y: y, width: Math.max(4, barW), height: rowH, rx: 4, fill: "#DFAE24",
+      class: "bar-mine clickable", "data-mine": d.group, "data-val": d.value
+    });
+    bar.style.cursor = "pointer";
+    bar.addEventListener("click", () => drilldownToExplorer({ mine: d.group }));
+    svg.appendChild(bar);
+
+    const vText = svgEl("text", {
+      x: padL + barW + 8, y: y + rowH / 2 + 4,
+      "font-size": 11, "font-weight": 600, fill: "#1E293B", "font-family": "Inter"
+    });
+    vText.textContent = `${d.value} MT`;
+    svg.appendChild(vText);
+  });
+
+  container.appendChild(svg);
 }
 
 /* ============================================================
@@ -2472,44 +3001,528 @@ function afterTopics(){
 }
 
 /* ============================================================
-   DATA EXPLORER
+   DATA EXPLORER (Phase 6 Real Persisted Data Layer)
    ============================================================ */
+let _expDatasets = [];
+let _expSchema = null;
+let _expDebounceTimer = null;
+
 function pageExplorer(){
-  const tabs = Object.keys(MOCK.explorer);
   return `
   <div class="page active">
     <div class="page-head">
       <div class="eyebrow">Data Explorer</div>
-      <h1>Data Explorer</h1>
-      <p>Spreadsheet-style access to every extracted dataset, each row traceable to its source document.</p>
+      <h1>Structured Data Explorer</h1>
+      <p>Spreadsheet-style access to every extracted and maintained dataset, each row traceable to its source document and provenance.</p>
     </div>
     <div class="card card-pad">
-      <div class="row wrap" style="gap:8px; margin-bottom:16px;">
-        ${tabs.map(t=>`<span class="chip ${APP.explorerTab===t?'gold':''}" data-tab="${t}">${t}</span>`).join("")}
+      <!-- Top bar: Dataset selector + Sheet chips -->
+      <div class="row wrap between" style="gap:12px; align-items:center; margin-bottom:14px;">
+        <div class="row wrap" style="gap:10px; align-items:center;">
+          <label style="font-size:12px; font-weight:700; color:var(--navy); white-space:nowrap;">Dataset:</label>
+          <select id="expDatasetSelect" style="padding:6px 12px; border-radius:6px; border:1px solid #CBD5E1; font-size:13px; font-weight:600; min-width:280px;"></select>
+        </div>
+        <div id="expSheetChips" class="row wrap" style="gap:8px;"></div>
       </div>
-      <div class="filters">
-        <input type="text" id="explorerSearch" placeholder="Search rows...">
-        <button class="btn btn-outline btn-sm" id="expCSV">⬇ Export CSV</button>
-        <button class="btn btn-outline btn-sm" id="expXLSX">⬇ Export Excel</button>
+
+      <!-- Dynamic Filter & Search row -->
+      <div class="filters" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px;">
+        <input type="text" id="expSearchInput" placeholder="Search rows..." style="padding:6px 12px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px; min-width:180px;">
+        <div id="expDynamicFilters" class="row wrap" style="gap:8px;"></div>
+        <select id="expQualitySelect" style="padding:6px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+          <option value="all">All Quality States</option>
+          <option value="valid_only">Valid Only</option>
+          <option value="with_warnings">With Warnings</option>
+          <option value="with_errors">With Errors</option>
+        </select>
+        <button class="btn btn-outline btn-sm" id="expResetBtn">↺ Clear Filters</button>
+        <button class="btn btn-outline btn-sm" id="expCsvBtn" style="margin-left:auto;">⬇ Export CSV</button>
       </div>
-      <div class="tbl-wrap"><table class="dtable" id="explorerTable"></table></div>
+
+      <!-- Status info line -->
+      <div class="row between mb-8 small muted">
+        <span id="expRecordCountBadge">Loading records...</span>
+        <span id="expSortBadge" style="font-style:italic;"></span>
+      </div>
+
+      <!-- Table -->
+      <div class="tbl-wrap" style="max-height:540px; overflow-y:auto;">
+        <table class="dtable" id="expRecordsTable"></table>
+      </div>
+
+      <!-- Server-side Pagination controls -->
+      <div class="row between mt-16" id="expPaginationBar" style="align-items:center; padding-top:12px; border-top:1px solid #EEF2F8;">
+        <div class="row" style="gap:6px; align-items:center;">
+          <button class="btn btn-outline btn-sm" id="expPrevBtn" disabled>← Previous</button>
+          <span id="expPageInfo" class="small muted" style="padding:0 8px;">Page 1 of 1</span>
+          <button class="btn btn-outline btn-sm" id="expNextBtn" disabled>Next →</button>
+        </div>
+        <div class="row" style="gap:8px; align-items:center;">
+          <label class="small muted">Rows per page:</label>
+          <select id="expPageSizeSelect" style="padding:4px 8px; border-radius:4px; border:1px solid #CBD5E1; font-size:12px;">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
     </div>
+    ${modalShell("expRecordDetailModal", "Record Details & Extraction Provenance")}
   </div>`;
 }
-function afterExplorer(){
-  renderExplorerTable();
-  document.querySelectorAll("[data-tab]").forEach(el=> el.addEventListener("click", ()=>{ APP.explorerTab = el.dataset.tab; goTo("explorer"); }));
-  document.getElementById("explorerSearch").addEventListener("input", renderExplorerTable);
-  document.getElementById("expCSV").addEventListener("click", ()=> toast("Export started", "CSV export generated (simulated)."));
-  document.getElementById("expXLSX").addEventListener("click", ()=> toast("Export started", "Excel export generated (simulated)."));
+
+async function afterExplorer(){
+  const isLive = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
+  if (!isLive) {
+    const table = document.getElementById("expRecordsTable");
+    if (table) table.innerHTML = `<tr><td style="padding:24px; text-align:center;">Connect to the backend to view live Data Explorer records.</td></tr>`;
+    return;
+  }
+
+  try {
+    const res = await window.CMPDI_AI.apiServices.explorer.datasets();
+    _expDatasets = res.datasets || [];
+
+    const selectEl = document.getElementById("expDatasetSelect");
+    if (!selectEl) return;
+
+    if (_expDatasets.length === 0) {
+      selectEl.innerHTML = `<option value="">No datasets available</option>`;
+      document.getElementById("expRecordCountBadge").textContent = "0 datasets found";
+      document.getElementById("expRecordsTable").innerHTML = `
+        <tr><td style="padding:32px; text-align:center;" class="muted">
+          No structured datasets found. Upload documents or run the sample seed command.
+        </td></tr>`;
+      return;
+    }
+
+    selectEl.innerHTML = _expDatasets.map(ds =>
+      `<option value="${ds.id}" ${APP.explorerDatasetId == ds.id ? 'selected' : ''}>${escapeHtml(ds.name)} (${ds.record_count} records)</option>`
+    ).join("");
+
+    if (!APP.explorerDatasetId && _expDatasets.length > 0) {
+      APP.explorerDatasetId = _expDatasets[0].id;
+    }
+
+    selectEl.addEventListener("change", async (e) => {
+      APP.explorerDatasetId = e.target.value;
+      APP.explorerSheet = "all";
+      APP.explorerPage = 1;
+      APP.explorerFilters = {};
+      APP.explorerSearch = "";
+      document.getElementById("expSearchInput").value = "";
+      await setupExplorerSchemaAndFilters();
+      await loadExplorerRecords();
+    });
+
+    // Search input (debounced)
+    const searchInput = document.getElementById("expSearchInput");
+    if (searchInput) {
+      searchInput.value = APP.explorerSearch || "";
+      searchInput.addEventListener("input", () => {
+        clearTimeout(_expDebounceTimer);
+        _expDebounceTimer = setTimeout(() => {
+          APP.explorerSearch = searchInput.value.trim();
+          APP.explorerPage = 1;
+          loadExplorerRecords();
+        }, 300);
+      });
+    }
+
+    // Quality selector
+    const qualitySelect = document.getElementById("expQualitySelect");
+    if (qualitySelect) {
+      qualitySelect.value = APP.explorerDataQuality || "all";
+      qualitySelect.addEventListener("change", (e) => {
+        APP.explorerDataQuality = e.target.value;
+        APP.explorerPage = 1;
+        loadExplorerRecords();
+      });
+    }
+
+    // Reset button
+    document.getElementById("expResetBtn")?.addEventListener("click", async () => {
+      APP.explorerFilters = {};
+      APP.explorerSearch = "";
+      APP.explorerDataQuality = "all";
+      APP.explorerSheet = "all";
+      APP.explorerPage = 1;
+      APP.explorerSortBy = "";
+      APP.explorerSortDir = "asc";
+      if (searchInput) searchInput.value = "";
+      if (qualitySelect) qualitySelect.value = "all";
+      await setupExplorerSchemaAndFilters();
+      await loadExplorerRecords();
+    });
+
+    // CSV export button
+    document.getElementById("expCsvBtn")?.addEventListener("click", handleExplorerCsvExport);
+
+    // Pagination buttons
+    document.getElementById("expPrevBtn")?.addEventListener("click", () => {
+      if (APP.explorerPage > 1) {
+        APP.explorerPage--;
+        loadExplorerRecords();
+      }
+    });
+
+    document.getElementById("expNextBtn")?.addEventListener("click", () => {
+      APP.explorerPage++;
+      loadExplorerRecords();
+    });
+
+    // Page size selector
+    const pageSizeSelect = document.getElementById("expPageSizeSelect");
+    if (pageSizeSelect) {
+      pageSizeSelect.value = String(APP.explorerPageSize || 25);
+      pageSizeSelect.addEventListener("change", (e) => {
+        APP.explorerPageSize = parseInt(e.target.value, 10) || 25;
+        APP.explorerPage = 1;
+        loadExplorerRecords();
+      });
+    }
+
+    await setupExplorerSchemaAndFilters();
+    await loadExplorerRecords();
+
+  } catch (err) {
+    console.error("Failed to initialize Data Explorer:", err);
+    toast("Explorer Error", err.message || "Failed to load datasets.");
+  }
 }
-function renderExplorerTable(){
-  const data = MOCK.explorer[APP.explorerTab];
-  const q = (document.getElementById("explorerSearch")?.value || "").toLowerCase();
-  const rows = data.rows.filter(r=> r.join(" ").toLowerCase().includes(q));
-  document.getElementById("explorerTable").innerHTML = `
-    <thead><tr>${data.cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map(r=>`<tr>${r.map((c,i)=> i===data.cols.length-2 ? `<td class="link-action">${c}</td>` : `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>`;
+
+async function setupExplorerSchemaAndFilters(){
+  const datasetId = APP.explorerDatasetId;
+  if (!datasetId) return;
+
+  try {
+    _expSchema = await window.CMPDI_AI.apiServices.explorer.schema(datasetId);
+
+    // 1. Render Sheet Chips
+    const chipsContainer = document.getElementById("expSheetChips");
+    if (chipsContainer) {
+      const sheets = _expSchema.sheets || [];
+      if (sheets.length > 0) {
+        let chipsHtml = `<span class="chip ${APP.explorerSheet==='all'?'gold':''}" data-sheet="all" style="cursor:pointer;">All Sheets</span>`;
+        sheets.forEach(s => {
+          chipsHtml += `<span class="chip ${APP.explorerSheet===s?'gold':''}" data-sheet="${escapeHtml(s)}" style="cursor:pointer;">${escapeHtml(s)}</span>`;
+        });
+        chipsContainer.innerHTML = chipsHtml;
+        chipsContainer.querySelectorAll("[data-sheet]").forEach(chip => {
+          chip.addEventListener("click", () => {
+            APP.explorerSheet = chip.dataset.sheet;
+            APP.explorerPage = 1;
+            chipsContainer.querySelectorAll("[data-sheet]").forEach(c => c.classList.remove("gold"));
+            chip.classList.add("gold");
+            loadExplorerRecords();
+          });
+        });
+      } else {
+        chipsContainer.innerHTML = "";
+      }
+    }
+
+    // 2. Render Dynamic Filter Selects
+    const filterContainer = document.getElementById("expDynamicFilters");
+    if (filterContainer) {
+      const filterOpts = _expSchema.filters || {};
+      const filterKeys = ['subsidiary', 'mine', 'state', 'financial_year', 'coal_type', 'grade'];
+      const labels = {
+        subsidiary: 'Subsidiary',
+        mine: 'Mine',
+        state: 'State',
+        financial_year: 'FY',
+        coal_type: 'Coal Type',
+        grade: 'Grade',
+      };
+
+      let html = "";
+      filterKeys.forEach(k => {
+        if (filterOpts[k] && filterOpts[k].length > 0) {
+          const curVal = APP.explorerFilters[k] || "";
+          html += `
+            <select class="exp-dyn-filter" data-key="${k}" style="padding:6px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+              <option value="">All ${labels[k]}s</option>
+              ${filterOpts[k].map(v => `<option value="${escapeHtml(v)}" ${curVal===v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join("")}
+            </select>`;
+        }
+      });
+      filterContainer.innerHTML = html;
+
+      filterContainer.querySelectorAll(".exp-dyn-filter").forEach(sel => {
+        sel.addEventListener("change", () => {
+          const key = sel.dataset.key;
+          const val = sel.value;
+          if (val) {
+            APP.explorerFilters[key] = val;
+          } else {
+            delete APP.explorerFilters[key];
+          }
+          APP.explorerPage = 1;
+          loadExplorerRecords();
+        });
+      });
+    }
+
+  } catch (err) {
+    console.error("Failed to fetch dataset schema:", err);
+  }
+}
+
+async function loadExplorerRecords(){
+  const datasetId = APP.explorerDatasetId;
+  if (!datasetId) return;
+
+  const table = document.getElementById("expRecordsTable");
+  const countBadge = document.getElementById("expRecordCountBadge");
+  const sortBadge = document.getElementById("expSortBadge");
+  if (!table) return;
+
+  table.innerHTML = `<tr><td style="padding:20px; text-align:center;" class="muted">Loading records...</td></tr>`;
+
+  try {
+    const queryParams = {
+      page: APP.explorerPage,
+      page_size: APP.explorerPageSize,
+      data_quality: APP.explorerDataQuality,
+      ...APP.explorerFilters,
+    };
+    if (APP.explorerSheet && APP.explorerSheet !== 'all') {
+      queryParams.sheet = APP.explorerSheet;
+    }
+    if (APP.explorerSearch) {
+      queryParams.search = APP.explorerSearch;
+    }
+    if (APP.explorerSortBy) {
+      queryParams.sort_by = APP.explorerSortBy;
+      queryParams.sort_dir = APP.explorerSortDir || 'asc';
+    }
+
+    const res = await window.CMPDI_AI.apiServices.explorer.records(datasetId, queryParams);
+
+    const columns = res.columns || [];
+    const rows = res.rows || [];
+    const totalRecords = res.total_records || 0;
+    const totalPages = res.total_pages || 1;
+    const curPage = res.page || 1;
+
+    // Update count and sort badge
+    if (countBadge) {
+      const start = (curPage - 1) * res.page_size + 1;
+      const end = Math.min(totalRecords, curPage * res.page_size);
+      countBadge.textContent = totalRecords > 0
+        ? `Showing rows ${start}–${end} of ${totalRecords} matching records`
+        : `0 matching records`;
+    }
+
+    if (sortBadge) {
+      sortBadge.textContent = APP.explorerSortBy
+        ? `Sorted by ${APP.explorerSortBy} (${APP.explorerSortDir.toUpperCase()})`
+        : "";
+    }
+
+    // Render Table Header
+    let theadHtml = `<thead><tr><th style="width:40px;">#</th>`;
+    columns.forEach(col => {
+      const isSorted = (APP.explorerSortBy === col);
+      const arrow = isSorted ? (APP.explorerSortDir === 'desc' ? ' ▼' : ' ▲') : '';
+      theadHtml += `<th class="clickable" onclick="toggleExplorerSort('${escapeHtml(col)}')" title="Click to sort by ${escapeHtml(col)}" style="cursor:pointer; user-select:none;">${escapeHtml(col)}${arrow}</th>`;
+    });
+    theadHtml += `<th style="width:85px;">Quality</th><th style="width:80px;">Action</th></tr></thead>`;
+
+    // Render Table Body
+    let tbodyHtml = "<tbody>";
+    if (rows.length === 0) {
+      tbodyHtml += `<tr><td colspan="${columns.length + 3}" style="padding:32px; text-align:center;" class="muted">No matching records found for active filters.</td></tr>`;
+    } else {
+      rows.forEach(r => {
+        let qualBadge = '<span class="status-pill done" style="font-size:10px;">✓ Valid</span>';
+        if (r.has_errors) {
+          qualBadge = '<span class="status-pill failed" style="font-size:10px;">✕ Error</span>';
+        } else if (r.has_warnings) {
+          qualBadge = '<span class="status-pill review" style="font-size:10px;">⚠ Warning</span>';
+        }
+
+        const maintainedBadge = r.is_maintained
+          ? '<span class="status-pill progress" style="font-size:9px; margin-left:4px;" title="Maintainer correction applied">🛠 Maintained</span>'
+          : '';
+
+        tbodyHtml += `<tr class="clickable" onclick="openRecordDetailModal(${datasetId}, ${r.record_id})" title="Click row to view details & provenance">`;
+        tbodyHtml += `<td class="muted small">${r.row_index}</td>`;
+
+        columns.forEach(col => {
+          const val = r.data[col];
+          const displayVal = val !== undefined && val !== null ? escapeHtml(String(val)) : '—';
+          tbodyHtml += `<td>${displayVal}</td>`;
+        });
+
+        tbodyHtml += `<td>${qualBadge}${maintainedBadge}</td>`;
+        tbodyHtml += `<td><span class="link-action small">Inspect →</span></td>`;
+        tbodyHtml += `</tr>`;
+      });
+    }
+    tbodyHtml += "</tbody>";
+
+    table.innerHTML = theadHtml + tbodyHtml;
+
+    // Update pagination controls
+    const prevBtn = document.getElementById("expPrevBtn");
+    const nextBtn = document.getElementById("expNextBtn");
+    const pageInfo = document.getElementById("expPageInfo");
+
+    if (pageInfo) pageInfo.textContent = `Page ${curPage} of ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = (curPage <= 1);
+    if (nextBtn) nextBtn.disabled = (curPage >= totalPages);
+
+  } catch (err) {
+    console.error("Failed to load explorer records:", err);
+    table.innerHTML = `<tr><td style="padding:20px; color:var(--red);">Error loading records: ${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+function toggleExplorerSort(colName){
+  if (APP.explorerSortBy === colName) {
+    APP.explorerSortDir = (APP.explorerSortDir === 'asc' ? 'desc' : 'asc');
+  } else {
+    APP.explorerSortBy = colName;
+    APP.explorerSortDir = 'asc';
+  }
+  APP.explorerPage = 1;
+  loadExplorerRecords();
+}
+
+async function handleExplorerCsvExport(){
+  const datasetId = APP.explorerDatasetId;
+  if (!datasetId) {
+    toast("Export Failed", "Please select a dataset first.");
+    return;
+  }
+
+  const queryParams = {
+    data_quality: APP.explorerDataQuality || 'all',
+    ...APP.explorerFilters,
+  };
+  if (APP.explorerSheet && APP.explorerSheet !== 'all') {
+    queryParams.sheet = APP.explorerSheet;
+  }
+  if (APP.explorerSearch) {
+    queryParams.search = APP.explorerSearch;
+  }
+
+  toast("Generating CSV", "Downloading filtered records directly from server...");
+
+  try {
+    const url = window.CMPDI_AI.apiServices.explorer.exportCsvUrl(datasetId, queryParams);
+    const token = _getToken();
+    const headers = token ? { 'Authorization': `Token ${token}` } : {};
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      throw new Error(`Server returned HTTP ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = `dataset_${datasetId}_filtered.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+
+    toast("Export Complete", "CSV downloaded successfully.");
+  } catch (err) {
+    console.error("CSV Export failed:", err);
+    toast("Export Error", err.message || "Failed to download CSV.");
+  }
+}
+
+async function openRecordDetailModal(datasetId, recordId){
+  const body = document.getElementById("expRecordDetailModal_body");
+  if (!body) return;
+
+  body.innerHTML = `<div style="padding:24px; text-align:center;" class="muted">Loading record details and extraction provenance...</div>`;
+  openModal("expRecordDetailModal");
+
+  try {
+    const res = await window.CMPDI_AI.apiServices.explorer.recordDetail(datasetId, recordId);
+
+    let html = `
+      <div style="margin-bottom:16px;">
+        <div class="small muted">Record #${res.row_index} in dataset <b>${escapeHtml(res.dataset_name)}</b> (ID: ${res.record_id})</div>
+      </div>
+
+      <!-- Section 1: Field Values -->
+      <div style="margin-bottom:20px;">
+        <h4 style="font-size:13px; font-weight:700; margin-bottom:8px; color:var(--navy);">Field Values (Normalized &amp; Original)</h4>
+        <div class="tbl-wrap" style="max-height:220px; overflow-y:auto;">
+          <table class="dtable" style="font-size:12px;">
+            <thead><tr><th>Field</th><th>Current Value</th><th>Original Extracted</th><th>Maintained Status</th></tr></thead>
+            <tbody>
+              ${res.fields.map(f => `
+                <tr>
+                  <td><b>${escapeHtml(f.field)}</b></td>
+                  <td>${escapeHtml(f.current_value)}</td>
+                  <td class="muted">${escapeHtml(f.original_value)}</td>
+                  <td>${f.was_maintained ? '<span class="status-pill progress" style="font-size:10px;">🛠 Corrected (was: ' + escapeHtml(f.before_apply_value) + ')</span>' : '<span class="muted small">Unchanged</span>'}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 2: Extraction Provenance -->
+      <div style="margin-bottom:20px;">
+        <h4 style="font-size:13px; font-weight:700; margin-bottom:8px; color:var(--navy);">Extraction Provenance Tracing</h4>
+        ${res.provenance.length === 0 ? '<div class="small muted">No provenance records found.</div>' : `
+          <div class="tbl-wrap" style="max-height:180px; overflow-y:auto;">
+            <table class="dtable" style="font-size:12px;">
+              <thead><tr><th>Source Reference</th><th>Document</th><th>Sheet / Page</th><th>Heading / Table</th><th>Method</th><th>Confidence</th></tr></thead>
+              <tbody>
+                ${res.provenance.map(p => `
+                  <tr>
+                    <td><code>${escapeHtml(p.source_reference || 'doc:'+p.document_id)}</code></td>
+                    <td>${escapeHtml(p.document_title || 'Document #' + p.document_id)}</td>
+                    <td>${p.sheet_name ? 'Sheet: ' + escapeHtml(p.sheet_name) : 'Page ' + (p.page_number || '—')}</td>
+                    <td class="small muted">${escapeHtml(p.section_heading || p.table_reference || '—')}</td>
+                    <td><span class="badge" style="font-size:10px;">${escapeHtml(p.extraction_method || 'direct')}</span></td>
+                    <td>${p.confidence !== null ? Math.round(p.confidence * 100) + '%' : '—'}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+
+      <!-- Section 3: Validation Findings -->
+      <div style="margin-bottom:16px;">
+        <h4 style="font-size:13px; font-weight:700; margin-bottom:8px; color:var(--navy);">Validation Findings &amp; Quality Issues</h4>
+        ${res.validation_findings.length === 0 ? '<div class="small" style="color:#10B981;">✓ No validation errors or warnings flagged for this record.</div>' : `
+          <div class="stack" style="gap:8px;">
+            ${res.validation_findings.map(v => `
+              <div class="card card-pad" style="padding:10px 14px; border-left:4px solid ${v.severity==='ERROR'?'#EF4444':'#F59E0B'};">
+                <div class="row between">
+                  <b>${escapeHtml(v.field_name)}: ${escapeHtml(v.issue_type)}</b>
+                  <span class="status-pill ${v.severity==='ERROR'?'failed':'review'}" style="font-size:10px;">${v.severity}</span>
+                </div>
+                <div class="small mt-4">${escapeHtml(v.explanation)}</div>
+                ${v.suggested_value ? `<div class="small muted mt-4">Suggested value: <code>${escapeHtml(v.suggested_value)}</code></div>` : ''}
+              </div>
+            `).join("")}
+          </div>
+        `}
+      </div>
+    `;
+
+    body.innerHTML = html;
+  } catch (err) {
+    console.error("Failed to load record details:", err);
+    body.innerHTML = `<div style="padding:20px; color:var(--red);">Failed to load record details: ${escapeHtml(err.message)}</div>`;
+  }
 }
 
 /* ============================================================
@@ -3501,8 +4514,21 @@ const apiServices = {
   },
 
   analytics: {
-    summary:    () => _apiFetch('/api/analytics/'),
-    production: (params) => _apiFetch('/api/analytics/production/' + (params ? '?' + new URLSearchParams(params) : '')),
+    datasets:   () => _apiFetch('/api/analytics/datasets/'),
+    kpi:        (params) => _apiFetch('/api/analytics/kpi/' + (params ? '?' + new URLSearchParams(params) : '')),
+    trends:     (params) => _apiFetch('/api/analytics/trends/' + (params ? '?' + new URLSearchParams(params) : '')),
+    breakdown:  (params) => _apiFetch('/api/analytics/breakdown/' + (params ? '?' + new URLSearchParams(params) : '')),
+    query:      (params) => _apiFetch('/api/analytics/query/', { method: 'POST', body: JSON.stringify(params) }),
+    drilldown:  (params) => _apiFetch('/api/analytics/drilldown/' + (params ? '?' + new URLSearchParams(params) : '')),
+    summary:    () => _apiFetch('/api/analytics/kpi/'),
+    production: (params) => _apiFetch('/api/analytics/trends/' + (params ? '?' + new URLSearchParams(params) : '')),
+  },
+  explorer: {
+    datasets:     () => _apiFetch('/api/datasets/list/'),
+    schema:       (id) => _apiFetch(`/api/datasets/${id}/schema/`),
+    records:      (id, params) => _apiFetch(`/api/datasets/${id}/records/` + (params ? '?' + new URLSearchParams(params) : '')),
+    recordDetail: (id, recordId) => _apiFetch(`/api/datasets/${id}/records/${recordId}/`),
+    exportCsvUrl: (id, params) => `${API_BASE}/api/datasets/${id}/export/csv/` + (params ? '?' + new URLSearchParams(params) : ''),
   },
   chat: {
     query: (message, context = {}) =>
