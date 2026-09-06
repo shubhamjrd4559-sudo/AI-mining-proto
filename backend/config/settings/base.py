@@ -48,6 +48,7 @@ LOCAL_APPS = [
     'apps.audit',
     'apps.storage',
     'apps.pipeline',
+    'apps.maintainer',
     'apps.intelligence',
 ]
 

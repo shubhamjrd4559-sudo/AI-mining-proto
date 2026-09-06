@@ -1385,6 +1385,7 @@ const APP = {
 const NAV_ITEMS = [
   { key:"dashboard", label:"Dashboard", ic:"◆" },
   { key:"documents", label:"Documents", ic:"▤" },
+  { key:"maintainer", label:"Data Maintainer", ic:"🛠" },
   { key:"ai-query", label:"AI Query", ic:"✦" },
   { key:"analytics", label:"Analytics", ic:"▨" },
   { key:"reports", label:"Report Generator", ic:"▧" },
@@ -1448,6 +1449,7 @@ function renderPage(page){
   switch(page){
     case "dashboard": return pageDashboard();
     case "documents": return pageDocuments();
+    case "maintainer": return pageMaintainer();
     case "ai-query": return pageAIQuery();
     case "analytics": return pageAnalytics();
     case "reports": return pageReports();
@@ -1463,6 +1465,7 @@ function renderPage(page){
 function afterRender(page){
   if(page==="dashboard") afterDashboard();
   if(page==="documents") afterDocuments();
+  if(page==="maintainer") afterMaintainer();
   if(page==="ai-query") afterAIQuery();
   if(page==="analytics") afterAnalytics();
   if(page==="reports") afterReports();
@@ -2762,6 +2765,510 @@ function renderAuditTable(){
 }
 
 /* ============================================================
+   DATA MAINTAINER (PHASE 4)
+   ============================================================ */
+let _maintainerDatasets = [];
+let _selectedDatasetId = null;
+let _datasetOverview = null;
+let _maintainerTab = 'suggestions';
+let _maintainerSuggestions = [];
+let _maintainerRecords = [];
+let _maintainerValidation = [];
+let _selectedSuggestionIds = new Set();
+let _mStatusFilter = 'all';
+
+function pageMaintainer() {
+  const isLive = Boolean(window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline());
+  return `
+  <div class="page active">
+    <div class="page-head">
+      <div class="eyebrow">Data Quality &amp; Maintenance</div>
+      <h1>AI Excel/CSV Maintainer</h1>
+      <p>Review extracted structured datasets, inspect validation findings, approve/reject suggested fixes (Before → After), apply verified changes atomically with audit trail, and export clean XLSX/CSV datasets.</p>
+    </div>
+
+    <!-- Dataset Selection & Action Bar -->
+    <div class="card card-pad mt-16">
+      <div class="row wrap" style="justify-content:space-between; align-items:center; gap:12px;">
+        <div class="row wrap" style="align-items:center; gap:10px; flex:1; min-width:280px;">
+          <label style="font-size:13px; font-weight:600; color:var(--navy);">Active Dataset:</label>
+          <select id="maintainerDatasetSelect" style="padding:8px 12px; border-radius:8px; border:1px solid #D1DBE8; font-size:13.5px; font-weight:500; min-width:260px; max-width:440px;">
+            <option value="">${isLive ? 'Loading datasets...' : 'No dataset loaded'}</option>
+          </select>
+          <button class="btn btn-outline btn-sm" id="maintainerRefreshBtn">↻ Refresh</button>
+        </div>
+        <div class="row wrap" style="gap:8px;">
+          <button class="btn btn-gold btn-sm" id="maintainerGenBtn">⚡ Generate Fixes</button>
+          <button class="btn btn-primary btn-sm" id="maintainerApplyBtn">🚀 Apply Changes</button>
+          <button class="btn btn-outline btn-sm" id="maintainerExportXlsxBtn">⬇ XLSX Export</button>
+          <button class="btn btn-outline btn-sm" id="maintainerExportCsvBtn">⬇ CSV Export</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overview Stats Cards -->
+    <div class="grid-4 mt-16" id="maintainerOverviewCards">
+      <div class="stat-mini"><div class="l">Dataset Rows</div><div class="v" id="mStatRows">—</div></div>
+      <div class="stat-mini"><div class="l">File Type &amp; Columns</div><div class="v" id="mStatCols" style="font-size:14px;">—</div></div>
+      <div class="stat-mini"><div class="l">Validation Issues</div><div class="v" id="mStatIssues" style="color:var(--red);">—</div></div>
+      <div class="stat-mini"><div class="l">Suggested Fixes</div><div class="v" id="mStatSuggestions" style="color:var(--royal);">—</div></div>
+    </div>
+
+    <!-- Main Workspace Card with Tabs -->
+    <div class="card card-pad mt-16">
+      <div class="row wrap" style="justify-content:space-between; align-items:center; border-bottom:1px solid #EEF2F8; padding-bottom:12px; margin-bottom:16px;">
+        <div class="row wrap" style="gap:8px;" id="maintainerTabs">
+          <span class="chip gold" data-mtab="suggestions" id="mTabBtnSuggestions">💡 Suggested Fixes</span>
+          <span class="chip" data-mtab="records" id="mTabBtnRecords">📋 Dataset Records</span>
+          <span class="chip" data-mtab="validation" id="mTabBtnValidation">⚠ Validation Issues</span>
+        </div>
+        <div class="row wrap" style="gap:8px;" id="maintainerFilterBar">
+          <select id="mSuggestionStatusFilter" style="padding:4px 8px; font-size:12px; border-radius:6px; border:1px solid #D1DBE8;">
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="applied">Applied</option>
+            <option value="failed">Failed</option>
+          </select>
+          <button class="btn btn-outline btn-sm" id="mBatchApproveBtn" style="color:var(--green); border-color:var(--green);">✔ Approve Selected</button>
+          <button class="btn btn-outline btn-sm" id="mBatchRejectBtn" style="color:var(--red); border-color:var(--red);">✖ Reject Selected</button>
+        </div>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div id="maintainerTabContent">
+        <div style="text-align:center; padding:32px; color:#7E8CA3;">Select a dataset above to inspect and maintain data.</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function afterMaintainer() {
+  document.getElementById("maintainerRefreshBtn").addEventListener("click", () => loadMaintainerDatasets(true));
+  document.getElementById("maintainerDatasetSelect").addEventListener("change", (e) => {
+    _selectedDatasetId = e.target.value ? parseInt(e.target.value, 10) : null;
+    if (_selectedDatasetId) loadDatasetDetails(_selectedDatasetId);
+  });
+
+  document.querySelectorAll("[data-mtab]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      _maintainerTab = btn.dataset.mtab;
+      document.querySelectorAll("[data-mtab]").forEach(b => b.classList.toggle("gold", b.dataset.mtab === _maintainerTab));
+      renderMaintainerContent();
+    });
+  });
+
+  document.getElementById("mSuggestionStatusFilter").addEventListener("change", (e) => {
+    _mStatusFilter = e.target.value;
+    if (_selectedDatasetId) loadDatasetSuggestions(_selectedDatasetId);
+  });
+
+  document.getElementById("maintainerGenBtn").addEventListener("click", async () => {
+    if (!_selectedDatasetId) { toast("No dataset selected", "Please select a dataset first."); return; }
+    toast("Generating fixes", "Running deterministic & contextual analysis...");
+    try {
+      const res = await window.CMPDI_AI.apiServices.maintainer.generateSuggestions(_selectedDatasetId);
+      toast("Fixes generated", `Created ${res.created || 0} suggestion(s).`);
+      await loadDatasetDetails(_selectedDatasetId);
+    } catch (err) {
+      toast("Generation error", err.message || "Failed to generate suggestions.");
+    }
+  });
+
+  document.getElementById("maintainerApplyBtn").addEventListener("click", async () => {
+    if (!_selectedDatasetId) { toast("No dataset selected", "Please select a dataset first."); return; }
+    if (!confirm("Apply all APPROVED suggestions to this dataset? This creates permanent audit entries and updates records.")) return;
+    toast("Applying fixes", "Writing approved corrections to records atomically...");
+    try {
+      const res = await window.CMPDI_AI.apiServices.maintainer.apply(_selectedDatasetId);
+      toast("Apply complete", `Successfully applied ${res.applied || 0} correction(s). (${res.failed || 0} failed)`);
+      await loadDatasetDetails(_selectedDatasetId);
+    } catch (err) {
+      toast("Apply error", err.message || "Failed to apply changes.");
+    }
+  });
+
+  document.getElementById("mBatchApproveBtn").addEventListener("click", async () => {
+    if (_selectedSuggestionIds.size === 0) { toast("None selected", "Check one or more suggestions to batch approve."); return; }
+    try {
+      const ids = Array.from(_selectedSuggestionIds);
+      const res = await window.CMPDI_AI.apiServices.maintainer.batchReview(ids, 'approve');
+      toast("Batch Approved", `Approved ${res.updated || 0} suggestion(s).`);
+      _selectedSuggestionIds.clear();
+      await loadDatasetSuggestions(_selectedDatasetId);
+      await loadDatasetOverviewStats(_selectedDatasetId);
+    } catch (err) {
+      toast("Review error", err.message);
+    }
+  });
+
+  document.getElementById("mBatchRejectBtn").addEventListener("click", async () => {
+    if (_selectedSuggestionIds.size === 0) { toast("None selected", "Check one or more suggestions to batch reject."); return; }
+    try {
+      const ids = Array.from(_selectedSuggestionIds);
+      const res = await window.CMPDI_AI.apiServices.maintainer.batchReview(ids, 'reject');
+      toast("Batch Rejected", `Rejected ${res.updated || 0} suggestion(s).`);
+      _selectedSuggestionIds.clear();
+      await loadDatasetSuggestions(_selectedDatasetId);
+      await loadDatasetOverviewStats(_selectedDatasetId);
+    } catch (err) {
+      toast("Review error", err.message);
+    }
+  });
+
+  document.getElementById("maintainerExportXlsxBtn").addEventListener("click", () => downloadMaintainerExport('xlsx'));
+  document.getElementById("maintainerExportCsvBtn").addEventListener("click", () => downloadMaintainerExport('csv'));
+
+  await loadMaintainerDatasets();
+}
+
+async function loadMaintainerDatasets(forceRefresh = false) {
+  if (!window.CMPDI_AI || !window.CMPDI_AI.isBackendOnline || !window.CMPDI_AI.isBackendOnline()) {
+    document.getElementById("maintainerTabContent").innerHTML = `
+      <div style="text-align:center; padding:32px; color:#7E8CA3;">
+        Backend is currently in demo mock mode. Sign in to view and maintain live extracted datasets.
+      </div>`;
+    return;
+  }
+  const select = document.getElementById("maintainerDatasetSelect");
+  if (!select) return;
+
+  try {
+    const res = await window.CMPDI_AI.apiServices.maintainer.datasets();
+    _maintainerDatasets = res.results || [];
+    if (_maintainerDatasets.length === 0) {
+      select.innerHTML = '<option value="">No datasets found (Upload documents first)</option>';
+      document.getElementById("maintainerTabContent").innerHTML = `
+        <div style="text-align:center; padding:32px; color:#7E8CA3;">
+          No extracted datasets found for your account. Upload a PDF/Excel/CSV document in the <b>Documents</b> tab to extract structured tables.
+        </div>`;
+      return;
+    }
+
+    select.innerHTML = _maintainerDatasets.map(d => `
+      <option value="${d.id}" ${_selectedDatasetId === d.id ? 'selected' : ''}>
+        ${escapeHtml(d.filename || d.name)} (${(d.file_type || 'DATA').toUpperCase()} · ${d.record_count} rows)
+      </option>
+    `).join("");
+
+    if (!_selectedDatasetId || forceRefresh || !_maintainerDatasets.some(d => d.id === _selectedDatasetId)) {
+      _selectedDatasetId = _maintainerDatasets[0].id;
+    }
+    select.value = _selectedDatasetId;
+    await loadDatasetDetails(_selectedDatasetId);
+  } catch (err) {
+    select.innerHTML = '<option value="">Error loading datasets</option>';
+    toast("Load error", err.message || "Could not load datasets.");
+  }
+}
+
+async function loadDatasetDetails(datasetId) {
+  await Promise.all([
+    loadDatasetOverviewStats(datasetId),
+    loadDatasetSuggestions(datasetId),
+    loadDatasetRecords(datasetId),
+    loadDatasetValidation(datasetId),
+  ]);
+  renderMaintainerContent();
+}
+
+async function loadDatasetOverviewStats(datasetId) {
+  try {
+    const data = await window.CMPDI_AI.apiServices.maintainer.overview(datasetId);
+    _datasetOverview = data;
+    document.getElementById("mStatRows").textContent = data.record_count || 0;
+    const colCount = (data.columns || []).length;
+    const sheetStr = (data.sheets || []).length > 0 ? ` · ${data.sheets.length} sheets` : '';
+    document.getElementById("mStatCols").textContent = `${(data.file_type || '').toUpperCase()} (${colCount} cols${sheetStr})`;
+
+    const vSum = data.validation_summary || {};
+    document.getElementById("mStatIssues").textContent = `${vSum.error_count || 0} err · ${vSum.warning_count || 0} warn`;
+
+    const sSum = data.suggestion_summary || {};
+    document.getElementById("mStatSuggestions").textContent = `${sSum.pending || 0} pend · ${sSum.approved || 0} apprv · ${sSum.applied || 0} applied`;
+  } catch (err) {
+    console.warn("Could not load overview stats", err);
+  }
+}
+
+async function loadDatasetSuggestions(datasetId) {
+  try {
+    const params = {};
+    if (_mStatusFilter && _mStatusFilter !== 'all') params.status = _mStatusFilter;
+    const res = await window.CMPDI_AI.apiServices.maintainer.suggestions(datasetId, params);
+    _maintainerSuggestions = res.results || [];
+    if (_maintainerTab === 'suggestions') renderMaintainerContent();
+  } catch (err) {
+    console.warn("Could not load suggestions", err);
+  }
+}
+
+async function loadDatasetRecords(datasetId) {
+  try {
+    const res = await window.CMPDI_AI.apiServices.maintainer.records(datasetId, { page_size: 50 });
+    _maintainerRecords = res.results || [];
+    if (_maintainerTab === 'records') renderMaintainerContent();
+  } catch (err) {
+    console.warn("Could not load records", err);
+  }
+}
+
+async function loadDatasetValidation(datasetId) {
+  try {
+    const res = await window.CMPDI_AI.apiServices.maintainer.validationIssues(datasetId);
+    _maintainerValidation = res.results || [];
+    if (_maintainerTab === 'validation') renderMaintainerContent();
+  } catch (err) {
+    console.warn("Could not load validation", err);
+  }
+}
+
+function renderMaintainerContent() {
+  const container = document.getElementById("maintainerTabContent");
+  if (!container) return;
+
+  if (_maintainerTab === 'suggestions') {
+    renderSuggestionsTable(container);
+  } else if (_maintainerTab === 'records') {
+    renderRecordsTable(container);
+  } else if (_maintainerTab === 'validation') {
+    renderValidationTable(container);
+  }
+}
+
+function renderSuggestionsTable(container) {
+  if (_maintainerSuggestions.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:32px; color:#7E8CA3;">
+        No suggestions found with status "${escapeHtml(_mStatusFilter)}". Click <b>⚡ Generate Fixes</b> above to run deterministic &amp; AI analysis.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="tbl-wrap">
+      <table class="dtable" id="mSuggestionsTable">
+        <thead>
+          <tr>
+            <th style="width:36px;"><input type="checkbox" id="mSelectAllSuggestions"></th>
+            <th>Row</th>
+            <th>Field</th>
+            <th>BEFORE → AFTER</th>
+            <th>Reason &amp; Issue</th>
+            <th>Confidence</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${_maintainerSuggestions.map(s => {
+            const isPending = s.status === 'pending';
+            const isApproved = s.status === 'approved';
+            const isApplied = s.status === 'applied';
+            const isFailed = s.status === 'failed';
+            const isRejected = s.status === 'rejected';
+
+            const statusClass = isApplied ? 'done' : (isApproved ? 'done' : (isPending ? 'review' : (isFailed ? 'failed' : 'progress')));
+            const statusLabel = (s.status_display || s.status || '').toUpperCase();
+
+            return `
+            <tr>
+              <td>
+                <input type="checkbox" class="mSugCheck" data-sid="${s.id}" ${_selectedSuggestionIds.has(s.id) ? 'checked' : ''} ${isApplied ? 'disabled' : ''}>
+              </td>
+              <td class="mono small">#${s.record_row_index !== null && s.record_row_index !== undefined ? s.record_row_index + 1 : '—'}</td>
+              <td><b>${escapeHtml(s.field_name)}</b></td>
+              <td>
+                <span style="background:#FEE8E8; color:#D64545; padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px;">${escapeHtml(s.original_value || '∅')}</span>
+                <span style="color:#7E8CA3; margin:0 4px;">→</span>
+                <span style="background:#E8F5E9; color:#1E9E63; padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px; font-weight:600;">${escapeHtml(s.suggested_value || '∅')}</span>
+              </td>
+              <td style="font-size:12.5px;">
+                <span class="badge" style="background:#EBF2FA; color:var(--royal); font-size:11px; margin-bottom:2px;">${escapeHtml(s.issue_type_display || s.issue_type)}</span>
+                <div style="color:#5C6B80;">${escapeHtml(s.reason)}</div>
+                ${s.error_message ? `<div style="color:var(--red); font-size:11px; margin-top:2px;">⚠ ${escapeHtml(s.error_message)}</div>` : ''}
+              </td>
+              <td><span class="badge" style="background:#F5F7FA; color:var(--navy); font-weight:600;">${Math.round((s.confidence || 1.0) * 100)}%</span></td>
+              <td><span class="badge" style="${s.suggestion_source==='ai'?'background:#FFF8E1; color:#B98A16;':'background:#E8F0FE; color:#1976D2;'}">${escapeHtml(s.suggestion_source_display || s.suggestion_source)}</span></td>
+              <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+              <td>
+                ${isPending ? `
+                  <button class="btn btn-outline btn-sm mSingleApproveBtn" data-sid="${s.id}" style="padding:2px 8px; font-size:11.5px; color:var(--green); border-color:var(--green);">Approve</button>
+                  <button class="btn btn-outline btn-sm mSingleRejectBtn" data-sid="${s.id}" style="padding:2px 8px; font-size:11.5px; color:var(--red); border-color:var(--red);">Reject</button>
+                ` : (isApproved ? `
+                  <button class="btn btn-outline btn-sm mSingleRejectBtn" data-sid="${s.id}" style="padding:2px 8px; font-size:11.5px; color:var(--red); border-color:var(--red);">Reject</button>
+                ` : `<span style="font-size:11.5px; color:#9AA7BC;">—</span>`)}
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+
+  const selectAll = container.querySelector("#mSelectAllSuggestions");
+  if (selectAll) {
+    selectAll.addEventListener("change", (e) => {
+      container.querySelectorAll(".mSugCheck:not(:disabled)").forEach(cb => {
+        cb.checked = e.target.checked;
+        const sid = parseInt(cb.dataset.sid, 10);
+        if (e.target.checked) _selectedSuggestionIds.add(sid);
+        else _selectedSuggestionIds.delete(sid);
+      });
+    });
+  }
+
+  container.querySelectorAll(".mSugCheck").forEach(cb => {
+    cb.addEventListener("change", (e) => {
+      const sid = parseInt(e.target.dataset.sid, 10);
+      if (e.target.checked) _selectedSuggestionIds.add(sid);
+      else _selectedSuggestionIds.delete(sid);
+    });
+  });
+
+  container.querySelectorAll(".mSingleApproveBtn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const sid = btn.dataset.sid;
+      try {
+        await window.CMPDI_AI.apiServices.maintainer.approve(sid);
+        toast("Approved", `Suggestion #${sid} marked as APPROVED.`);
+        await loadDatasetSuggestions(_selectedDatasetId);
+        await loadDatasetOverviewStats(_selectedDatasetId);
+      } catch (err) {
+        toast("Error", err.message);
+      }
+    });
+  });
+
+  container.querySelectorAll(".mSingleRejectBtn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const sid = btn.dataset.sid;
+      try {
+        await window.CMPDI_AI.apiServices.maintainer.reject(sid);
+        toast("Rejected", `Suggestion #${sid} marked as REJECTED.`);
+        await loadDatasetSuggestions(_selectedDatasetId);
+        await loadDatasetOverviewStats(_selectedDatasetId);
+      } catch (err) {
+        toast("Error", err.message);
+      }
+    });
+  });
+}
+
+function renderRecordsTable(container) {
+  if (_maintainerRecords.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:32px; color:#7E8CA3;">No records found in this dataset.</div>`;
+    return;
+  }
+
+  const columns = (_datasetOverview && _datasetOverview.columns && _datasetOverview.columns.length > 0)
+    ? _datasetOverview.columns
+    : Object.keys((_maintainerRecords[0] && _maintainerRecords[0].data_json) || {}).filter(k => !k.includes('_original'));
+
+  container.innerHTML = `
+    <div class="tbl-wrap">
+      <table class="dtable" id="mRecordsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            ${columns.map(c => `<th>${escapeHtml(c)}</th>`).join("")}
+            <th>Fixes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${_maintainerRecords.map((r, idx) => {
+            const data = r.data_json || {};
+            return `
+            <tr>
+              <td class="mono small">#${r.row_index !== undefined ? r.row_index + 1 : idx + 1}</td>
+              ${columns.map(c => {
+                const val = data[c] !== undefined ? String(data[c]) : '';
+                const origVal = data[`${c}_original_before_apply`];
+                const wasModified = origVal !== undefined && origVal !== val;
+                return `<td>
+                  ${escapeHtml(val)}
+                  ${wasModified ? `<span title="Original: ${escapeHtml(origVal)}" style="margin-left:4px; font-size:10px; color:var(--green); font-weight:bold;">✓</span>` : ''}
+                </td>`;
+              }).join("")}
+              <td>
+                ${r.suggestions_count > 0 ? `<span class="badge" style="background:#FFF3E0; color:#E65100;">${r.suggestions_count} pending</span>` : `<span style="color:#A0AEC0; font-size:11px;">clean</span>`}
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderValidationTable(container) {
+  if (_maintainerValidation.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:32px; color:#7E8CA3;">No validation issues reported for this dataset. Data quality passed!</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="tbl-wrap">
+      <table class="dtable" id="mValidationTable">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Field</th>
+            <th>Issue Type</th>
+            <th>Explanation</th>
+            <th>Original Value</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${_maintainerValidation.map(v => {
+            const sevColor = v.severity === 'ERROR' ? 'background:#FEE8E8; color:#D64545;' : (v.severity === 'WARNING' ? 'background:#FFF8E1; color:#B98A16;' : 'background:#E8F0FE; color:#1976D2;');
+            return `
+            <tr>
+              <td><span class="badge" style="${sevColor} font-weight:bold;">${escapeHtml(v.severity)}</span></td>
+              <td><b>${escapeHtml(v.field_name || '—')}</b></td>
+              <td><span class="badge" style="background:#F5F7FA; color:var(--navy);">${escapeHtml(v.issue_type)}</span></td>
+              <td style="font-size:12.5px; color:#2D3748;">${escapeHtml(v.explanation)}</td>
+              <td class="mono small" style="color:#718096;">${escapeHtml(v.original_value || '—')}</td>
+              <td><span class="status-pill ${v.status === 'resolved' ? 'done' : 'progress'}">${escapeHtml(v.status)}</span></td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function downloadMaintainerExport(format) {
+  if (!_selectedDatasetId) {
+    toast("No dataset selected", "Please select a dataset to export.");
+    return;
+  }
+  toast("Export starting", `Generating clean ${format.toUpperCase()} export...`);
+  try {
+    const token = typeof _getToken === 'function' ? _getToken() : null;
+    const headers = { 'Accept': '*/*' };
+    if (token) headers['Authorization'] = `Token ${token}`;
+    const url = `${API_BASE}/api/maintainer/datasets/${_selectedDatasetId}/export/${format}/`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`);
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const fnMatch = disposition.match(/filename="([^"]+)"/);
+    const filename = fnMatch ? fnMatch[1] : `dataset_${_selectedDatasetId}_maintained.${format}`;
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 1000);
+    toast("Export complete", `Saved as ${filename}`);
+  } catch (err) {
+    toast("Export failed", err.message || "Could not export dataset.");
+  }
+}
+
+/* ============================================================
    GLOBAL SEARCH
    ============================================================ */
 function wireGlobalSearch(){
@@ -3102,6 +3609,20 @@ const apiServices = {
   },
   audit: {
     list: (params) => _apiFetch('/api/audit/' + (params ? '?' + new URLSearchParams(params) : '')),
+  },
+  maintainer: {
+    datasets: (params) => _apiFetch('/api/maintainer/datasets/' + (params ? '?' + new URLSearchParams(params) : '')),
+    overview: (id) => _apiFetch(`/api/maintainer/datasets/${id}/overview/`),
+    records: (id, params) => _apiFetch(`/api/maintainer/datasets/${id}/records/` + (params ? '?' + new URLSearchParams(params) : '')),
+    suggestions: (id, params) => _apiFetch(`/api/maintainer/datasets/${id}/suggestions/` + (params ? '?' + new URLSearchParams(params) : '')),
+    validationIssues: (id, params) => _apiFetch(`/api/maintainer/datasets/${id}/validation-issues/` + (params ? '?' + new URLSearchParams(params) : '')),
+    generateSuggestions: (id) => _apiFetch(`/api/maintainer/datasets/${id}/generate-suggestions/`, { method: 'POST' }),
+    approve: (id) => _apiFetch(`/api/maintainer/suggestions/${id}/approve/`, { method: 'POST' }),
+    reject: (id) => _apiFetch(`/api/maintainer/suggestions/${id}/reject/`, { method: 'POST' }),
+    batchReview: (ids, action) => _apiFetch('/api/maintainer/suggestions/batch-review/', { method: 'POST', body: JSON.stringify({ ids, action }) }),
+    apply: (id) => _apiFetch(`/api/maintainer/datasets/${id}/apply/`, { method: 'POST' }),
+    exportXlsxUrl: (id) => `${API_BASE}/api/maintainer/datasets/${id}/export/xlsx/`,
+    exportCsvUrl: (id) => `${API_BASE}/api/maintainer/datasets/${id}/export/csv/`,
   },
 };
 
