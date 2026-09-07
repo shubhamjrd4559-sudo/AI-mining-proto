@@ -12,9 +12,6 @@ from django.db import transaction
 
 from apps.reports.models import Report, ReportStatus, ReportType
 from apps.reports.services.registry import get_generator_for_type
-from apps.reports.services.exporters.pdf_exporter import generate_pdf_report
-from apps.reports.services.exporters.docx_exporter import generate_docx_report
-from apps.reports.services.exporters.xlsx_exporter import generate_xlsx_report
 from apps.datasets.models import StructuredDataset
 from apps.documents.models import Document
 from apps.audit.models import AuditEvent, AuditEventType
@@ -217,14 +214,17 @@ class ReportEngine:
         timestamp = timezone.now().strftime("%Y%m%d_%H%M")
 
         if fmt == 'pdf':
+            from apps.reports.services.exporters.pdf_exporter import generate_pdf_report
             data = generate_pdf_report(report)
             content_type = 'application/pdf'
             filename = f"{safe_title}_{timestamp}.pdf"
         elif fmt in ('docx', 'doc'):
+            from apps.reports.services.exporters.docx_exporter import generate_docx_report
             data = generate_docx_report(report)
             content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             filename = f"{safe_title}_{timestamp}.docx"
         elif fmt in ('xlsx', 'excel', 'xls'):
+            from apps.reports.services.exporters.xlsx_exporter import generate_xlsx_report
             data = generate_xlsx_report(report)
             content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             filename = f"{safe_title}_{timestamp}.xlsx"
