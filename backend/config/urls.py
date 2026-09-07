@@ -14,6 +14,7 @@ urlpatterns = [
 
     # API v1
     path('api/', include('apps.core.urls')),
+    path('api/reports/', include('apps.reports.urls')),
     path('api/documents/', include('apps.documents.urls')),
     path('api/datasets/', include('apps.datasets.urls')),
     path('api/analytics/', include('apps.analytics.urls')),

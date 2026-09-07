@@ -7,9 +7,9 @@
 
 ## Current Phase
 
-**PHASE 6 — DYNAMIC ANALYTICS + DATA EXPLORER (COMPLETE)**
+**PHASE 7 — PRODUCTION-QUALITY REAL REPORT GENERATOR (COMPLETE)**
 **Status: READY FOR REVIEW**
-**All Phase 1–6 tests passing (191 total tests: 22 Phase 5 intelligence + 19 Phase 6 analytics + 7 datasets + 143 existing). Verification complete.**
+**All Phase 1–7 tests passing (213 total tests: 17 Phase 7 reports + 22 Phase 5 intelligence + 19 Phase 6 analytics + 7 datasets + 148 existing). Verification complete.**
 
 ---
 
@@ -199,9 +199,65 @@
 
 ---
 
-## Test Suite Results (Phase 1–6 Complete)
+### Phase 7 — Production-Quality Real Report Generator (this phase)
 
-**191/191 tests PASSED (exit code 0)**
+- [x] **New Django App: `apps.reports`**
+  - Registered in `LOCAL_APPS` and mounted at `/api/reports/`.
+  - Database model: `Report` with `ReportType` and `ReportStatus` choices, tracking `title`, `report_type`, `organization`, `date_range`, `status`, `filters_json`, `source_datasets`, `source_documents`, `content_json`, `provenance_json`, `export_format`, `created_by`, `verified_by`, `approved_by`, `verified_at`, `approved_at`, `approval_notes`, `revision_count`, `error_message`, and timestamps.
+  - Database migration created and applied (`reports.0001_initial`).
+
+- [x] **Complete Report Lifecycle State Machine**
+  - States: `DRAFT → GENERATING → GENERATED → UNDER_REVIEW → VERIFIED → APPROVED → EXPORTED` (with `FAILED` error handling).
+  - Safe narrative editing: modifies generated narrative sections (`executive_summary`, `analysis`, `conclusions`, `notes`) without altering underlying source datasets or records.
+  - Verification step: records `verified_by` and `verified_at`.
+  - Approval step: records `approved_by`, `approved_at`, and `approval_notes`.
+  - Full audit logging: all actions record immutable `AuditEvent` entries (`ai.report`).
+
+- [x] **Pluggable Generator Architecture (`apps/reports/services/`)**
+  - `BaseReportGenerator`: shared record filtering, aggregate calculations, provenance extraction, and document chunk retrieval.
+  - 8 Roadmap Report Types:
+    1. `ProductionReportGenerator`: Raw coal production, dispatch, target, achievement %, YoY growth, subsidiary breakdown, top mines.
+    2. `GeologicalExplorationReportGenerator`: Coalfield basins, state distribution, coal grades (G1-G17), coking vs non-coking, document exploration evidence.
+    3. `MiningPerformanceReportGenerator`: Asset-level target vs actual variance, dispatch-to-production evacuation efficiency.
+    4. `ExplorationReportGenerator`: Exploration blocks, drilling status, UNFC/ISP standard survey findings.
+    5. `CoalSeamAnalysisReportGenerator`: Coal quality parameters, modal grades, AMS sampling compliance.
+    6. `ParliamentaryQuestionResponseGenerator`: Official Government of India / Ministry of Coal Starred/Unstarred question format with Annexure-I.
+    7. `AdministrativeQueryReportGenerator`: Internal governance, operational compliance, and ledger audit verification.
+    8. `CustomReportGenerator`: Multi-dimensional report synthesizing custom parameters across datasets and documents.
+  - Factual Grounding: NEVER fabricates figures. Uses `"Data not available in selected sources."` when data is missing.
+
+- [x] **Real Document Exporters (`apps/reports/services/exporters/`)**
+  - `pdf_exporter.py`: Generates official PDF using ReportLab with custom header/footer canvas, numbered pages, styled tables, KPI cards, provenance list, and signature blocks.
+  - `docx_exporter.py`: Generates official Word documents using python-docx with custom styles, callout blocks, formatted tables, and sign-off blocks.
+  - `xlsx_exporter.py`: Generates multi-tab Excel workbooks using openpyxl (Summary & KPIs, Report Data, Provenance & Audit) with autofitted columns.
+
+- [x] **Owner-Scoped Authenticated REST APIs (`apps/reports/views.py`)**
+  - `GET /api/reports/options/` — Available report types, user's datasets, documents, subsidiaries, date ranges.
+  - `GET /api/reports/list/` — User's saved reports.
+  - `POST /api/reports/generate/` — Generate report from real project data.
+  - `GET /api/reports/<id>/` — Retrieve full report details.
+  - `PATCH /api/reports/<id>/edit/` — Edit narrative sections (increments revision, sets `UNDER_REVIEW`).
+  - `POST /api/reports/<id>/verify/` — Mark report as `VERIFIED`.
+  - `POST /api/reports/<id>/approve/` — Mark report as `APPROVED` with authority notes.
+  - `GET /api/reports/<id>/export/<format>/` — Download real binary PDF, DOCX, or XLSX file.
+  - `DELETE /api/reports/<id>/` — Delete report.
+
+- [x] **Interactive Frontend UI (`index.html`)**
+  - 5-step interactive wizard: Report Type (8 types), Organization, Date Range, Real Data Sources (datasets/documents), Output Format.
+  - Live generation animation connected to backend API.
+  - Full Report Viewer with title, metadata, status badge, executive summary, KPI cards, data tables, analysis, conclusions, provenance summary, and governance sign-off.
+  - In-place narrative editor with "Save Changes" action.
+  - Modal workflows: Verification action, Approval remarks modal, Traceable Provenance modal, and Saved Reports Library modal.
+  - Real browser downloads for PDF, DOCX, and XLSX using authenticated blobs.
+
+- [x] **Phase 7 Test Suite (`apps/reports/tests/test_reports.py`)**
+  - 15 focused tests covering authentication, owner isolation, options, all 8 report types, review/edit/verify/approve workflow, PDF/DOCX/XLSX exports, audit logging, error handling, subsidiary filtering, empty dataset fallback, and deletion.
+
+---
+
+## Test Suite Results (Phase 1–7 Complete)
+
+**211/211 tests PASSED (exit code 0)**
 
 | App | Tests | Result |
 |---|---|---|
@@ -214,7 +270,8 @@
 | `apps.maintainer` | 45 | ✅ PASS |
 | `apps.intelligence` | 22 | ✅ PASS |
 | `apps.analytics` | 19 | ✅ PASS |
-| **TOTAL** | **191** | **✅ ALL PASS** |
+| `apps.reports` | 17 | ✅ PASS |
+| **TOTAL** | **213** | **✅ ALL PASS** |
 
 ---
 

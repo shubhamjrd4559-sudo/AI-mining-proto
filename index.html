@@ -2903,33 +2903,129 @@ function renderAnalyticsTopMines(series){
 /* ============================================================
    REPORT GENERATOR (wizard)
    ============================================================ */
+let _reportOptionsCache = null;
+let _savedReportsList = [];
+
+const DEFAULT_REPORT_TYPES = [
+  { key:"Production Report", ic:"📊", d:"Subsidiary and national raw coal production, targets and dispatch summaries." },
+  { key:"Geological & Exploration Report", ic:"⛏", d:"Exploration status, borehole evaluation, and coal grade distribution." },
+  { key:"Mining Performance Report", ic:"🏭", d:"Mine-level target vs actual operational performance and evacuation efficiency." },
+  { key:"Exploration Report", ic:"🧭", d:"Exploration blocks, drilling status, and stratigraphic survey findings." },
+  { key:"Coal Seam Analysis", ic:"🔬", d:"Proximate quality, seam thickness, coal type, and GCV grade matrix." },
+  { key:"Parliamentary Question Response", ic:"🏛", d:"Official point-by-point reply for Ministry of Coal parliamentary queries." },
+  { key:"Administrative Query", ic:"📁", d:"Internal governance, operational compliance, and ledger audit verification." },
+  { key:"Custom Report", ic:"⚙", d:"Multi-dimensional report synthesizing custom parameters across datasets and documents." },
+];
+
 function pageReports(){
-  APP.wizard = { step:1, type:null, org:null, range:"FY 2024-25", sources:["CMPDI Annual Report 2025-26","Coal Directory 2024-25"], format:null };
+  if (!APP.wizard) {
+    APP.wizard = {
+      step: 1,
+      type: "Production Report",
+      org: "CMPDI (HQ)",
+      range: "All Available",
+      sources: [],
+      source_dataset_ids: [],
+      source_document_ids: [],
+      format: "PDF",
+      activeReport: null,
+      editMode: false,
+    };
+  }
   return `
   <div class="page active">
-    <div class="page-head">
-      <div class="eyebrow">Report Generator</div>
-      <h1>Automated Report Generator</h1>
-      <p>Generate source-referenced reports from verified mining and geological documents.</p>
+    <div class="page-head" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div class="eyebrow">Report Generator · Phase 7</div>
+        <h1>Automated Real Report Generator</h1>
+        <p>Generate source-referenced official reports from verified mining datasets and geological documentation.</p>
+      </div>
+      <div class="row" style="gap:8px;">
+        <button class="btn btn-outline btn-sm" id="repHistoryBtn" onclick="toggleSavedReportsModal()">📋 Saved Reports</button>
+        <button class="btn btn-primary btn-sm" id="repNewBtn" onclick="startNewReport()">➕ New Report</button>
+      </div>
     </div>
-    <div class="card card-pad">
+    <div class="card card-pad" id="reportWizardCard">
       <div class="wizard-steps" id="wizardSteps"></div>
       <div id="wizardBody"></div>
     </div>
+
+    <!-- Provenance Modal -->
+    <div class="modal-overlay" id="repProvModal" style="display:none; position:fixed; inset:0; background:rgba(7,26,61,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+      <div class="card card-pad" style="width:90%; max-width:850px; max-height:85vh; overflow-y:auto; background:#fff; border-radius:14px; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+        <div class="row between mb-16">
+          <h3 style="margin:0; font-family:var(--font-display); color:var(--navy);">Source Traceability &amp; Extraction Provenance</h3>
+          <button class="btn btn-ghost btn-sm" onclick="closeProvModal()">✕ Close</button>
+        </div>
+        <div id="repProvModalBody"></div>
+      </div>
+    </div>
+
+    <!-- Saved Reports Modal -->
+    <div class="modal-overlay" id="repSavedModal" style="display:none; position:fixed; inset:0; background:rgba(7,26,61,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+      <div class="card card-pad" style="width:90%; max-width:850px; max-height:85vh; overflow-y:auto; background:#fff; border-radius:14px; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+        <div class="row between mb-16">
+          <h3 style="margin:0; font-family:var(--font-display); color:var(--navy);">Saved Official Reports Library</h3>
+          <button class="btn btn-ghost btn-sm" onclick="closeSavedReportsModal()">✕ Close</button>
+        </div>
+        <div id="repSavedModalBody">Loading saved reports...</div>
+      </div>
+    </div>
+
+    <!-- Approval Remarks Modal -->
+    <div class="modal-overlay" id="repApproveModal" style="display:none; position:fixed; inset:0; background:rgba(7,26,61,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+      <div class="card card-pad" style="width:90%; max-width:520px; background:#fff; border-radius:14px; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+        <div class="row between mb-16">
+          <h3 style="margin:0; font-family:var(--font-display); color:var(--navy);">Approve Official Report</h3>
+          <button class="btn btn-ghost btn-sm" onclick="closeApproveModal()">✕</button>
+        </div>
+        <p class="muted small mb-12">Confirm governance approval for this report. Your username and timestamp will be permanently attached to all PDF, Word, and Excel exports.</p>
+        <textarea id="repApproveNotes" class="input" style="width:100%; height:80px; padding:10px; font-family:var(--font-body); resize:vertical;" placeholder="Optional sign-off remarks, authorization reference, or dispatch notes..."></textarea>
+        <div class="row" style="justify-content:flex-end; gap:10px; margin-top:16px;">
+          <button class="btn btn-outline" onclick="closeApproveModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="submitReportApproval()">Confirm Approval</button>
+        </div>
+      </div>
+    </div>
   </div>`;
 }
-const REPORT_TYPES = [
-  { key:"Production Report", ic:"📊", d:"Subsidiary and national production summaries." },
-  { key:"Geological Report", ic:"⛏", d:"Exploration, boreholes and resource evaluation." },
-  { key:"Mining Report", ic:"🏭", d:"Mine plans, dispatch and operational status." },
-  { key:"Parliamentary Question Response", ic:"🏛", d:"Formatted response for parliamentary queries." },
-  { key:"Administrative Query", ic:"📁", d:"Internal administrative data request." },
-  { key:"Custom Report", ic:"⚙", d:"Build a report from any combination of sources." },
-];
-function afterReports(){ renderWizard(); }
+
+async function afterReports(){
+  const isLive = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
+  if (isLive) {
+    try {
+      const opts = await window.CMPDI_AI.apiServices.reports.options();
+      _reportOptionsCache = opts;
+      if (opts.datasets && opts.datasets.length > 0 && (!APP.wizard.source_dataset_ids || APP.wizard.source_dataset_ids.length === 0)) {
+        APP.wizard.source_dataset_ids = opts.datasets.map(d => d.id);
+      }
+    } catch(e) {
+      console.warn("Could not fetch live report options:", e);
+    }
+  }
+  renderWizard();
+}
+
+function startNewReport(){
+  APP.wizard.step = 1;
+  APP.wizard.activeReport = null;
+  APP.wizard.editMode = false;
+  renderWizard();
+}
+
 function renderWizard(){
   const labels = ["Report Type","Organization","Date Range","Data Sources","Output"];
-  document.getElementById("wizardSteps").innerHTML = labels.map((l,i)=>{
+  const stepsContainer = document.getElementById("wizardSteps");
+  if (!stepsContainer) return;
+
+  if (APP.wizard.step === 7 && APP.wizard.activeReport) {
+    stepsContainer.style.display = "none";
+    renderReportViewer();
+    return;
+  }
+  stepsContainer.style.display = "flex";
+
+  stepsContainer.innerHTML = labels.map((l,i)=>{
     const n = i+1;
     const cls = n < APP.wizard.step ? "done" : (n===APP.wizard.step ? "active" : "");
     return `<div class="wstep ${cls}"><span class="num">${n < APP.wizard.step ? "✓" : n}</span>${l}</div>${i<labels.length-1?'<span class="wconnector"></span>':''}`;
@@ -2937,116 +3033,638 @@ function renderWizard(){
 
   const body = document.getElementById("wizardBody");
   const step = APP.wizard.step;
+
+  const reportTypes = (_reportOptionsCache && _reportOptionsCache.report_types) ? _reportOptionsCache.report_types.map(t=>({key:t.label, ic:t.icon, d:t.description})) : DEFAULT_REPORT_TYPES;
+
   if(step===1){
     body.innerHTML = `
-      <div class="grid-3">
-        ${REPORT_TYPES.map(t=>`<div class="option-card ${APP.wizard.type===t.key?'sel':''}" data-type="${t.key}">
-          <div class="oic">${t.ic}</div><h4>${t.key}</h4><p>${t.d}</p></div>`).join("")}
+      <div class="grid-4" style="gap:14px;">
+        ${reportTypes.map(t=>`
+          <div class="option-card ${APP.wizard.type===t.key?'sel':''}" data-type="${t.key}" style="cursor:pointer; padding:16px;">
+            <div class="oic" style="font-size:26px; margin-bottom:8px;">${t.ic}</div>
+            <h4 style="margin:0 0 6px 0; font-size:14px; font-weight:700;">${t.key}</h4>
+            <p style="margin:0; font-size:11.5px; color:var(--muted); line-height:1.4;">${t.d}</p>
+          </div>`).join("")}
       </div>
-      <div class="row" style="justify-content:flex-end; margin-top:20px;">
+      <div class="row" style="justify-content:flex-end; margin-top:24px;">
         <button class="btn btn-primary" id="wizNext" ${APP.wizard.type?'':'disabled'}>Continue →</button>
       </div>`;
-    document.querySelectorAll("[data-type]").forEach(el=> el.addEventListener("click", ()=>{
+    body.querySelectorAll("[data-type]").forEach(el=> el.addEventListener("click", ()=>{
       APP.wizard.type = el.dataset.type; renderWizard();
     }));
-    const nextBtn = document.getElementById("wizNext");
-    if(nextBtn) nextBtn.addEventListener("click", ()=>{ APP.wizard.step=2; renderWizard(); });
+    document.getElementById("wizNext").addEventListener("click", ()=>{ APP.wizard.step=2; renderWizard(); });
+
   } else if(step===2){
+    const orgs = (_reportOptionsCache && _reportOptionsCache.subsidiaries) ? _reportOptionsCache.subsidiaries : ["CMPDI (HQ)", ...MOCK.subsidiaries.map(s=>s.code)];
     body.innerHTML = `
-      <div class="grid-3">
-        ${["CMPDI (HQ)", ...MOCK.subsidiaries.map(s=>s.code)].map(o=>`<div class="option-card ${APP.wizard.org===o?'sel':''}" data-org="${o}"><h4>${o}</h4><p>Organization / Subsidiary</p></div>`).join("")}
+      <div class="grid-4" style="gap:14px;">
+        ${orgs.map(o=>`
+          <div class="option-card ${APP.wizard.org===o?'sel':''}" data-org="${o}" style="cursor:pointer; padding:18px; text-align:center;">
+            <div style="font-size:24px; margin-bottom:6px;">🏢</div>
+            <h4 style="margin:0 0 4px 0; font-size:15px; font-weight:700;">${o}</h4>
+            <p style="margin:0; font-size:11.5px; color:var(--muted);">${o === 'CMPDI (HQ)' ? 'Central Headquarters / All' : 'Operating Subsidiary'}</p>
+          </div>`).join("")}
       </div>
-      <div class="row" style="justify-content:space-between; margin-top:20px;">
+      <div class="row" style="justify-content:space-between; margin-top:24px;">
         <button class="btn btn-outline" id="wizBack">← Back</button>
         <button class="btn btn-primary" id="wizNext" ${APP.wizard.org?'':'disabled'}>Continue →</button>
       </div>`;
-    document.querySelectorAll("[data-org]").forEach(el=> el.addEventListener("click", ()=>{ APP.wizard.org = el.dataset.org; renderWizard(); }));
+    body.querySelectorAll("[data-org]").forEach(el=> el.addEventListener("click", ()=>{ APP.wizard.org = el.dataset.org; renderWizard(); }));
     document.getElementById("wizBack").addEventListener("click", ()=>{ APP.wizard.step=1; renderWizard(); });
-    const nextBtn = document.getElementById("wizNext");
-    if(nextBtn) nextBtn.addEventListener("click", ()=>{ APP.wizard.step=3; renderWizard(); });
+    document.getElementById("wizNext").addEventListener("click", ()=>{ APP.wizard.step=3; renderWizard(); });
+
   } else if(step===3){
+    const ranges = (_reportOptionsCache && _reportOptionsCache.date_ranges) ? _reportOptionsCache.date_ranges : ["All Available","FY 2021-22","FY 2022-23","FY 2023-24","FY 2024-25","FY 2025-26"];
     body.innerHTML = `
-      <div class="row wrap" style="gap:10px;">
-        ${["FY 2022-23","FY 2023-24","FY 2024-25","FY 2025-26","Custom Range"].map(r=>`<span class="chip ${APP.wizard.range===r?'gold':''}" data-range="${r}">${r}</span>`).join("")}
+      <div class="row wrap" style="gap:12px;">
+        ${ranges.map(r=>`<span class="chip ${APP.wizard.range===r?'gold':''}" data-range="${r}" style="cursor:pointer; font-size:13px; padding:8px 16px;">${r}</span>`).join("")}
       </div>
+      <div class="row" style="justify-content:space-between; margin-top:28px;">
+        <button class="btn btn-outline" id="wizBack">← Back</button>
+        <button class="btn btn-primary" id="wizNext">Continue →</button>
+      </div>`;
+    body.querySelectorAll("[data-range]").forEach(el=> el.addEventListener("click", ()=>{ APP.wizard.range = el.dataset.range; renderWizard(); }));
+    document.getElementById("wizBack").addEventListener("click", ()=>{ APP.wizard.step=2; renderWizard(); });
+    document.getElementById("wizNext").addEventListener("click", ()=>{ APP.wizard.step=4; renderWizard(); });
+
+  } else if(step===4){
+    const datasets = (_reportOptionsCache && _reportOptionsCache.datasets) || [];
+    const documents = (_reportOptionsCache && _reportOptionsCache.documents) || [];
+
+    let sourcesHtml = '';
+    if (datasets.length > 0 || documents.length > 0) {
+      sourcesHtml = `
+        <div style="margin-bottom:16px;">
+          <div class="row between mb-8">
+            <span class="eyebrow">Structured Datasets (${datasets.length})</span>
+            <span class="small text-primary clickable" id="selAllDatasets">Select All</span>
+          </div>
+          <div class="stack" style="gap:8px;">
+            ${datasets.map(d=>`
+              <label class="row" style="border:1px solid #E2E8F0; border-radius:10px; padding:10px 14px; cursor:pointer; background:#fff;">
+                <input type="checkbox" data-dsid="${d.id}" ${(!APP.wizard.source_dataset_ids || APP.wizard.source_dataset_ids.includes(d.id))?'checked':''} style="margin-right:12px; accent-color:var(--royal); width:16px; height:16px;">
+                <div style="flex:1;">
+                  <b>${escapeHtml(d.name)}</b>
+                  <div class="muted small">${d.record_count || 0} verified records</div>
+                </div>
+              </label>`).join("")}
+          </div>
+        </div>
+        ${documents.length > 0 ? `
+        <div style="margin-top:20px;">
+          <div class="row between mb-8"><span class="eyebrow">Uploaded Source Documents (${documents.length})</span></div>
+          <div class="stack" style="gap:8px;">
+            ${documents.map(doc=>`
+              <label class="row" style="border:1px solid #E2E8F0; border-radius:10px; padding:8px 14px; cursor:pointer; background:#fff;">
+                <input type="checkbox" data-docid="${doc.id}" ${(APP.wizard.source_document_ids && APP.wizard.source_document_ids.includes(doc.id))?'checked':''} style="margin-right:12px; accent-color:var(--royal); width:16px; height:16px;">
+                <div style="flex:1;">
+                  <b>${escapeHtml(doc.title)}</b>
+                  <div class="muted small">Status: ${doc.status}</div>
+                </div>
+              </label>`).join("")}
+          </div>
+        </div>` : ''}
+      `;
+    } else {
+      const allMockSources = MOCK.documents.map(d=>d.name);
+      sourcesHtml = `
+        <div class="stack" style="gap:8px;">
+          ${allMockSources.map(s=>`
+            <label class="row" style="border:1px solid #E9EDF5; border-radius:12px; padding:10px 14px; cursor:pointer;">
+              <input type="checkbox" data-src="${s}" ${(APP.wizard.sources||[]).includes(s)?'checked':''} style="margin-right:10px; accent-color:var(--royal);"> ${s}
+            </label>`).join("")}
+        </div>`;
+    }
+
+    body.innerHTML = `
+      ${sourcesHtml}
       <div class="row" style="justify-content:space-between; margin-top:24px;">
         <button class="btn btn-outline" id="wizBack">← Back</button>
         <button class="btn btn-primary" id="wizNext">Continue →</button>
       </div>`;
-    document.querySelectorAll("[data-range]").forEach(el=> el.addEventListener("click", ()=>{ APP.wizard.range = el.dataset.range; renderWizard(); }));
-    document.getElementById("wizBack").addEventListener("click", ()=>{ APP.wizard.step=2; renderWizard(); });
-    document.getElementById("wizNext").addEventListener("click", ()=>{ APP.wizard.step=4; renderWizard(); });
-  } else if(step===4){
-    const allSources = MOCK.documents.map(d=>d.name);
-    body.innerHTML = `
-      <div class="stack" style="gap:8px;">
-        ${allSources.map(s=>`
-          <label class="row" style="border:1px solid #E9EDF5; border-radius:12px; padding:10px 14px; cursor:pointer;">
-            <input type="checkbox" data-src="${s}" ${APP.wizard.sources.includes(s)?'checked':''} style="margin-right:10px; accent-color:var(--royal);"> ${s}
-          </label>`).join("")}
-      </div>
-      <div class="row" style="justify-content:space-between; margin-top:20px;">
-        <button class="btn btn-outline" id="wizBack">← Back</button>
-        <button class="btn btn-primary" id="wizNext">Continue →</button>
-      </div>`;
-    document.querySelectorAll("[data-src]").forEach(el=> el.addEventListener("change", ()=>{
-      const s = el.dataset.src;
-      if(el.checked) APP.wizard.sources.push(s); else APP.wizard.sources = APP.wizard.sources.filter(x=>x!==s);
+
+    body.querySelectorAll("[data-dsid]").forEach(el=> el.addEventListener("change", ()=>{
+      const id = parseInt(el.dataset.dsid);
+      if (!APP.wizard.source_dataset_ids) APP.wizard.source_dataset_ids = [];
+      if (el.checked) { if (!APP.wizard.source_dataset_ids.includes(id)) APP.wizard.source_dataset_ids.push(id); }
+      else { APP.wizard.source_dataset_ids = APP.wizard.source_dataset_ids.filter(x=>x!==id); }
     }));
+
+    body.querySelectorAll("[data-docid]").forEach(el=> el.addEventListener("change", ()=>{
+      const id = parseInt(el.dataset.docid);
+      if (!APP.wizard.source_document_ids) APP.wizard.source_document_ids = [];
+      if (el.checked) { if (!APP.wizard.source_document_ids.includes(id)) APP.wizard.source_document_ids.push(id); }
+      else { APP.wizard.source_document_ids = APP.wizard.source_document_ids.filter(x=>x!==id); }
+    }));
+
+    const selAllBtn = document.getElementById("selAllDatasets");
+    if (selAllBtn) {
+      selAllBtn.addEventListener("click", () => {
+        APP.wizard.source_dataset_ids = datasets.map(d=>d.id);
+        renderWizard();
+      });
+    }
+
     document.getElementById("wizBack").addEventListener("click", ()=>{ APP.wizard.step=3; renderWizard(); });
     document.getElementById("wizNext").addEventListener("click", ()=>{ APP.wizard.step=5; renderWizard(); });
+
   } else if(step===5){
     body.innerHTML = `
-      <div class="grid-3" style="grid-template-columns:repeat(3,1fr); max-width:520px;">
-        ${["PDF","DOCX","Excel"].map(f=>`<div class="option-card ${APP.wizard.format===f?'sel':''}" data-fmt="${f}" style="text-align:center;"><div class="oic" style="text-align:center;">${f==='PDF'?'📕':f==='DOCX'?'📘':'📗'}</div><h4>${f}</h4></div>`).join("")}
-      </div>
-      <div class="row" style="justify-content:space-between; margin-top:20px;">
-        <button class="btn btn-outline" id="wizBack">← Back</button>
-        <button class="btn btn-gold" id="wizGenerate" ${APP.wizard.format?'':'disabled'}>Generate Report</button>
-      </div>`;
-    document.querySelectorAll("[data-fmt]").forEach(el=> el.addEventListener("click", ()=>{ APP.wizard.format = el.dataset.fmt; renderWizard(); }));
-    document.getElementById("wizBack").addEventListener("click", ()=>{ APP.wizard.step=4; renderWizard(); });
-    const genBtn = document.getElementById("wizGenerate");
-    if(genBtn) genBtn.addEventListener("click", generateReport);
-  } else if(step===6){
-    const rows = ["Collecting Data","Validating Data","AI Analysis","Generating Report","Adding Source References"];
-    body.innerHTML = `
-      <div class="gen-progress" id="genProgress">
-        ${rows.map((r,i)=>`<div class="gen-row" data-row="${i}"><span class="gic">○</span>${r}</div>`).join("")}
-      </div>`;
-  } else if(step===7){
-    body.innerHTML = `
-      <div style="text-align:center; padding:30px 10px;">
-        <div style="font-size:44px;">✅</div>
-        <h2 style="margin-top:12px;">Report Generated Successfully</h2>
-        <p class="muted mt-8">${APP.wizard.type} · ${APP.wizard.org} · ${APP.wizard.range} · ${APP.wizard.format}</p>
-        <div class="row" style="justify-content:center; gap:12px; margin-top:22px;">
-          <button class="btn btn-outline" id="repPreview">👁 Preview</button>
-          <button class="btn btn-primary" id="repDownload">⬇ Download</button>
-          <button class="btn btn-ghost" id="repSources">📎 View Sources</button>
+      <div style="max-width:540px; margin:0 auto;">
+        <h3 style="text-align:center; margin-bottom:8px;">Choose Primary Export Format</h3>
+        <p class="muted small" style="text-align:center; margin-bottom:20px;">Real publication-grade files with authentic data and verified provenance.</p>
+        <div class="grid-3" style="grid-template-columns:repeat(3,1fr); gap:14px;">
+          ${["PDF","DOCX","Excel"].map(f=>`
+            <div class="option-card ${APP.wizard.format===f?'sel':''}" data-fmt="${f}" style="text-align:center; padding:18px; cursor:pointer;">
+              <div class="oic" style="text-align:center; font-size:28px; margin-bottom:8px;">${f==='PDF'?'📕':f==='DOCX'?'📘':'📗'}</div>
+              <h4 style="margin:0 0 4px 0;">${f}</h4>
+              <p class="muted" style="margin:0; font-size:10px;">${f==='PDF'?'Official Print':f==='DOCX'?'Editable Word':'Data Workbook'}</p>
+            </div>`).join("")}
         </div>
+        <div class="card card-pad mt-16" style="background:#F8FAFC; border:1px solid #E2E8F0; font-size:12px;">
+          <div class="row between mb-4"><span><b>Selected Type:</b></span><span>${APP.wizard.type}</span></div>
+          <div class="row between mb-4"><span><b>Organization:</b></span><span>${APP.wizard.org}</span></div>
+          <div class="row between"><span><b>Reporting Period:</b></span><span>${APP.wizard.range}</span></div>
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between; margin-top:24px;">
+        <button class="btn btn-outline" id="wizBack">← Back</button>
+        <button class="btn btn-gold" id="wizGenerate" ${APP.wizard.format?'':'disabled'} style="font-weight:700; padding:10px 24px;">⚡ Generate Report</button>
       </div>`;
-    document.getElementById("repPreview").addEventListener("click", ()=> toast("Preview", "Report preview opened (simulated)."));
-    document.getElementById("repDownload").addEventListener("click", ()=> toast("Download started", `${APP.wizard.type}.${APP.wizard.format==='Excel'?'xlsx':APP.wizard.format.toLowerCase()}`));
-    document.getElementById("repSources").addEventListener("click", ()=> toast("Sources", APP.wizard.sources.join(", ")));
+    body.querySelectorAll("[data-fmt]").forEach(el=> el.addEventListener("click", ()=>{ APP.wizard.format = el.dataset.fmt; renderWizard(); }));
+    document.getElementById("wizBack").addEventListener("click", ()=>{ APP.wizard.step=4; renderWizard(); });
+    document.getElementById("wizGenerate").addEventListener("click", generateReportReal);
+
+  } else if(step===6){
+    const rows = [
+      "Accessing Scoped Datasets & Documents",
+      "Validating Numerical Figures & Offtake Ledgers",
+      "Synthesizing Geological & Operational Analysis",
+      "Constructing Publication Structure & Annexures",
+      "Attaching Source References & Extraction Provenance"
+    ];
+    body.innerHTML = `
+      <div style="max-width:460px; margin:20px auto;">
+        <div class="gen-progress" id="genProgress">
+          ${rows.map((r,i)=>`<div class="gen-row" data-row="${i}"><span class="gic">○</span>${r}</div>`).join("")}
+        </div>
+        <div id="genStatusText" class="small muted text-center mt-16">Initializing production pipeline...</div>
+      </div>`;
   }
 }
-function generateReport(){
+
+async function generateReportReal(){
   APP.wizard.step = 6;
   renderWizard();
+
   const rows = document.querySelectorAll("#genProgress .gen-row");
-  let i=0;
-  const tick = ()=>{
-    if(i>0){ rows[i-1].classList.remove("active"); rows[i-1].classList.add("done"); rows[i-1].querySelector(".gic").textContent="✓"; }
-    if(i < rows.length){
-      rows[i].classList.add("active");
-      i++;
-      setTimeout(tick, 600);
-    } else {
-      setTimeout(()=>{ APP.wizard.step = 7; renderWizard(); }, 500);
+  let curRow = 0;
+  const advanceUI = (idx) => {
+    if (idx > 0 && idx <= rows.length) {
+      rows[idx-1].classList.remove("active");
+      rows[idx-1].classList.add("done");
+      rows[idx-1].querySelector(".gic").textContent = "✓";
+    }
+    if (idx < rows.length) {
+      rows[idx].classList.add("active");
     }
   };
-  tick();
+
+  advanceUI(0);
+  const interval = setInterval(() => {
+    curRow++;
+    advanceUI(curRow);
+  }, 450);
+
+  try {
+    const isLive = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
+    if (!isLive) {
+      throw new Error("Backend offline. Please start Django backend to generate reports.");
+    }
+
+    const payload = {
+      report_type: APP.wizard.type,
+      organization: APP.wizard.org,
+      date_range: APP.wizard.range,
+      source_dataset_ids: APP.wizard.source_dataset_ids || [],
+      source_document_ids: APP.wizard.source_document_ids || [],
+    };
+
+    const res = await window.CMPDI_AI.apiServices.reports.generate(payload);
+    clearInterval(interval);
+
+    rows.forEach(r => {
+      r.classList.remove("active");
+      r.classList.add("done");
+      r.querySelector(".gic").textContent = "✓";
+    });
+
+    APP.wizard.activeReport = res;
+    toast("Report Generated", `${res.title} is ready for review.`);
+
+    setTimeout(() => {
+      APP.wizard.step = 7;
+      renderWizard();
+    }, 400);
+
+  } catch (err) {
+    clearInterval(interval);
+    console.error("Report generation failed:", err);
+    toast("Generation Error", err.message || "Failed to generate report.");
+    const body = document.getElementById("wizardBody");
+    if (body) {
+      body.innerHTML = `
+        <div style="text-align:center; padding:30px;">
+          <div style="font-size:40px; margin-bottom:12px;">⚠️</div>
+          <h3 style="color:var(--red);">Report Generation Failed</h3>
+          <p class="muted mt-8 mb-16">${escapeHtml(err.message || 'Error occurred while computing figures.')}</p>
+          <button class="btn btn-outline" onclick="APP.wizard.step=5; renderWizard();">← Back to Configuration</button>
+        </div>`;
+    }
+  }
+}
+
+function renderReportViewer(){
+  const rep = APP.wizard.activeReport;
+  if (!rep) return;
+  const content = rep.content_json || {};
+  const isEditing = APP.wizard.editMode;
+
+  const statusColors = {
+    'DRAFT': 'badge-gold',
+    'GENERATING': 'badge-gold',
+    'GENERATED': 'badge-blue',
+    'UNDER_REVIEW': 'badge-gold',
+    'VERIFIED': 'badge-blue',
+    'APPROVED': 'badge-green',
+    'EXPORTED': 'badge-green',
+    'FAILED': 'badge-red',
+  };
+
+  const statusCls = statusColors[rep.status] || 'badge-blue';
+
+  const body = document.getElementById("wizardBody");
+  body.innerHTML = `
+    <!-- Viewer Top Action Bar -->
+    <div class="row between mb-20 wrap" style="gap:10px; border-bottom:1px solid #E2E8F0; padding-bottom:16px;">
+      <div class="row" style="gap:10px; align-items:center;">
+        <span class="badge ${statusCls}" style="font-size:12px; padding:4px 10px; font-weight:700;">${rep.status}</span>
+        <span class="small muted">Revision #${rep.revision_count || 0} · Generated ${content.generated_at || rep.created_at}</span>
+      </div>
+      <div class="row wrap" style="gap:8px;">
+        ${!isEditing ? `
+          <button class="btn btn-outline btn-sm" onclick="toggleEditMode(true)">✏️ Edit Narrative</button>
+          ${(rep.status === 'GENERATED' || rep.status === 'UNDER_REVIEW') ? `<button class="btn btn-outline btn-sm" onclick="verifyReportAction(${rep.id})">✓ Verify</button>` : ''}
+          ${(rep.status === 'VERIFIED' || rep.status === 'GENERATED' || rep.status === 'UNDER_REVIEW') && rep.status !== 'APPROVED' && rep.status !== 'EXPORTED' ? `<button class="btn btn-outline btn-sm" onclick="openApproveModal()">★ Approve</button>` : ''}
+          <div class="row" style="gap:4px;">
+            <button class="btn btn-primary btn-sm" onclick="downloadReportFile(${rep.id}, 'pdf')" title="Download official PDF">📕 PDF</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadReportFile(${rep.id}, 'docx')" title="Download Word document">📘 DOCX</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadReportFile(${rep.id}, 'xlsx')" title="Download Excel workbook">📗 Excel</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="openProvModal()">📎 Provenance</button>
+        ` : `
+          <button class="btn btn-outline btn-sm" onclick="toggleEditMode(false)">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveReportNarrativeEdits(${rep.id})">💾 Save Narrative Changes</button>
+        `}
+      </div>
+    </div>
+
+    <!-- Official Report Document Preview Canvas -->
+    <div style="background:#fff; border:1px solid #E2E8F0; border-radius:10px; padding:28px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+
+      <!-- Document Header -->
+      <div style="border-bottom:2px solid var(--royal); padding-bottom:14px; margin-bottom:20px;">
+        <div class="row between">
+          <div>
+            <div style="font-size:11px; font-weight:700; color:var(--royal); text-transform:uppercase; letter-spacing:1px;">CMPDI · Coal India Limited</div>
+            <h2 style="margin:4px 0 2px 0; font-family:var(--font-display); color:var(--navy);">${escapeHtml(content.title || rep.title)}</h2>
+            <div class="small muted">${rep.report_type} &nbsp;|&nbsp; Jurisdiction: ${rep.organization} &nbsp;|&nbsp; Period: ${rep.date_range}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px; color:#64748B; font-weight:600;">CONFIDENTIAL &amp; OFFICIAL</div>
+            <div class="small muted">${content.generated_at || ''}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Executive Summary Box -->
+      <div style="margin-bottom:24px;">
+        <h4 style="color:var(--royal); margin:0 0 8px 0; font-size:14px; font-weight:700;">Executive Summary</h4>
+        ${!isEditing ? `
+          <div style="background:#F8FAFC; border-left:4px solid var(--royal); padding:14px 16px; border-radius:0 8px 8px 0; font-style:italic; font-size:13.5px; line-height:1.6; color:#1E293B;">
+            ${escapeHtml(content.executive_summary || 'No summary text available.')}
+          </div>
+        ` : `
+          <textarea id="editExecSummary" class="input" style="width:100%; height:110px; font-size:13px; padding:10px; font-family:var(--font-body); line-height:1.5;">${escapeHtml(content.executive_summary || '')}</textarea>
+        `}
+      </div>
+
+      <!-- Key Performance Indicators (KPIs) -->
+      ${(content.kpis && content.kpis.length > 0) ? `
+        <div style="margin-bottom:24px;">
+          <h4 style="color:var(--royal); margin:0 0 10px 0; font-size:14px; font-weight:700;">Key Performance Indicators</h4>
+          <div class="grid-4" style="gap:12px;">
+            ${content.kpis.map(k=>`
+              <div class="card card-pad" style="background:#EEF2F8; border:1px solid #DCE5F2; padding:12px; border-radius:8px;">
+                <div class="sub" style="font-size:11px; font-weight:600;">${escapeHtml(k.label)}</div>
+                <div style="font-size:20px; font-weight:800; color:var(--royal); margin:6px 0 2px 0;">${escapeHtml(k.value)}</div>
+                <div class="small muted" style="font-size:10px;">${escapeHtml(k.change || k.source || '')}</div>
+              </div>`).join("")}
+          </div>
+        </div>` : ''}
+
+      <!-- Detailed Data Tables -->
+      ${(content.tables && content.tables.length > 0) ? content.tables.map(t=>`
+        <div style="margin-bottom:24px;">
+          <h4 style="color:var(--royal); margin:0 0 4px 0; font-size:14px; font-weight:700;">${escapeHtml(t.title || 'Data Table')}</h4>
+          ${t.description ? `<p class="muted small" style="margin:0 0 10px 0;">${escapeHtml(t.description)}</p>` : ''}
+          <div style="overflow-x:auto; border:1px solid #E2E8F0; border-radius:8px;">
+            <table class="table" style="width:100%; margin:0; font-size:12px;">
+              <thead>
+                <tr style="background:#071A3D; color:#fff;">
+                  ${(t.columns || []).map(c=>`<th style="padding:8px 12px; color:#fff; font-weight:600; text-align:left;">${escapeHtml(c)}</th>`).join("")}
+                </tr>
+              </thead>
+              <tbody>
+                ${(t.rows || []).slice(0, 20).map((r, idx)=>`
+                  <tr style="background:${idx%2===0?'#fff':'#F8FAFC'};">
+                    ${r.map(c=>`<td style="padding:7px 12px; border-top:1px solid #E2E8F0;">${escapeHtml(String(c))}</td>`).join("")}
+                  </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          ${t.source ? `<div class="small muted mt-4" style="font-size:10px; font-style:italic;">Source: ${escapeHtml(t.source)}</div>` : ''}
+        </div>`).join("") : ''}
+
+      <!-- Operational Analysis Section -->
+      <div style="margin-bottom:24px;">
+        <h4 style="color:var(--royal); margin:0 0 8px 0; font-size:14px; font-weight:700;">Operational &amp; Geological Analysis</h4>
+        ${!isEditing ? `
+          <div style="font-size:13px; line-height:1.6; color:#334155;">
+            ${(content.analysis || '').split('\n\n').map(p=>`<p style="margin:0 0 10px 0;">${escapeHtml(p)}</p>`).join("")}
+          </div>
+        ` : `
+          <textarea id="editAnalysis" class="input" style="width:100%; height:110px; font-size:13px; padding:10px; font-family:var(--font-body); line-height:1.5;">${escapeHtml(content.analysis || '')}</textarea>
+        `}
+      </div>
+
+      <!-- Strategic Conclusions Section -->
+      <div style="margin-bottom:24px;">
+        <h4 style="color:var(--royal); margin:0 0 8px 0; font-size:14px; font-weight:700;">Strategic Conclusions &amp; Directives</h4>
+        ${!isEditing ? `
+          <div style="font-size:13px; line-height:1.6; color:#334155;">
+            ${(content.conclusions || '').split('\n').map(l=>l.trim() ? `<div style="margin-bottom:6px;">${escapeHtml(l)}</div>` : '').join("")}
+          </div>
+        ` : `
+          <textarea id="editConclusions" class="input" style="width:100%; height:90px; font-size:13px; padding:10px; font-family:var(--font-body); line-height:1.5;">${escapeHtml(content.conclusions || '')}</textarea>
+        `}
+      </div>
+
+      <!-- Governance & Authority Sign-off Box -->
+      <div style="background:#F1F5F9; border:1px solid #CBD5E1; border-radius:8px; padding:16px;">
+        <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:10px;">Governance Verification &amp; Sign-off</div>
+        <div class="grid-3" style="gap:12px; font-size:12px;">
+          <div><b>Status:</b> <span class="badge ${statusCls}">${rep.status}</span></div>
+          <div><b>Verified By:</b> ${escapeHtml(rep.verified_by_name || 'Pending Verification')}</div>
+          <div><b>Approved By:</b> ${escapeHtml(rep.approved_by_name || 'Pending Approval')}</div>
+          <div><b>Revisions:</b> #${rep.revision_count || 0}</div>
+          <div><b>Verified At:</b> ${rep.verified_at ? rep.verified_at.replace('T',' ').slice(0,16) : '—'}</div>
+          <div><b>Approved At:</b> ${rep.approved_at ? rep.approved_at.replace('T',' ').slice(0,16) : '—'}</div>
+        </div>
+        ${rep.approval_notes ? `
+          <div class="mt-8 pt-8" style="border-top:1px solid #E2E8F0; font-size:12px;">
+            <b>Authority Remarks:</b> <i>${escapeHtml(rep.approval_notes)}</i>
+          </div>` : ''}
+      </div>
+
+    </div>
+  `;
+}
+
+function toggleEditMode(enable){
+  APP.wizard.editMode = !!enable;
+  renderReportViewer();
+}
+
+async function saveReportNarrativeEdits(reportId){
+  const execSummary = document.getElementById("editExecSummary")?.value;
+  const analysis = document.getElementById("editAnalysis")?.value;
+  const conclusions = document.getElementById("editConclusions")?.value;
+
+  try {
+    toast("Saving", "Updating report narrative...");
+    const updated = await window.CMPDI_AI.apiServices.reports.edit(reportId, {
+      executive_summary: execSummary,
+      analysis: analysis,
+      conclusions: conclusions,
+    });
+    APP.wizard.activeReport = updated;
+    APP.wizard.editMode = false;
+    toast("Saved", "Report narrative updated. Source data remains intact.");
+    renderReportViewer();
+  } catch(err) {
+    console.error("Save edit failed:", err);
+    toast("Save Failed", err.message || "Could not save edits.");
+  }
+}
+
+async function verifyReportAction(reportId){
+  try {
+    toast("Verifying", "Recording verification timestamp...");
+    const updated = await window.CMPDI_AI.apiServices.reports.verify(reportId);
+    APP.wizard.activeReport = updated;
+    toast("Report Verified", "Status updated to VERIFIED.");
+    renderReportViewer();
+  } catch(err) {
+    console.error("Verification failed:", err);
+    toast("Verification Failed", err.message || "Could not verify report.");
+  }
+}
+
+function openApproveModal(){
+  const modal = document.getElementById("repApproveModal");
+  if (modal) modal.style.display = "flex";
+}
+function closeApproveModal(){
+  const modal = document.getElementById("repApproveModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function submitReportApproval(){
+  const reportId = APP.wizard.activeReport?.id;
+  if (!reportId) return;
+  const notes = document.getElementById("repApproveNotes")?.value || "";
+
+  try {
+    closeApproveModal();
+    toast("Approving", "Submitting official sign-off...");
+    const updated = await window.CMPDI_AI.apiServices.reports.approve(reportId, { notes });
+    APP.wizard.activeReport = updated;
+    toast("Report Approved", "Official sign-off recorded.");
+    renderReportViewer();
+  } catch(err) {
+    console.error("Approval failed:", err);
+    toast("Approval Failed", err.message || "Could not approve report.");
+  }
+}
+
+function openProvModal(){
+  const rep = APP.wizard.activeReport;
+  if (!rep) return;
+  const prov = rep.provenance_json || [];
+  const modal = document.getElementById("repProvModal");
+  const body = document.getElementById("repProvModalBody");
+
+  if (!modal || !body) return;
+
+  if (prov.length === 0) {
+    body.innerHTML = `<div class="muted" style="padding:20px; text-align:center;">No direct provenance records attached to this report.</div>`;
+  } else {
+    body.innerHTML = `
+      <div style="overflow-x:auto;">
+        <table class="table" style="width:100%; font-size:12px;">
+          <thead>
+            <tr style="background:#071A3D; color:#fff;">
+              <th style="padding:8px 10px; color:#fff;">Source Type</th>
+              <th style="padding:8px 10px; color:#fff;">Document / Dataset</th>
+              <th style="padding:8px 10px; color:#fff;">Sheet / Page</th>
+              <th style="padding:8px 10px; color:#fff;">Row / Ref</th>
+              <th style="padding:8px 10px; color:#fff;">Method</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${prov.map((p, i)=>`
+              <tr style="background:${i%2===0?'#fff':'#F8FAFC'};">
+                <td style="padding:6px 10px;"><span class="badge ${p.source_type==='dataset'?'badge-blue':'badge-purple'}" style="font-size:10px;">${(p.source_type||'DATASET').toUpperCase()}</span></td>
+                <td style="padding:6px 10px;"><b>${escapeHtml(p.name || p.document_title || 'Dataset')}</b></td>
+                <td style="padding:6px 10px;">${escapeHtml(p.page_number ? 'p. ' + p.page_number : (p.sheet_name || 'Main'))}</td>
+                <td style="padding:6px 10px;">${escapeHtml(p.source_ref || ('Row ' + (p.row_index || '—')))}</td>
+                <td style="padding:6px 10px;">${escapeHtml(p.extractor_type || 'xlsx')} (${Math.round((p.confidence||1.0)*100)}%)</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  }
+  modal.style.display = "flex";
+}
+
+function closeProvModal(){
+  const modal = document.getElementById("repProvModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function toggleSavedReportsModal(){
+  const modal = document.getElementById("repSavedModal");
+  const body = document.getElementById("repSavedModalBody");
+  if (!modal || !body) return;
+
+  modal.style.display = "flex";
+  body.innerHTML = `<div class="muted" style="padding:24px; text-align:center;">Loading saved reports...</div>`;
+
+  try {
+    const res = await window.CMPDI_AI.apiServices.reports.list();
+    _savedReportsList = res.reports || [];
+
+    if (_savedReportsList.length === 0) {
+      body.innerHTML = `
+        <div style="text-align:center; padding:32px;">
+          <div style="font-size:32px; margin-bottom:8px;">📁</div>
+          <h4>No Saved Reports Found</h4>
+          <p class="muted small">Generate your first official report using the wizard.</p>
+        </div>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <div style="overflow-x:auto;">
+        <table class="table" style="width:100%; font-size:12px;">
+          <thead>
+            <tr style="background:#071A3D; color:#fff;">
+              <th style="padding:8px 10px; color:#fff;">Title</th>
+              <th style="padding:8px 10px; color:#fff;">Type</th>
+              <th style="padding:8px 10px; color:#fff;">Jurisdiction</th>
+              <th style="padding:8px 10px; color:#fff;">Period</th>
+              <th style="padding:8px 10px; color:#fff;">Status</th>
+              <th style="padding:8px 10px; color:#fff;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${_savedReportsList.map((r, i)=>`
+              <tr style="background:${i%2===0?'#fff':'#F8FAFC'};">
+                <td style="padding:8px 10px;"><b>${escapeHtml(r.title)}</b></td>
+                <td style="padding:8px 10px;">${escapeHtml(r.report_type)}</td>
+                <td style="padding:8px 10px;">${escapeHtml(r.organization)}</td>
+                <td style="padding:8px 10px;">${escapeHtml(r.date_range)}</td>
+                <td style="padding:8px 10px;"><span class="badge ${r.status==='APPROVED'||r.status==='EXPORTED'?'badge-green':r.status==='VERIFIED'?'badge-blue':'badge-gold'}" style="font-size:10px;">${r.status}</span></td>
+                <td style="padding:8px 10px;">
+                  <button class="btn btn-outline btn-sm" onclick="loadSavedReport(${r.id})">Open</button>
+                  <button class="btn btn-ghost btn-sm" onclick="downloadReportFile(${r.id}, 'pdf')" title="Export PDF">📕</button>
+                  <button class="btn btn-ghost btn-sm" onclick="downloadReportFile(${r.id}, 'docx')" title="Export DOCX">📘</button>
+                  <button class="btn btn-ghost btn-sm" onclick="downloadReportFile(${r.id}, 'xlsx')" title="Export Excel">📗</button>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(err) {
+    console.error("Failed to load saved reports:", err);
+    body.innerHTML = `<div class="text-danger" style="padding:20px; text-align:center;">Failed to load saved reports: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeSavedReportsModal(){
+  const modal = document.getElementById("repSavedModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function loadSavedReport(reportId){
+  closeSavedReportsModal();
+  try {
+    toast("Loading", "Fetching report details...");
+    const rep = await window.CMPDI_AI.apiServices.reports.get(reportId);
+    APP.wizard.activeReport = rep;
+    APP.wizard.step = 7;
+    APP.wizard.editMode = false;
+    renderWizard();
+  } catch(err) {
+    console.error("Load report failed:", err);
+    toast("Load Failed", err.message || "Failed to load report.");
+  }
+}
+
+async function downloadReportFile(reportId, format){
+  toast("Export starting", `Generating official ${format.toUpperCase()} export...`);
+  try {
+    const token = typeof _getToken === 'function' ? _getToken() : null;
+    const headers = { 'Accept': '*/*' };
+    if (token) headers['Authorization'] = `Token ${token}`;
+    const url = `${API_BASE}/api/reports/${reportId}/export/${format.toLowerCase()}/`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || `Export failed (HTTP ${res.status})`);
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const fnMatch = disposition.match(/filename="([^"]+)"/);
+    const filename = fnMatch ? fnMatch[1] : `report_${reportId}.${format.toLowerCase()}`;
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+    toast("Download complete", `Saved ${filename}`);
+    if (APP.wizard.activeReport && APP.wizard.activeReport.id === reportId) {
+      APP.wizard.activeReport.status = 'EXPORTED';
+      renderReportViewer();
+    }
+  } catch (err) {
+    console.error("Export download failed:", err);
+    toast("Export Failed", err.message || "Failed to download export file.");
+  }
 }
 
 /* ============================================================
@@ -4630,8 +5248,15 @@ const apiServices = {
       _apiFetch(`/api/excel/${sheet_id}/query/`, { method: 'POST', body: JSON.stringify({ prompt }) }),
   },
   reports: {
-    list:     () => _apiFetch('/api/reports/'),
-    generate: (params) => _apiFetch('/api/reports/', { method: 'POST', body: JSON.stringify(params) }),
+    options:  () => _apiFetch('/api/reports/options/'),
+    list:     (params) => _apiFetch('/api/reports/list/' + (params ? '?' + new URLSearchParams(params) : '')),
+    generate: (params) => _apiFetch('/api/reports/generate/', { method: 'POST', body: JSON.stringify(params) }),
+    get:      (id) => _apiFetch(`/api/reports/${id}/`),
+    edit:     (id, data) => _apiFetch(`/api/reports/${id}/edit/`, { method: 'PATCH', body: JSON.stringify(data) }),
+    verify:   (id) => _apiFetch(`/api/reports/${id}/verify/`, { method: 'POST' }),
+    approve:  (id, data) => _apiFetch(`/api/reports/${id}/approve/`, { method: 'POST', body: JSON.stringify(data || {}) }),
+    delete:   (id) => _apiFetch(`/api/reports/${id}/`, { method: 'DELETE' }),
+    exportUrl:(id, fmt) => `${API_BASE}/api/reports/${id}/export/${fmt}/`,
   },
   topics: {
     list: () => _apiFetch('/api/topics/'),
