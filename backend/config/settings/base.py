@@ -52,6 +52,7 @@ LOCAL_APPS = [
     'apps.intelligence',
     'apps.analytics',
     'apps.reports',
+    'apps.frontend',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -120,6 +121,12 @@ USE_TZ = True
 # ============================================================
 STATIC_URL = '/static/'
 STATIC_ROOT = config('STATIC_ROOT', default=str(BASE_DIR / 'staticfiles'))
+# Extra directories that collectstatic will include.
+# backend/static/ holds the frontend assets (logo, future JS/CSS bundles).
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
 
 # ============================================================
 # Media files (uploaded documents)

@@ -8,7 +8,14 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.authtoken.views import obtain_auth_token
 
+from apps.frontend.views import index as frontend_index
+
 urlpatterns = [
+    # -------------------------------------------------------
+    # Frontend SPA — serves the CMPDI AI shell at site root
+    # Must be listed last so it does not shadow any API routes.
+    # -------------------------------------------------------
+
     # Django admin
     path('admin/', admin.site.urls),
 
@@ -23,15 +30,18 @@ urlpatterns = [
     path('api/maintainer/', include('apps.maintainer.urls')),
     path('api/intelligence/', include('apps.intelligence.urls')),
 
-
     # Auth — obtain token via POST username/password
     path('api/auth/token/', obtain_auth_token, name='api-token-auth'),
 
     # DRF browsable API auth
     path('api-auth/', include('rest_framework.urls')),
+
+    # Root — frontend SPA (must come after all /api/ routes)
+    path('', frontend_index, name='frontend-index'),
 ]
 
 # Serve media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
