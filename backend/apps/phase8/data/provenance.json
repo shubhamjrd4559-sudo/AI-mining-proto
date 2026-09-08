@@ -1,0 +1,43 @@
+{
+  "audit_metadata": {
+    "audit_date": "2026-09-08",
+    "source_location": "Google Drive SIH Phase 8 folder (ID: 1Ya9OKFSHYEs2yQZixpFwjfmp-VsWsmyB)",
+    "auditor": "Phase 8 Data Audit Pipeline",
+    "status": "AUDITED_PROJECT_DATA"
+  },
+  "datasets": {
+    "mining_map": {
+      "source_file": "mining_map_phase8.csv",
+      "sha256": "746ecaa6063a99c7371ee339a75df27041b3667ff3c4f7df0cc211db55ecbbbc",
+      "record_count": 107,
+      "reporting_year": "2024-25",
+      "coordinate_bounds": {
+        "latitude_min": 21.43,
+        "latitude_max": 24.23,
+        "longitude_min": 78.89,
+        "longitude_max": 87.05,
+        "geographic_region": "Indian Coal Basins (Gondwana & Tertiary belts)"
+      },
+      "coordinate_provenance_statement": "Coordinates (Latitude/Longitude) are transcribed directly from the project source artifact mining_map_phase8.csv as collected during the 2026-09-08 Phase 8 audit. All coordinates are verified within Indian coalfield geographical bounds. They represent project-audited data and have not been independently ground-truth surveyed via differential GPS or verified by external satellite telemetry.",
+      "star_rating_notice": "Star Rating is NOT present in the source CSV and is NOT simulated or displayed."
+    },
+    "gsi_reports": {
+      "source_file": "GSI_Reports.csv",
+      "record_count": 1075,
+      "source_origin": "GSI Exploration Report Catalogue (Google Drive / GSI REPORT)",
+      "description": "Bibliographic metadata for coal and lignite exploration reports across GSI regions.",
+      "borehole_notice": "Actual borehole intercept logs, depth intervals, seam thicknesses, and proximate coal-quality measurements are NOT present in this dataset."
+    },
+    "ocbis_blocks": {
+      "source_file": "OCBIS.html",
+      "record_count": 2226,
+      "source_origin": "Online Coal Block Information System (Google Drive / GSI REPORT / OCBIS.html)",
+      "description": "Coal block names, legislation act types, coalfields, and allocation status."
+    }
+  },
+  "geological_model_safety": {
+    "is_simulated": true,
+    "label": "SIMULATED GEOLOGICAL MODEL \u2014 NOT ACTUAL BOREHOLE MEASUREMENTS",
+    "disclaimer": "The 3D geological view illustrates a representative Gondwana coalfield stratigraphic succession based on published GSI/CMPDI literature. Actual borehole measurements are not available in the audited dataset and must not be inferred from the 3D model."
+  }
+}

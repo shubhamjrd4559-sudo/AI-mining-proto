@@ -531,7 +531,8 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
     linear-gradient(160deg, #0A2451, var(--navy));
   border:1px solid #16305F;
 }
-.map-stage svg{width:100%; height:100%;}
+#mapSvgWrap svg{width:100%; height:100%;}
+.leaflet-attribution-flag{display:none !important; width:0 !important; height:0 !important; visibility:hidden !important;}
 .map-pin{cursor:pointer;}
 .map-pin circle{transition:r .15s;}
 .map-pin:hover circle{r:9;}
@@ -680,6 +681,10 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
 .mono{font-family:var(--font-mono);}
 .divider{height:1px; background:#EEF2F8; margin:16px 0;}
 </style>
+
+  <!-- Leaflet GIS Map Library (Phase 8) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 
@@ -3668,44 +3673,323 @@ async function downloadReportFile(reportId, format){
 }
 
 /* ============================================================
-   TOPICS & WORD CLOUD
+   TOPICS & WORD CLOUD (Phase 8 Real Backend Integration)
    ============================================================ */
+let _topicsData = null;
+let _wordCloudData = null;
+let _topicDocsData = null;
+let _selectedWcWord = null;
+
 function pageTopics(){
   return `
   <div class="page active">
     <div class="page-head">
-      <div class="eyebrow">Document Intelligence</div>
-      <h1>Topics &amp; Word Cloud</h1>
-      <p>Recurring themes and terminology extracted across the indexed document corpus.</p>
-    </div>
-    <div class="grid-2">
-      <div class="card card-pad">
-        <div class="card-title-row"><h3>Document Word Cloud</h3><div class="sub">Relative term frequency</div></div>
-        <div class="wordcloud">
-          ${MOCK.wordCloud.map(([w,size])=>`<span class="wc-word" style="font-size:${12+size}px; opacity:${0.55+size/100}">${w}</span>`).join("")}
+      <div class="eyebrow">Document Intelligence · Phase 8</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1>Topics &amp; Word Cloud</h1>
+          <p>Recurring themes and terminology extracted across the indexed official document corpus.</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="badge" style="background:#EBF3FF; color:var(--royal); font-weight:600; padding:6px 12px; border-radius:8px;">
+            Live Corpus Engine
+          </span>
+          <button class="btn btn-outline btn-sm" id="btnRefreshTopics" onclick="refreshTopicsData()">↻ Refresh</button>
         </div>
       </div>
-      <div class="card card-pad">
-        <div class="card-title-row"><h3>Top Topics</h3></div>
-        ${MOCK.topics.map(t=>`
-          <div class="topic-row">
-            <div class="tlabel"><span>${t.name}</span><span>${t.pct}%</span></div>
-            <div class="topic-bar-track"><div class="topic-bar-fill" style="width:${t.pct*2.5}%"></div></div>
-          </div>`).join("")}
+    </div>
+
+    <!-- Filter & search bar -->
+    <div class="card card-pad mb-16" style="margin-bottom:16px; padding:12px 18px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:260px;">
+          <input type="text" id="topicDocSearch" placeholder="Filter related documents by keyword..."
+            style="width:100%; border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 12px; font-size:13px;"
+            oninput="renderTopicDocuments()">
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:12px; color:#8593A8;">Word Cloud Size:</span>
+          <select id="wcLimitSelect" style="border:1.5px solid #D1DBE8; border-radius:8px; padding:6px 10px; font-size:12.5px;" onchange="loadWordCloudData(this.value)">
+            <option value="40">Top 40 Terms</option>
+            <option value="60" selected>Top 60 Terms</option>
+            <option value="100">Top 100 Terms</option>
+          </select>
+        </div>
       </div>
     </div>
-    <div class="card card-pad mt-16">
-      <div class="card-title-row"><h3>Topic Trends Over Time</h3><div class="sub">FY21–FY25, relative document share</div></div>
-      <div id="topicAreaChart"></div>
+
+    <div class="grid-2">
+      <!-- Word Cloud Card -->
+      <div class="card card-pad">
+        <div class="card-title-row">
+          <div>
+            <h3>Document Word Cloud</h3>
+            <div class="sub" id="wcSubText">Relative term frequency across indexed documents</div>
+          </div>
+          <span class="badge badge-sub" id="wcActiveFilterBadge" style="display:none; cursor:pointer;" onclick="clearWcFilter()">Clear Filter ✕</span>
+        </div>
+        <div class="wordcloud" id="wordCloudContainer">
+          <div style="color:#8593A8; font-size:13px; text-align:center; padding:40px 0;">Loading keyword frequencies...</div>
+        </div>
+        <div style="font-size:11px; color:#8593A8; text-align:center; margin-top:8px; border-top:1px solid #EEF2F8; padding-top:6px;">
+          Click any term to highlight and filter related documents below · Derived from DocumentChunk text index
+        </div>
+      </div>
+
+      <!-- Topics Distribution Card -->
+      <div class="card card-pad">
+        <div class="card-title-row">
+          <div>
+            <h3>Corpus Topic Signatures</h3>
+            <div class="sub">Domain categories identified by keyword match</div>
+          </div>
+        </div>
+        <div id="topicsContainer" style="display:flex; flex-direction:column; gap:12px; min-height:220px; justify-content:center;">
+          <div style="color:#8593A8; font-size:13px; text-align:center;">Analyzing domain topics...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Related Documents Table -->
+    <div class="card card-pad mt-16" style="margin-top:16px;">
+      <div class="card-title-row">
+        <div>
+          <h3>Related Indexed Documents &amp; Provenance</h3>
+          <div class="sub">Official reports contributing to topic extraction with top extracted keywords</div>
+        </div>
+        <span id="topicDocCountBadge" class="badge" style="background:#EEF2F8; color:var(--navy); font-size:11.5px; padding:4px 10px; border-radius:6px;">0 documents</span>
+      </div>
+      <div style="overflow-x:auto; margin-top:12px;">
+        <table style="width:100%; border-collapse:collapse; font-size:12.5px; text-align:left;">
+          <thead>
+            <tr style="border-bottom:1.5px solid #E4E9F2; color:#8593A8; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">
+              <th style="padding:10px 12px;">Document Title</th>
+              <th style="padding:10px 12px;">Dominant Topic</th>
+              <th style="padding:10px 12px;">Top Extracted Terms</th>
+              <th style="padding:10px 12px; text-align:center;">Indexed Chunks</th>
+              <th style="padding:10px 12px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="topicDocsTbody">
+            <tr><td colspan="5" style="text-align:center; padding:24px; color:#8593A8;">Loading document provenance...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>`;
 }
-function afterTopics(){
-  buildAreaChart(document.getElementById("topicAreaChart"), [
-    { color:"#0B4DB8", values:[20,24,28,30,32] },
-    { color:"#DFAE24", values:[15,17,20,23,25] },
-    { color:"#8B6B4A", values:[12,13,15,17,19] },
+
+async function afterTopics(){
+  refreshTopicsData();
+}
+
+async function refreshTopicsData(){
+  const limit = document.getElementById("wcLimitSelect")?.value || 60;
+  await Promise.all([
+    loadWordCloudData(limit),
+    loadTopicsData(),
+    loadTopicDocsData(),
   ]);
+}
+
+async function loadWordCloudData(limit = 60){
+  const container = document.getElementById("wordCloudContainer");
+  if(!container) return;
+  try {
+    const data = await apiServices.phase8.getWordCloud(limit);
+    _wordCloudData = data;
+    renderWordCloud();
+  } catch(err) {
+    console.warn("Live wordcloud fetch error:", err);
+    // Fallback to baseline terms if user not logged in
+    renderBaselineWordCloud();
+  }
+}
+
+function renderWordCloud(){
+  const container = document.getElementById("wordCloudContainer");
+  if(!container) return;
+  if(!_wordCloudData || !_wordCloudData.words || _wordCloudData.words.length === 0){
+    renderBaselineWordCloud();
+    return;
+  }
+  const subText = document.getElementById("wcSubText");
+  if(subText) subText.textContent = `${_wordCloudData.total_chunks || 0} indexed chunks across ${_wordCloudData.total_documents || 0} documents`;
+
+  container.innerHTML = _wordCloudData.words.map(w => {
+    const size = Math.round(12 + (w.weight * 26));
+    const opacity = (0.55 + w.weight * 0.45).toFixed(2);
+    const isSelected = _selectedWcWord === w.word;
+    const style = isSelected
+      ? `font-size:${size}px; opacity:1; color:#D97706; font-weight:800; text-decoration:underline; transform:scale(1.1);`
+      : `font-size:${size}px; opacity:${opacity};`;
+    return `<span class="wc-word" style="${style}" onclick="selectWcWord('${w.word}')" title="${w.count} occurrences across indexed chunks">${w.word}</span>`;
+  }).join("");
+}
+
+function renderBaselineWordCloud(){
+  const container = document.getElementById("wordCloudContainer");
+  if(!container) return;
+  const baseline = [
+    ["COAL", 32], ["EXPLORATION", 28], ["PRODUCTION", 26], ["BOREHOLE", 24],
+    ["MINING", 22], ["SEAM", 20], ["GEOLOGICAL", 20], ["CMPDI", 18],
+    ["RESERVES", 18], ["COKING", 16], ["OPENCAST", 16], ["DISPATCH", 14],
+    ["OVERBURDEN", 14], ["WASHERY", 12], ["DRILLING", 12], ["SAFETY", 11],
+    ["ENVIRONMENT", 10], ["TOPOSHEET", 10], ["GRADE", 9], ["GSI", 8]
+  ];
+  container.innerHTML = baseline.map(([w, sz]) =>
+    `<span class="wc-word" style="font-size:${12+sz}px; opacity:${0.55+sz/80}" onclick="selectWcWord('${w}')" title="Baseline official corpus term">${w}</span>`
+  ).join("");
+}
+
+function selectWcWord(word){
+  _selectedWcWord = (_selectedWcWord === word) ? null : word;
+  const badge = document.getElementById("wcActiveFilterBadge");
+  if(badge) {
+    if(_selectedWcWord){
+      badge.textContent = `Filter: ${_selectedWcWord} ✕`;
+      badge.style.display = "inline-block";
+    } else {
+      badge.style.display = "none";
+    }
+  }
+  renderWordCloud();
+  const searchInput = document.getElementById("topicDocSearch");
+  if(searchInput && _selectedWcWord) searchInput.value = _selectedWcWord;
+  renderTopicDocuments();
+}
+
+function clearWcFilter(){
+  _selectedWcWord = null;
+  const badge = document.getElementById("wcActiveFilterBadge");
+  if(badge) badge.style.display = "none";
+  const searchInput = document.getElementById("topicDocSearch");
+  if(searchInput) searchInput.value = "";
+  renderWordCloud();
+  renderTopicDocuments();
+}
+
+async function loadTopicsData(){
+  const container = document.getElementById("topicsContainer");
+  if(!container) return;
+  try {
+    const data = await apiServices.phase8.getTopics();
+    _topicsData = data;
+    renderTopics();
+  } catch(err) {
+    console.warn("Live topics fetch error:", err);
+    renderBaselineTopics();
+  }
+}
+
+function renderTopics(){
+  const container = document.getElementById("topicsContainer");
+  if(!container) return;
+  if(!_topicsData || !_topicsData.topics || _topicsData.topics.length === 0){
+    renderBaselineTopics();
+    return;
+  }
+  container.innerHTML = _topicsData.topics.map(t => {
+    const kwBadges = (t.keywords || []).map(k =>
+      `<span style="background:#EEF2F8; color:#4B5563; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:500;">${k}</span>`
+    ).join(" ");
+    return `
+      <div class="topic-row" style="margin-bottom:12px;">
+        <div class="tlabel" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-weight:600; color:var(--navy); font-size:12.5px;">${t.name}</span>
+          <span style="font-weight:700; color:var(--royal); font-size:12px;">${t.pct}%</span>
+        </div>
+        <div class="topic-bar-track" style="height:8px; border-radius:4px; background:#EEF2F8; overflow:hidden;">
+          <div class="topic-bar-fill" style="width:${Math.min(100, t.pct * 2)}%; height:100%; border-radius:4px; background:linear-gradient(90deg, var(--royal), var(--blue));"></div>
+        </div>
+        <div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">${kwBadges}</div>
+      </div>`;
+  }).join("");
+}
+
+function renderBaselineTopics(){
+  const container = document.getElementById("topicsContainer");
+  if(!container) return;
+  const baseline = [
+    { name: "Geological Exploration", pct: 32, keywords: ["exploration", "borehole", "drilling", "reserve"] },
+    { name: "Coal Production & Dispatch", pct: 28, keywords: ["production", "opencast", "underground", "dispatch"] },
+    { name: "Coal Quality & Grades", pct: 18, keywords: ["coking", "non-coking", "ash", "gcv"] },
+    { name: "Safety & Environment", pct: 14, keywords: ["safety", "reclamation", "clearance", "afforestation"] },
+    { name: "CIL Operations & Subsidiaries", pct: 8, keywords: ["cmpdi", "ccl", "bccl", "secl"] }
+  ];
+  container.innerHTML = baseline.map(t => `
+    <div class="topic-row" style="margin-bottom:12px;">
+      <div class="tlabel" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span style="font-weight:600; color:var(--navy); font-size:12.5px;">${t.name}</span>
+        <span style="font-weight:700; color:var(--royal); font-size:12px;">${t.pct}%</span>
+      </div>
+      <div class="topic-bar-track" style="height:8px; border-radius:4px; background:#EEF2F8; overflow:hidden;">
+        <div class="topic-bar-fill" style="width:${t.pct * 2.5}%; height:100%; border-radius:4px; background:linear-gradient(90deg, var(--royal), var(--blue));"></div>
+      </div>
+      <div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">
+        ${t.keywords.map(k=>`<span style="background:#EEF2F8; color:#4B5563; font-size:10px; padding:2px 6px; border-radius:4px;">${k}</span>`).join("")}
+      </div>
+    </div>`).join("");
+}
+
+async function loadTopicDocsData(){
+  try {
+    const data = await apiServices.phase8.getTopicDocuments();
+    _topicDocsData = data.documents || [];
+    renderTopicDocuments();
+  } catch(err) {
+    console.warn("Live topic documents fetch error:", err);
+    _topicDocsData = [];
+    renderTopicDocuments();
+  }
+}
+
+function renderTopicDocuments(){
+  const tbody = document.getElementById("topicDocsTbody");
+  const countBadge = document.getElementById("topicDocCountBadge");
+  if(!tbody) return;
+
+  const q = (document.getElementById("topicDocSearch")?.value || _selectedWcWord || "").toLowerCase().trim();
+  let docs = _topicDocsData || [];
+
+  if(q){
+    docs = docs.filter(d =>
+      d.title.toLowerCase().includes(q) ||
+      d.dominant_topic.toLowerCase().includes(q) ||
+      (d.top_keywords || []).some(k => k.toLowerCase().includes(q))
+    );
+  }
+
+  if(countBadge) countBadge.textContent = `${docs.length} documents`;
+
+  if(docs.length === 0){
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align:center; padding:32px; color:#8593A8;">
+          <div style="font-weight:600; color:var(--navy); font-size:13.5px; margin-bottom:4px;">
+            ${q ? `No documents matched keyword "${q}"` : "No indexed documents found in current session"}
+          </div>
+          <div style="font-size:12px;">
+            ${q ? "Try clearing the search filter." : "Upload and process official CMPDI/Ministry of Coal documents in the Documents module to populate live provenance."}
+          </div>
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = docs.map(d => {
+    const kwBadges = (d.top_keywords || []).slice(0, 5).map(k =>
+      `<span style="background:#EEF2F8; color:var(--navy); font-size:10.5px; padding:2px 7px; border-radius:4px; font-weight:500;">${k}</span>`
+    ).join(" ");
+    return `
+      <tr style="border-bottom:1px solid #EEF2F8;">
+        <td style="padding:10px 12px; font-weight:600; color:var(--navy); max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${d.title}">${d.title}</td>
+        <td style="padding:10px 12px;"><span class="badge" style="background:#EBF3FF; color:var(--royal); font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600;">${d.dominant_topic}</span></td>
+        <td style="padding:10px 12px; display:flex; gap:4px; flex-wrap:wrap;">${kwBadges}</td>
+        <td style="padding:10px 12px; text-align:center; font-family:var(--font-mono); color:#4B5563;">${d.chunk_count}</td>
+        <td style="padding:10px 12px;"><span style="color:#1E9E63; font-size:11.5px; font-weight:600;">Indexed ✓</span></td>
+      </tr>`;
+  }).join("");
 }
 
 /* ============================================================
@@ -4234,120 +4518,792 @@ async function openRecordDetailModal(datasetId, recordId){
 }
 
 /* ============================================================
-   3D GEOLOGICAL VIEW
+   3D GEOLOGICAL VIEW (Phase 8 Real Data + Simulation Disclaimer)
    ============================================================ */
+let _geo3dStrata = null;
+let _gsiReportsData = null;
+let _ocbisBlocksData = null;
+let _activeGeoTab = 'gsi';
+
 function pageGeo3D(){
   return `
   <div class="page active">
     <div class="page-head">
-      <div class="eyebrow">3D Geological Intelligence</div>
+      <div class="eyebrow">Geological Intelligence · Phase 8</div>
       <h1>3D Geological Intelligence</h1>
-      <p>Interact with a simulated subsurface model — layers, boreholes, exploration points and fault lines.</p>
+      <p>Subsurface stratigraphic visualization and official GSI/OCBIS geological reference records.</p>
     </div>
-    <div class="geo3d-stage" id="geo3dStage">
-      <div class="geo3d-hud">BLOCK-A · SEAM-IV<br>23.4567°N 85.3211°E<br>DEPTH INDEX: 1:4500</div>
-      <div id="geo3dSvgWrap"></div>
-      <div class="layer-toggle-panel">
-        <div class="lt-title">Geological Layers</div>
-        ${layerToggle("strata","Geological Layers")}
-        ${layerToggle("coal","Coal Seam")}
-        ${layerToggle("boreholes","Boreholes")}
-        ${layerToggle("exploration","Exploration Points")}
-        ${layerToggle("faults","Fault Lines")}
-        ${layerToggle("seismic","Seismic Data")}
+
+    <!-- COMPACT PROFESSIONAL GEOLOGICAL SAFETY DISCLAIMER STRIP -->
+    <div style="background:#F1F5F9; border:1px solid #CBD5E1; border-left:4px solid #3B82F6; border-radius:8px; padding:8px 14px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:13px; color:#2563EB;">ℹ</span>
+        <span style="font-weight:700; font-size:11.5px; color:#1E293B; letter-spacing:0.2px;">
+          SIMULATED REFERENCE GEOLOGY — NOT ACTUAL BOREHOLE MEASUREMENTS
+        </span>
+        <span style="font-size:11px; color:#64748B;">
+          · Representative/schematic Gondwana stratigraphic visualization only.
+        </span>
       </div>
-      <div class="geo3d-controls">
-        <button class="vc-btn" id="g3RotateL">↺</button>
-        <button class="vc-btn" id="g3RotateR">↻</button>
-        <button class="vc-btn" id="g3ZoomIn">+</button>
-        <button class="vc-btn" id="g3ZoomOut">−</button>
-        <button class="vc-btn" id="g3Reset">⟳</button>
+      <div style="font-size:11px; color:#475569; font-weight:500;">
+        Official records: <strong>1,075 GSI Reports</strong> &amp; <strong>2,226 OCBIS Blocks</strong> below
+      </div>
+    </div>
+
+    <!-- 3D Viewport Stage -->
+    <div class="geo3d-stage" id="geo3dStage" style="position:relative; height:480px; border-radius:20px; overflow:hidden; background:radial-gradient(circle at 50% 30%, #16305F 0%, #071A3D 100%);">
+      <div class="geo3d-hud" style="font-size:11px; font-family:var(--font-mono); line-height:1.6;">
+        MODEL: GONDWANA REFERENCE COLUMN<br>
+        TYPE: SIMULATED (NOT ACTUAL BOREHOLE)<br>
+        DEPTH: 0–500m · DIP: 4–8° S
+      </div>
+      <div id="geo3dSvgWrap" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;"></div>
+
+      <!-- Strata Layer Inspector Panel -->
+      <div class="layer-toggle-panel" id="geo3dPanel" style="position:absolute; top:12px; right:12px; padding:8px 12px; border-radius:10px; background:rgba(7,26,61,0.72); border:1px solid rgba(255,255,255,0.12); backdrop-filter:blur(6px); z-index:10; min-width:165px; max-height:380px; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; cursor:pointer;" onclick="toggleStrataPanel()">
+          <span class="lt-title" style="margin-bottom:0; font-size:9.5px; letter-spacing:0.8px;">Strata Model Layers</span>
+          <span id="strataPanelToggleBtn" style="color:#8FADE0; font-size:11px; font-weight:700; padding:0 4px;">▾</span>
+        </div>
+        <div id="geo3dLayerToggles">
+          <label class="lt-row" style="font-size:11px; padding:2px 0;"><input type="checkbox" data-layer="overburden" checked> Overburden (0–30m)</label>
+          <label class="lt-row" style="font-size:11px; padding:2px 0;"><input type="checkbox" data-layer="barren" checked> Barren Measures (30–120m)</label>
+          <label class="lt-row" style="font-size:11px; padding:2px 0;"><input type="checkbox" data-layer="coal_upper" checked> Coal Seam — Upper (120–140m)</label>
+          <label class="lt-row" style="font-size:11px; padding:2px 0;"><input type="checkbox" data-layer="shale" checked> Inter-burden / Shale (140–200m)</label>
+          <label class="lt-row" style="font-size:11px; padding:2px 0;"><input type="checkbox" data-layer="coal_lower" checked> Coal Seam — Lower (200–220m)</label>
+          <label class="lt-row" style="font-size:11px; padding:2px 0;"><input type="checkbox" data-layer="floor" checked> Floor Measures (220–350m)</label>
+          <label class="lt-row" style="font-size:11px; padding:2px 0;"><input type="checkbox" data-layer="basement" checked> Basement (350–500m)</label>
+        </div>
+      </div>
+
+      <div class="geo3d-controls" style="position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:10;">
+        <button class="btn btn-sm" id="g3RotateL" title="Rotate Left" style="padding:3px 9px; font-size:11px; background:rgba(7,26,61,0.75); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; cursor:pointer;">↺ Rotate L</button>
+        <button class="btn btn-sm" id="g3RotateR" title="Rotate Right" style="padding:3px 9px; font-size:11px; background:rgba(7,26,61,0.75); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; cursor:pointer;">↻ Rotate R</button>
+        <button class="btn btn-sm" id="g3ZoomIn" title="Zoom In" style="padding:3px 9px; font-size:11px; background:rgba(7,26,61,0.75); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; cursor:pointer;">+ Zoom</button>
+        <button class="btn btn-sm" id="g3ZoomOut" title="Zoom Out" style="padding:3px 9px; font-size:11px; background:rgba(7,26,61,0.75); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; cursor:pointer;">− Zoom</button>
+        <button class="btn btn-sm" id="g3Reset" title="Reset View" style="padding:3px 9px; font-size:11px; background:rgba(7,26,61,0.75); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; cursor:pointer;">⟳ Reset</button>
+      </div>
+    </div>
+
+    <!-- Official Real Reference Data Section -->
+    <div class="card card-pad mt-16" style="margin-top:20px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1.5px solid #EEF2F8; padding-bottom:12px; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm btn-primary" id="tabBtnGsi" onclick="switchGeoTab('gsi')">
+            Official GSI Reports (1,075)
+          </button>
+          <button class="btn btn-sm btn-outline" id="tabBtnOcbis" onclick="switchGeoTab('ocbis')">
+            OCBIS Coal Blocks (2,226)
+          </button>
+          <button class="btn btn-sm btn-outline" id="tabBtnStrata" onclick="switchGeoTab('strata')">
+            Reference Stratigraphy Column
+          </button>
+        </div>
+        <div style="font-size:12px; color:#8593A8;">
+          Verified Audited Datasets · Google Drive
+        </div>
+      </div>
+
+      <!-- Tab 1: GSI Reports Table -->
+      <div id="geoTabGsi">
+        <div style="display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+          <input type="text" id="gsiSearchInput" placeholder="Search GSI title, author, state, accession no..."
+            style="flex:1; min-width:240px; border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 12px; font-size:13px;"
+            oninput="filterGsiReports()">
+          <select id="gsiRegionSelect" style="border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 12px; font-size:12.5px;" onchange="filterGsiReports()">
+            <option value="">All Regions</option>
+            <option value="CR">Central Region (CR)</option>
+            <option value="ER">Eastern Region (ER)</option>
+            <option value="NER">North-Eastern Region (NER)</option>
+            <option value="NR">Northern Region (NR)</option>
+            <option value="SR">Southern Region (SR)</option>
+            <option value="WR">Western Region (WR)</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto; max-height:420px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+            <thead style="position:sticky; top:0; background:#fff; z-index:2;">
+              <tr style="border-bottom:1.5px solid #E4E9F2; color:#8593A8; font-size:11px; text-transform:uppercase;">
+                <th style="padding:8px 10px;">Accession No</th>
+                <th style="padding:8px 10px;">Title</th>
+                <th style="padding:8px 10px;">Author</th>
+                <th style="padding:8px 10px;">State</th>
+                <th style="padding:8px 10px;">Toposheet</th>
+                <th style="padding:8px 10px;">FSP Year</th>
+                <th style="padding:8px 10px;">Theme</th>
+              </tr>
+            </thead>
+            <tbody id="gsiReportsTbody">
+              <tr><td colspan="7" style="text-align:center; padding:20px; color:#8593A8;">Loading 1,075 GSI exploration reports...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px; font-size:11.5px; color:#8593A8; display:flex; justify-content:space-between;" id="gsiStatsFooter"></div>
+      </div>
+
+      <!-- Tab 2: OCBIS Coal Blocks Table -->
+      <div id="geoTabOcbis" style="display:none;">
+        <div style="display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+          <input type="text" id="ocbisSearchInput" placeholder="Search block name, coalfield, allocatee..."
+            style="flex:1; min-width:240px; border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 12px; font-size:13px;"
+            oninput="filterOcbisBlocks()">
+        </div>
+        <div style="overflow-x:auto; max-height:420px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+            <thead style="position:sticky; top:0; background:#fff; z-index:2;">
+              <tr style="border-bottom:1.5px solid #E4E9F2; color:#8593A8; font-size:11px; text-transform:uppercase;">
+                <th style="padding:8px 10px;">Coalfield</th>
+                <th style="padding:8px 10px;">Block Name</th>
+                <th style="padding:8px 10px;">Subsidiary / State</th>
+                <th style="padding:8px 10px;">Act Type</th>
+                <th style="padding:8px 10px;">Allocated To</th>
+              </tr>
+            </thead>
+            <tbody id="ocbisBlocksTbody">
+              <tr><td colspan="5" style="text-align:center; padding:20px; color:#8593A8;">Loading 2,226 OCBIS coal block records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px; font-size:11.5px; color:#8593A8; display:flex; justify-content:space-between;" id="ocbisStatsFooter"></div>
+      </div>
+
+      <!-- Tab 3: Stratigraphy Model Specification -->
+      <div id="geoTabStrata" style="display:none;">
+        <div style="line-height:1.6; font-size:12.5px; color:#374151;">
+          <h4 style="color:var(--navy); margin-bottom:8px;">Gondwana Lithostratigraphic Column (Representative Reference)</h4>
+          <p style="margin-bottom:12px;">
+            The 3D model represents a generalized Damuda Group / Barakar Formation stratigraphic profile commonly documented across CIL subsidiary coalfields (Jharia, Raniganj, North/South Karanpura, Bokaro, Singrauli).
+          </p>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;" id="strataCardsGrid"></div>
+          <div style="margin-top:16px; padding:12px; background:#F8FAFC; border-radius:8px; font-size:11.5px; color:#64748B;">
+            <strong>Data Source &amp; Safety Assurance:</strong> Derived from CMPDI geological report templates and GSI coal inventory standards. Actual borehole intercept logs (depth, lithology, seam thickness, Proximate Ash%, GCV) do NOT exist in the audited Google Drive data and are NOT simulated as real measurements.
+          </div>
+        </div>
       </div>
     </div>
   </div>`;
 }
-function layerToggle(key,label){
-  return `<label class="lt-row"><input type="checkbox" data-layer="${key}" ${APP.geo3d[key]?'checked':''}> ${label}</label>`;
-}
+
 function afterGeo3D(){
-  renderGeo3DScene();
-  document.querySelectorAll("[data-layer]").forEach(el=> el.addEventListener("change", ()=>{
-    APP.geo3d[el.dataset.layer] = el.checked;
-    renderGeo3DScene();
-  }));
-  let rot=0, scale=1;
+  renderGeo3DStrataSVG();
+  loadReferenceStrata();
+  loadGsiReports();
+  loadOcbisBlocks();
+
+  let rot = 0, scale = 1;
   const stage = document.getElementById("geo3dStage");
-  const applyT = ()=>{ const g = document.getElementById("geo3dGroup"); if(g) g.setAttribute("transform", `translate(450,260) rotate(${rot*0.1}) scale(${scale})`); };
-  document.getElementById("g3RotateL").addEventListener("click", ()=>{ rot-=15; applyT(); });
-  document.getElementById("g3RotateR").addEventListener("click", ()=>{ rot+=15; applyT(); });
-  document.getElementById("g3ZoomIn").addEventListener("click", ()=>{ scale=Math.min(1.5,scale+0.1); applyT(); });
-  document.getElementById("g3ZoomOut").addEventListener("click", ()=>{ scale=Math.max(0.6,scale-0.1); applyT(); });
-  document.getElementById("g3Reset").addEventListener("click", ()=>{ rot=0; scale=1; applyT(); });
-  let dragging=false,lastX=0;
-  stage.addEventListener("mousedown", e=>{ dragging=true; lastX=e.clientX; });
-  window.addEventListener("mouseup", ()=> dragging=false);
-  window.addEventListener("mousemove", e=>{ if(!dragging) return; rot += (e.clientX-lastX)*0.5; lastX=e.clientX; applyT(); });
+  const applyT = () => {
+    const g = document.getElementById("geo3dGroup");
+    if(g) g.setAttribute("transform", `translate(415,230) rotate(${rot*0.1}) scale(${scale})`);
+  };
+  document.getElementById("g3RotateL")?.addEventListener("click", () => { rot -= 15; applyT(); });
+  document.getElementById("g3RotateR")?.addEventListener("click", () => { rot += 15; applyT(); });
+  document.getElementById("g3ZoomIn")?.addEventListener("click", () => { scale = Math.min(1.6, scale + 0.1); applyT(); });
+  document.getElementById("g3ZoomOut")?.addEventListener("click", () => { scale = Math.max(0.6, scale - 0.1); applyT(); });
+  document.getElementById("g3Reset")?.addEventListener("click", () => { rot = 0; scale = 1; applyT(); });
+
+  let dragging = false, lastX = 0;
+  stage?.addEventListener("mousedown", e => { dragging = true; lastX = e.clientX; });
+  window.addEventListener("mouseup", () => dragging = false);
+  window.addEventListener("mousemove", e => {
+    if(!dragging) return;
+    rot += (e.clientX - lastX) * 0.5;
+    lastX = e.clientX;
+    applyT();
+  });
+
+  document.querySelectorAll("#geo3dLayerToggles input").forEach(el => {
+    el.addEventListener("change", () => renderGeo3DStrataSVG());
+  });
 }
-function renderGeo3DScene(){
-  document.getElementById("geo3dSvgWrap").innerHTML = buildGeo3DScene(APP.geo3d);
+
+function toggleStrataPanel(){
+  const content = document.getElementById("geo3dLayerToggles");
+  const btn = document.getElementById("strataPanelToggleBtn");
+  if(!content) return;
+  const isHidden = content.style.display === "none";
+  content.style.display = isHidden ? "block" : "none";
+  if(btn) btn.textContent = isHidden ? "▾" : "▸";
+}
+
+function renderGeo3DStrataSVG(){
+  const wrap = document.getElementById("geo3dSvgWrap");
+  if(!wrap) return;
+
+  const toggles = {};
+  document.querySelectorAll("#geo3dLayerToggles input").forEach(el => {
+    toggles[el.dataset.layer] = el.checked;
+  });
+
+  // Render stylized 3D isometric geological block
+  let svg = `
+  <svg viewBox="0 0 900 480" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="gOverburden" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#D4B06A"/><stop offset="100%" stop-color="#B8934E"/></linearGradient>
+      <linearGradient id="gBarren" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8C7862"/><stop offset="100%" stop-color="#6E5D4B"/></linearGradient>
+      <linearGradient id="gCoal" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2D2D2D"/><stop offset="100%" stop-color="#141414"/></linearGradient>
+      <linearGradient id="gShale" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5E7088"/><stop offset="100%" stop-color="#47576C"/></linearGradient>
+      <linearGradient id="gFloor" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#9E8D75"/><stop offset="100%" stop-color="#82725C"/></linearGradient>
+      <linearGradient id="gBasement" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#695B4C"/><stop offset="100%" stop-color="#4E4235"/></linearGradient>
+    </defs>
+    <g id="geo3dGroup" transform="translate(415,230)">
+      <!-- Isometric strata layers -->
+      ${toggles.basement !== false ? `<polygon points="-260,110 0,180 260,110 0,40" fill="url(#gBasement)" opacity="0.95" stroke="#3D3227" stroke-width="1.5"/><polygon points="-260,110 -260,140 0,210 0,180" fill="#4E4235" stroke="#3D3227" stroke-width="1"/><polygon points="0,180 0,210 260,140 260,110" fill="#3D3227" stroke="#3D3227" stroke-width="1"/>` : ''}
+      ${toggles.floor !== false ? `<polygon points="-260,75 0,145 260,75 0,5" fill="url(#gFloor)" opacity="0.95" stroke="#685945" stroke-width="1.5"/><polygon points="-260,75 -260,110 0,180 0,145" fill="#82725C" stroke="#685945" stroke-width="1"/><polygon points="0,145 0,180 260,110 260,75" fill="#685945" stroke="#685945" stroke-width="1"/>` : ''}
+      ${toggles.coal_lower !== false ? `<polygon points="-260,50 0,120 260,50 0,-20" fill="url(#gCoal)" opacity="0.98" stroke="#DFAE24" stroke-width="2"/><polygon points="-260,50 -260,75 0,145 0,120" fill="#1C1C1C" stroke="#DFAE24" stroke-width="1"/><polygon points="0,120 0,145 260,75 260,50" fill="#141414" stroke="#DFAE24" stroke-width="1"/><text x="10" y="80" fill="#DFAE24" font-size="11" font-weight="700" font-family="monospace">COAL SEAM LOWER (20m)</text>` : ''}
+      ${toggles.shale !== false ? `<polygon points="-260,10 0,80 260,10 0,-60" fill="url(#gShale)" opacity="0.95" stroke="#3D4B5C" stroke-width="1.5"/><polygon points="-260,10 -260,50 0,120 0,80" fill="#47576C" stroke="#3D4B5C" stroke-width="1"/><polygon points="0,80 0,120 260,50 260,10" fill="#3D4B5C" stroke="#3D4B5C" stroke-width="1"/>` : ''}
+      ${toggles.coal_upper !== false ? `<polygon points="-260,-15 0,55 260,-15 0,-85" fill="url(#gCoal)" opacity="0.98" stroke="#DFAE24" stroke-width="2"/><polygon points="-260,-15 -260,10 0,80 0,55" fill="#1C1C1C" stroke="#DFAE24" stroke-width="1"/><polygon points="0,55 0,80 260,10 260,-15" fill="#141414" stroke="#DFAE24" stroke-width="1"/><text x="10" y="20" fill="#DFAE24" font-size="11" font-weight="700" font-family="monospace">COAL SEAM UPPER (20m)</text>` : ''}
+      ${toggles.barren !== false ? `<polygon points="-260,-65 0,5 260,-65 0,-135" fill="url(#gBarren)" opacity="0.92" stroke="#554738" stroke-width="1.5"/><polygon points="-260,-65 -260,-15 0,55 0,5" fill="#6E5D4B" stroke="#554738" stroke-width="1"/><polygon points="0,5 0,55 260,-15 260,-65" fill="#554738" stroke="#554738" stroke-width="1"/>` : ''}
+      ${toggles.overburden !== false ? `<polygon points="-260,-100 0,-30 260,-100 0,-170" fill="url(#gOverburden)" opacity="0.9" stroke="#9A7838" stroke-width="1.5"/><polygon points="-260,-100 -260,-65 0,5 0,-30" fill="#B8934E" stroke="#9A7838" stroke-width="1"/><polygon points="0,-30 0,5 260,-65 260,-100" fill="#9A7838" stroke="#9A7838" stroke-width="1"/><text x="-120" y="-85" fill="#FFF" font-size="11" font-weight="700" font-family="sans-serif">Overburden / Alluvium (30m)</text>` : ''}
+
+      <!-- Simulated grid lines -->
+      <line x1="-260" y1="-100" x2="260" y2="-100" stroke="#FFF" stroke-dasharray="3,3" opacity="0.4"/>
+      <line x1="0" y1="-170" x2="0" y2="210" stroke="#DFAE24" stroke-dasharray="4,4" opacity="0.6"/>
+    </g>
+  </svg>`;
+  wrap.innerHTML = svg;
+}
+
+function switchGeoTab(tab){
+  _activeGeoTab = tab;
+  ['gsi', 'ocbis', 'strata'].forEach(t => {
+    const el = document.getElementById(`geoTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    if(el) el.style.display = (t === tab) ? 'block' : 'none';
+    if(btn) {
+      if(t === tab) { btn.className = 'btn btn-sm btn-primary'; }
+      else { btn.className = 'btn btn-sm btn-outline'; }
+    }
+  });
+}
+
+async function loadReferenceStrata(){
+  try {
+    const res = await apiServices.phase8.getReferenceStrata();
+    _geo3dStrata = res.layers || [];
+    renderStrataCards();
+  } catch(err) {
+    console.warn("Reference strata fetch error:", err);
+  }
+}
+
+function renderStrataCards(){
+  const container = document.getElementById("strataCardsGrid");
+  if(!container || !_geo3dStrata) return;
+  container.innerHTML = _geo3dStrata.map(l => `
+    <div style="border:1.5px solid ${l.is_coal ? '#DFAE24' : '#E5E7EB'}; border-radius:10px; padding:12px; background:${l.is_coal ? '#FFFBEB' : '#FFF'};">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span style="font-weight:700; color:var(--navy); font-size:12.5px;">${l.name}</span>
+        ${l.is_coal ? '<span style="background:#DFAE24; color:#000; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;">COAL</span>' : ''}
+      </div>
+      <div style="font-size:11.5px; color:#4B5563;">Depth: <strong>${l.depth_from_m}m – ${l.depth_to_m}m</strong></div>
+      <div style="font-size:11px; color:#6B7280; margin-top:2px;">Type: ${l.strata_type}</div>
+      <div style="font-size:11px; color:#6B7280;">Lithology: ${l.lithology}</div>
+    </div>`).join("");
+}
+
+async function loadGsiReports(){
+  try {
+    const res = await apiServices.phase8.getGSIReports({ limit: 100 });
+    _gsiReportsData = res.results || [];
+    renderGsiReports();
+  } catch(err) {
+    console.warn("GSI reports fetch error:", err);
+    _gsiReportsData = [];
+    renderGsiReports();
+  }
+}
+
+function filterGsiReports(){
+  renderGsiReports();
+}
+
+function renderGsiReports(){
+  const tbody = document.getElementById("gsiReportsTbody");
+  const footer = document.getElementById("gsiStatsFooter");
+  if(!tbody) return;
+
+  const q = (document.getElementById("gsiSearchInput")?.value || "").toLowerCase().trim();
+  const region = (document.getElementById("gsiRegionSelect")?.value || "").trim();
+
+  let reports = _gsiReportsData || [];
+  if(region) reports = reports.filter(r => r.region === region);
+  if(q){
+    reports = reports.filter(r =>
+      (r.title || '').toLowerCase().includes(q) ||
+      (r.author || '').toLowerCase().includes(q) ||
+      (r.state || '').toLowerCase().includes(q) ||
+      (r.accession_no || '').toLowerCase().includes(q)
+    );
+  }
+
+  if(footer) footer.innerHTML = `<span>Showing ${reports.length} of 1,075 exploration records (GSI_Reports.csv)</span><span>Audited Official Dataset</span>`;
+
+  if(reports.length === 0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:#8593A8;">No GSI reports match current filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = reports.slice(0, 50).map(r => `
+    <tr style="border-bottom:1px solid #EEF2F8;">
+      <td style="padding:7px 10px; font-family:var(--font-mono); font-weight:600; color:var(--navy);">${r.accession_no}</td>
+      <td style="padding:7px 10px; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${r.title}">${r.title}</td>
+      <td style="padding:7px 10px; color:#4B5563;">${r.author || '—'}</td>
+      <td style="padding:7px 10px;">${r.state || '—'}</td>
+      <td style="padding:7px 10px; font-family:var(--font-mono);">${r.toposheet_no || '—'}</td>
+      <td style="padding:7px 10px; font-family:var(--font-mono);">${r.year_from ? (r.year_from + '–' + (r.year_to || '')) : '—'}</td>
+      <td style="padding:7px 10px; color:#6B7280;">${r.theme || '—'}</td>
+    </tr>`).join("");
+}
+
+async function loadOcbisBlocks(){
+  try {
+    const res = await apiServices.phase8.getOCBISBlocks({ limit: 100 });
+    _ocbisBlocksData = res.results || [];
+    renderOcbisBlocks();
+  } catch(err) {
+    console.warn("OCBIS blocks fetch error:", err);
+    _ocbisBlocksData = [];
+    renderOcbisBlocks();
+  }
+}
+
+function filterOcbisBlocks(){
+  renderOcbisBlocks();
+}
+
+function renderOcbisBlocks(){
+  const tbody = document.getElementById("ocbisBlocksTbody");
+  const footer = document.getElementById("ocbisStatsFooter");
+  if(!tbody) return;
+
+  const q = (document.getElementById("ocbisSearchInput")?.value || "").toLowerCase().trim();
+  let blocks = _ocbisBlocksData || [];
+  if(q){
+    blocks = blocks.filter(b =>
+      (b.block_name || '').toLowerCase().includes(q) ||
+      (b.coalfield || '').toLowerCase().includes(q) ||
+      (b.allocated_to || '').toLowerCase().includes(q) ||
+      (b.subsidiary_or_state || '').toLowerCase().includes(q)
+    );
+  }
+
+  if(footer) footer.innerHTML = `<span>Showing ${blocks.length} of 2,226 coal block records (OCBIS.html)</span><span>Audited Official Dataset</span>`;
+
+  if(blocks.length === 0){
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#8593A8;">No OCBIS blocks match search query.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = blocks.slice(0, 50).map(b => {
+    const isUnalloc = (b.allocated_to || '').toLowerCase().includes("unallocated");
+    return `
+      <tr style="border-bottom:1px solid #EEF2F8;">
+        <td style="padding:7px 10px; font-weight:600; color:var(--navy);">${b.coalfield}</td>
+        <td style="padding:7px 10px; color:var(--royal); font-weight:600;">${b.block_name}</td>
+        <td style="padding:7px 10px;">${b.subsidiary_or_state || '—'}</td>
+        <td style="padding:7px 10px; font-family:var(--font-mono);">${b.act_type || '—'}</td>
+        <td style="padding:7px 10px;">
+          <span style="font-size:11px; padding:2px 7px; border-radius:4px; font-weight:600; background:${isUnalloc ? '#FEE2E2' : '#DCFCE7'}; color:${isUnalloc ? '#B91C1C' : '#15803D'};">
+            ${b.allocated_to || '—'}
+          </span>
+        </td>
+      </tr>`;
+  }).join("");
 }
 
 /* ============================================================
-   MINING MAP
+   MINING MAP (Phase 8 Real 107 Verified Mines + Leaflet GIS)
    ============================================================ */
+const BUNDLED_MINES_DATA = [{"mine_name": "Aadocm", "latitude": 23.7666344835697, "longitude": 85.9855209793535, "state": "Jharkhand", "district": "BOKARO", "coalfield": "E. Bokaro", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 2.613, "year": "2024-25"}, {"mine_name": "AGKCC", "latitude": 23.8098399390537, "longitude": 86.2917913877319, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 0.02, "year": "2024-25"}, {"mine_name": "AKK OCP", "latitude": 23.7905, "longitude": 85.9198, "state": "Jharkhand", "district": "BOKARO", "coalfield": "E. Bokaro", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 5.36, "year": "2024-25"}, {"mine_name": "Amadand", "latitude": 23.1436, "longitude": 82.0579, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 1.38, "year": "2024-25"}, {"mine_name": "Amera", "latitude": 23.0617, "longitude": 83.0433, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 0.279, "year": "2024-25"}, {"mine_name": "Amgaon", "latitude": 23.1367, "longitude": 82.83, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 1.0, "year": "2024-25"}, {"mine_name": "Amlohri", "latitude": 24.1417, "longitude": 82.5917, "state": "Madhya Pradesh", "district": "SINGRAULI", "coalfield": "Singrauli", "subsidiary": "NCL", "mine_type": "OC", "production_mt": 22.003, "year": "2024-25"}, {"mine_name": "Ashoka", "latitude": 23.7297, "longitude": 84.9932, "state": "Jharkhand", "district": "CHATRA", "coalfield": "N.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 9.853, "year": "2024-25"}, {"mine_name": "Bagdeva", "latitude": 22.3863, "longitude": 82.535, "state": "Chhattisgarh", "district": "KORBA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.285, "year": "2024-25"}, {"mine_name": "Balrampur", "latitude": 23.6169, "longitude": 83.6191, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.119, "year": "2024-25"}, {"mine_name": "Bangwar", "latitude": 23.1542, "longitude": 81.5361, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.65, "year": "2024-25"}, {"mine_name": "Barjora (North) Coal Mine", "latitude": 23.7454, "longitude": 87.2264, "state": "West Bengal", "district": "BANKURA", "coalfield": "Barjora North", "subsidiary": "WBPDCL", "mine_type": "OC", "production_mt": 1.124, "year": "2024-25"}, {"mine_name": "Barmuri", "latitude": 23.7525, "longitude": 86.812, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "OC", "production_mt": 0.505, "year": "2024-25"}, {"mine_name": "Bastacolla", "latitude": 23.7634, "longitude": 86.4163, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 2.099, "year": "2024-25"}, {"mine_name": "Bhatgaon", "latitude": 23.3667, "longitude": 83.0, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.185, "year": "2024-25"}, {"mine_name": "Bijuri", "latitude": 23.2588, "longitude": 82.1216, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.715, "year": "2024-25"}, {"mine_name": "Chapuikhas Colliery", "latitude": 23.6545, "longitude": 87.0449, "state": "West Bengal", "district": "Bardhaman", "coalfield": "Raniganj", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.024, "year": "2024-25"}, {"mine_name": "Chhatarpur -II", "latitude": 22.1417, "longitude": 78.1, "state": "Madhya Pradesh", "district": "BETUL", "coalfield": "Pathakhera", "subsidiary": "WCL", "mine_type": "UG", "production_mt": 0.052, "year": "2024-25"}, {"mine_name": "Chhinda", "latitude": 22.2083, "longitude": 78.8333, "state": "Madhya Pradesh", "district": "CHHINDWARA", "coalfield": "Pench & Kanhan", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Churcha RO", "latitude": 23.3342, "longitude": 82.52, "state": "Chhattisgarh", "district": "KOREA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 1.408, "year": "2024-25"}, {"mine_name": "Damini", "latitude": 23.145, "longitude": 81.4633, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.265, "year": "2024-25"}, {"mine_name": "Dhanpuri", "latitude": 23.1541, "longitude": 81.5843, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 0.128, "year": "2024-25"}, {"mine_name": "Dhori Khas(UG)", "latitude": 23.774, "longitude": 86.0144, "state": "Jharkhand", "district": "BOKARO", "coalfield": "E. Bokaro", "subsidiary": "CCL", "mine_type": "UG", "production_mt": 0.136, "year": "2024-25"}, {"mine_name": "Dipka", "latitude": 22.3225, "longitude": 82.5363, "state": "Chhattisgarh", "district": "KORBA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 33.417, "year": "2024-25"}, {"mine_name": "Ena", "latitude": 23.7568, "longitude": 86.4094, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 2.998, "year": "2024-25"}, {"mine_name": "Gare Palma IV/2&3", "latitude": 22.1199, "longitude": 83.5362, "state": "Chhattisgarh", "district": "RAIGARH", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 0.16, "year": "2024-25"}, {"mine_name": "Gayatri", "latitude": 23.1097, "longitude": 82.9051, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.579, "year": "2024-25"}, {"mine_name": "Ghonsa,", "latitude": 19.9647, "longitude": 78.8326, "state": "Maharashtra", "district": "YAVATMAL", "coalfield": "Wardha Valley", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.6, "year": "2024-25"}, {"mine_name": "Gidi `A'", "latitude": 23.6833, "longitude": 85.3583, "state": "Jharkhand", "district": "HAZARIBAGH", "coalfield": "S.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.494, "year": "2024-25"}, {"mine_name": "Gidi `C'", "latitude": 23.6967, "longitude": 85.3958, "state": "Jharkhand", "district": "HAZARIBAGH", "coalfield": "S.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.599, "year": "2024-25"}, {"mine_name": "Gopalichuck", "latitude": 23.7548376557167, "longitude": 86.364360175623, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 0.358, "year": "2024-25"}, {"mine_name": "Gouri Deep", "latitude": 19.7741, "longitude": 79.2902, "state": "Maharashtra", "district": "CHANDRAPUR", "coalfield": "Wardha", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.378, "year": "2024-25"}, {"mine_name": "Govindpur", "latitude": 23.8021046616529, "longitude": 85.8711663311956, "state": "Jharkhand", "district": "BOKARO", "coalfield": "E. Bokaro", "subsidiary": "CCL", "mine_type": "UG", "production_mt": 0.016, "year": "2024-25"}, {"mine_name": "Haldibari", "latitude": 23.2232, "longitude": 82.1501, "state": "Chhattisgarh", "district": "KOREA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.592, "year": "2024-25"}, {"mine_name": "Hariajam", "latitude": 23.7926, "longitude": 86.6903, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.047, "year": "2024-25"}, {"mine_name": "Hurra C", "latitude": 24.9867, "longitude": 87.3808, "state": "Jharkhand", "district": "GODDA", "coalfield": "Rajmahal", "subsidiary": "ECL", "mine_type": "OC", "production_mt": 2.074, "year": "2024-25"}, {"mine_name": "Jampali", "latitude": 22.2843, "longitude": 83.3025, "state": "Chhattisgarh", "district": "RAIGARH", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 3.0, "year": "2024-25"}, {"mine_name": "Jhiria", "latitude": 23.1523, "longitude": 82.1511, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.189, "year": "2024-25"}, {"mine_name": "Jogidih", "latitude": 23.8087, "longitude": 86.26037, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "UG", "production_mt": 0.013, "year": "2024-25"}, {"mine_name": "Junad,", "latitude": 20.0438, "longitude": 79.0679, "state": "Maharashtra", "district": "YAVATMAL", "coalfield": "Wardha Valley", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.464, "year": "2024-25"}, {"mine_name": "Kalidaspur Project", "latitude": 23.5939, "longitude": 87.0365, "state": "West Bengal", "district": "BANKURA", "coalfield": "Raniganj", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.075, "year": "2024-25"}, {"mine_name": "Kanchan OC", "latitude": 23.3419, "longitude": 80.8626, "state": "Madhya Pradesh", "district": "UMARIA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 0.908, "year": "2024-25"}, {"mine_name": "Kankanee", "latitude": 23.775, "longitude": 86.3417, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 0.334, "year": "2024-25"}, {"mine_name": "Kapasara", "latitude": 23.7585, "longitude": 86.7545, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "OC", "production_mt": 0.04, "year": "2024-25"}, {"mine_name": "Karma", "latitude": 23.6505, "longitude": 85.5659, "state": "Jharkhand", "district": "RAMGARH", "coalfield": "W.Bokaro", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.861, "year": "2024-25"}, {"mine_name": "Katkona 1 & 2", "latitude": 23.3596, "longitude": 82.6808, "state": "Chhattisgarh", "district": "KOREA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.216, "year": "2024-25"}, {"mine_name": "Kedla UG", "latitude": 23.803, "longitude": 85.5951, "state": "Jharkhand", "district": "RAMGARH", "coalfield": "W.Bokaro", "subsidiary": "CCL", "mine_type": "UG", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Ketki", "latitude": 23.1385, "longitude": 82.8786, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.028, "year": "2024-25"}, {"mine_name": "Khairaha", "latitude": 23.1543, "longitude": 81.4589, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.877, "year": "2024-25"}, {"mine_name": "Khoodia", "latitude": 23.7738, "longitude": 86.7297, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.025, "year": "2024-25"}, {"mine_name": "Kistaram OC", "latitude": 17.2265, "longitude": 80.7865, "state": "Telangana", "district": "KHAMMAM", "coalfield": "Godavari Valley", "subsidiary": "SCCL", "mine_type": "OC", "production_mt": 2.4, "year": "2024-25"}, {"mine_name": "Kolarpimpri,", "latitude": 20.0833, "longitude": 79.0333, "state": "Maharashtra", "district": "YAVATMAL", "coalfield": "Wardha Valley", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 1.5, "year": "2024-25"}, {"mine_name": "Kumda 7 & 8", "latitude": 23.2074, "longitude": 83.0056, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.011, "year": "2024-25"}, {"mine_name": "Lakhimata", "latitude": 23.7729, "longitude": 86.7314, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.059, "year": "2024-25"}, {"mine_name": "Madhaipur", "latitude": 23.7037, "longitude": 87.3467, "state": "West Bengal", "district": "Bardhaman", "coalfield": "Raniganj", "subsidiary": "ECL", "mine_type": "Mixed", "production_mt": 0.036, "year": "2024-25"}, {"mine_name": "Maheshpur", "latitude": 23.7864, "longitude": 86.2556, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "UG", "production_mt": 0.029, "year": "2024-25"}, {"mine_name": "Manikpur", "latitude": 22.3208, "longitude": 82.725, "state": "Chhattisgarh", "district": "KORBA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "OC", "production_mt": 5.25, "year": "2024-25"}, {"mine_name": "Manna Incline", "latitude": 19.9132, "longitude": 79.3019, "state": "Maharashtra", "district": "CHANDRAPUR", "coalfield": "Wardha", "subsidiary": "WCL", "mine_type": "UG", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Mathani", "latitude": 22.2389, "longitude": 78.9311, "state": "Madhya Pradesh", "district": "CHHINDWARA", "coalfield": "Pench & Kanhan", "subsidiary": "WCL", "mine_type": "UG", "production_mt": 0.091, "year": "2024-25"}, {"mine_name": "Meera", "latitude": 23.1863, "longitude": 81.9797, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.076, "year": "2024-25"}, {"mine_name": "Mohan (Mohan UG)", "latitude": 22.1793326984003, "longitude": 78.6775923587742, "state": "Madhya Pradesh", "district": "CHHINDWARA", "coalfield": "Pench & Kanhan", "subsidiary": "WCL", "mine_type": "Mixed", "production_mt": 0.038, "year": "2024-25"}, {"mine_name": "Mohanpur (Expn)", "latitude": 23.7867, "longitude": 86.951, "state": "West Bengal", "district": "Bardhaman", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "OC", "production_mt": 2.0, "year": "2024-25"}, {"mine_name": "New Sethia", "latitude": 22.2153, "longitude": 78.8501, "state": "Madhya Pradesh", "district": "CHHINDWARA", "coalfield": "Pench & Kanhan", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Nichitpur", "latitude": 23.7917, "longitude": 86.3444, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 1.794, "year": "2024-25"}, {"mine_name": "Ningah Colliery", "latitude": 23.6743, "longitude": 87.0333, "state": "West Bengal", "district": "Bardhaman", "coalfield": "Raniganj", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.017, "year": "2024-25"}, {"mine_name": "Nirsha", "latitude": 23.7873, "longitude": 86.7058, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "OC", "production_mt": 0.147, "year": "2024-25"}, {"mine_name": "Nowrozabad (W)", "latitude": 23.3588, "longitude": 80.989, "state": "Madhya Pradesh", "district": "UMARIA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.098, "year": "2024-25"}, {"mine_name": "Pimpalgaon,", "latitude": 20.0458, "longitude": 79.0417, "state": "Maharashtra", "district": "YAVATMAL", "coalfield": "Wardha Valley", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Piparia", "latitude": 23.5238, "longitude": 80.8622, "state": "Madhya Pradesh", "district": "UMARIA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.081, "year": "2024-25"}, {"mine_name": "Pundi", "latitude": 23.8236, "longitude": 85.5218, "state": "Jharkhand", "district": "RAMGARH", "coalfield": "W.Bokaro", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Purnadih", "latitude": 23.7083, "longitude": 84.9861, "state": "Jharkhand", "district": "RANCHI", "coalfield": "N.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.589, "year": "2024-25"}, {"mine_name": "Rajendra", "latitude": 23.1531, "longitude": 81.491, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.158, "year": "2024-25"}, {"mine_name": "Rajhara", "latitude": 24.1642, "longitude": 84.0465, "state": "Jharkhand", "district": "PALAMU", "coalfield": "N.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Rajnagar RO", "latitude": 23.1897, "longitude": 82.132, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.13, "year": "2024-25"}, {"mine_name": "Rajpura", "latitude": 23.7586, "longitude": 86.7731, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Mugma/Salanpur", "subsidiary": "ECL", "mine_type": "OC", "production_mt": 0.076, "year": "2024-25"}, {"mine_name": "Raniatari", "latitude": 22.8647, "longitude": 82.2989, "state": "Chhattisgarh", "district": "KOREA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.48, "year": "2024-25"}, {"mine_name": "Rehar", "latitude": 23.1063, "longitude": 82.9368, "state": "Chhattisgarh", "district": "SURGUJA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.031, "year": "2024-25"}, {"mine_name": "Religara", "latitude": 23.8617, "longitude": 85.5569, "state": "Jharkhand", "district": "HAZARIBAGH", "coalfield": "S.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.499, "year": "2024-25"}, {"mine_name": "Rohini", "latitude": 23.6917, "longitude": 84.9903, "state": "Jharkhand", "district": "RANCHI", "coalfield": "N.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.039, "year": "2024-25"}, {"mine_name": "Satgram Incline", "latitude": 23.6827, "longitude": 87.0703, "state": "West Bengal", "district": "Bardhaman", "coalfield": "Raniganj", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.032, "year": "2024-25"}, {"mine_name": "Satgram Project", "latitude": 23.6471, "longitude": 87.1594, "state": "West Bengal", "district": "Bardhaman", "coalfield": "Raniganj", "subsidiary": "ECL", "mine_type": "UG", "production_mt": 0.03, "year": "2024-25"}, {"mine_name": "Saunda (Ncdc)", "latitude": 23.6625, "longitude": 85.3347, "state": "Jharkhand", "district": "RAMGARH", "coalfield": "S.K.Coalfields", "subsidiary": "CCL", "mine_type": "UG", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Sendra Bansjora", "latitude": 23.7875, "longitude": 86.3472, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 0.601, "year": "2024-25"}, {"mine_name": "Sharda Highwall", "latitude": 23.2084, "longitude": 81.5896, "state": "Madhya Pradesh", "district": "SHAHDOL", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.711, "year": "2024-25"}, {"mine_name": "Silewara Colliery", "latitude": 21.2990356958441, "longitude": 79.1234184722817, "state": "Maharashtra", "district": "NAGPUR", "coalfield": "Kamptee/Silewara", "subsidiary": "WCL", "mine_type": "UG", "production_mt": 0.069, "year": "2024-25"}, {"mine_name": "Sirka", "latitude": 23.7507, "longitude": 85.5833, "state": "Jharkhand", "district": "RAMGARH", "coalfield": "S.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.116, "year": "2024-25"}, {"mine_name": "Talaipalli Coal Mine", "latitude": 22.1765, "longitude": 83.3551, "state": "Chhattisgarh", "district": "RAIGARH", "coalfield": "Mand-Raigarh", "subsidiary": "NTPC", "mine_type": "OC", "production_mt": 7.543, "year": "2024-25"}, {"mine_name": "Tandsi", "latitude": 22.1857, "longitude": 78.3235, "state": "Madhya Pradesh", "district": "CHHINDWARA", "coalfield": "Pench & Kanhan", "subsidiary": "WCL", "mine_type": "UG", "production_mt": 0.036, "year": "2024-25"}, {"mine_name": "Tapin South", "latitude": 23.8329, "longitude": 85.4729, "state": "Jharkhand", "district": "HAZARIBAGH", "coalfield": "W.Bokaro", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 1.43, "year": "2024-25"}, {"mine_name": "Tarmi", "latitude": 23.7681, "longitude": 85.5542, "state": "Jharkhand", "district": "BOKARO", "coalfield": "E. Bokaro", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.283, "year": "2024-25"}, {"mine_name": "Tawa-II", "latitude": 22.1542, "longitude": 78.1917, "state": "Madhya Pradesh", "district": "BETUL", "coalfield": "Pathakhera", "subsidiary": "WCL", "mine_type": "UG", "production_mt": 0.415, "year": "2024-25"}, {"mine_name": "Tetaria Khar", "latitude": 23.809, "longitude": 84.8458, "state": "Jharkhand", "district": "LATEHAR", "coalfield": "N.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 1.032, "year": "2024-25"}, {"mine_name": "Tetulmari", "latitude": 23.8034, "longitude": 86.345, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 0.318, "year": "2024-25"}, {"mine_name": "Umaria", "latitude": 23.525, "longitude": 80.8333, "state": "Madhya Pradesh", "district": "UMARIA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.117, "year": "2024-25"}, {"mine_name": "Urdhan", "latitude": 22.2786, "longitude": 78.9578, "state": "Madhya Pradesh", "district": "CHHINDWARA", "coalfield": "Pench & Kanhan", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.7, "year": "2024-25"}, {"mine_name": "Urimari", "latitude": 23.6939, "longitude": 85.3108, "state": "Jharkhand", "district": "HAZARIBAGH", "coalfield": "S.K.Coalfields", "subsidiary": "CCL", "mine_type": "UG", "production_mt": 0.0, "year": "2024-25"}, {"mine_name": "Urimari", "latitude": 23.6939, "longitude": 85.3108, "state": "Jharkhand", "district": "HAZARIBAGH", "coalfield": "S.K.Coalfields", "subsidiary": "CCL", "mine_type": "OC", "production_mt": 0.791, "year": "2024-25"}, {"mine_name": "Vijay West", "latitude": 22.8542, "longitude": 82.3211, "state": "Chhattisgarh", "district": "KORBA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.5, "year": "2024-25"}, {"mine_name": "Vindhya", "latitude": 23.3356, "longitude": 80.9058, "state": "Madhya Pradesh", "district": "UMARIA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 0.465, "year": "2024-25"}, {"mine_name": "Vishnupuri-II", "latitude": 22.199, "longitude": 78.8626, "state": "Madhya Pradesh", "district": "CHHINDWARA", "coalfield": "Pench & Kanhan", "subsidiary": "WCL", "mine_type": "UG", "production_mt": 0.085, "year": "2024-25"}, {"mine_name": "Amalgamated Gondegaon Ghatrohana", "latitude": 21.2662973097932, "longitude": 79.1924247571361, "state": "Maharashtra", "district": "NAGPUR", "coalfield": "Kamptee/Silewara", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 3.501, "year": "2024-25"}, {"mine_name": "Ballarpur OCM", "latitude": 19.8336, "longitude": 79.3452, "state": "Maharashtra", "district": "CHANDRAPUR", "coalfield": "Wardha", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 0.625, "year": "2024-25"}, {"mine_name": "Basdeopur", "latitude": 23.725, "longitude": 86.3625, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "OC", "production_mt": 0.14, "year": "2024-25"}, {"mine_name": "Hindustan Lalpeth OC", "latitude": 19.9278, "longitude": 79.3119, "state": "Maharashtra", "district": "CHANDRAPUR", "coalfield": "Wardha", "subsidiary": "WCL", "mine_type": "OC", "production_mt": 1.0, "year": "2024-25"}, {"mine_name": "Khairagura OC", "latitude": 19.2458, "longitude": 79.2854, "state": "Telangana", "district": "Komaram Bheem", "coalfield": "Godavari Valley", "subsidiary": "SCCL", "mine_type": "OC", "production_mt": 3.749, "year": "2024-25"}, {"mine_name": "Kharkharee", "latitude": 23.7773, "longitude": 86.2391, "state": "Jharkhand", "district": "DHANBAD", "coalfield": "Jharia", "subsidiary": "BCCL", "mine_type": "UG", "production_mt": 0.005, "year": "2024-25"}, {"mine_name": "Saraipali", "latitude": 22.3731657585543, "longitude": 82.322829992396, "state": "Chhattisgarh", "district": "KORBA", "coalfield": "Central India", "subsidiary": "SECL", "mine_type": "UG", "production_mt": 1.68, "year": "2024-25"}];
+let _allMinesData = [...BUNDLED_MINES_DATA];
+let _mapFiltersData = null;
+let _leafletMapInstance = null;
+let _leafletMarkersGroup = null;
+
+const SUB_COLORS = {
+  "CCL": "#1565C0",
+  "BCCL": "#0D47A1",
+  "SECL": "#00695C",
+  "NCL": "#283593",
+  "MCL": "#2E7D32",
+  "ECL": "#6A1B9A",
+  "WCL": "#D84315",
+  "SCCL": "#C2185B"
+};
+
 function pageMap(){
   return `
   <div class="page active">
     <div class="page-head">
-      <div class="eyebrow">GIS</div>
-      <h1>Mining &amp; Exploration Map</h1>
-      <p>Coalfields, mines, exploration blocks and survey locations across subsidiary regions.</p>
+      <div class="eyebrow">GIS &amp; Spatial Intelligence · Phase 8</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1>Mining &amp; Exploration Map</h1>
+          <p>Verified geographic locations, production metrics, and administrative distribution across Indian coalfields.</p>
+        </div>
+        <div>
+          <span class="badge" style="background:#EBF3FF; color:var(--royal); font-weight:600; padding:6px 14px; border-radius:8px;">
+            107 Verified Mines · 2024-25 Dataset
+          </span>
+        </div>
+      </div>
     </div>
-    <div class="filters">
-      <input type="text" id="mapSearch" placeholder="Search mines, coalfields...">
-      <select id="mapSubFilter">
-        <option value="all">All Subsidiaries</option>
-        ${[...new Set(MOCK.mines.map(m=>m.subsidiary))].map(s=>`<option value="${s}">${s}</option>`).join("")}
-      </select>
-      <button class="btn btn-outline btn-sm" id="mapZoomIn">Zoom +</button>
-      <button class="btn btn-outline btn-sm" id="mapZoomOut">Zoom −</button>
+
+    <!-- Filter Controls Bar -->
+    <div class="card card-pad mb-16" style="margin-bottom:16px; padding:14px 18px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)) 100px; gap:10px; align-items:center;">
+        <input type="text" id="mapSearch" placeholder="Search mine, coalfield, district..."
+          style="border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 12px; font-size:13px;"
+          oninput="applyMapFilters()">
+
+        <select id="mapSubFilter" style="border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 10px; font-size:12.5px;" onchange="applyMapFilters()">
+          <option value="all">All Subsidiaries</option>
+          <option value="CCL">CCL</option>
+          <option value="BCCL">BCCL</option>
+          <option value="SECL">SECL</option>
+          <option value="NCL">NCL</option>
+          <option value="MCL">MCL</option>
+          <option value="ECL">ECL</option>
+          <option value="WCL">WCL</option>
+          <option value="SCCL">SCCL</option>
+        </select>
+
+        <select id="mapStateFilter" style="border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 10px; font-size:12.5px;" onchange="applyMapFilters()">
+          <option value="all">All States</option>
+          <option value="Jharkhand">Jharkhand</option>
+          <option value="Odisha">Odisha</option>
+          <option value="Chhattisgarh">Chhattisgarh</option>
+          <option value="Madhya Pradesh">Madhya Pradesh</option>
+          <option value="Maharashtra">Maharashtra</option>
+          <option value="Telangana">Telangana</option>
+          <option value="West Bengal">West Bengal</option>
+        </select>
+
+        <select id="mapTypeFilter" style="border:1.5px solid #D1DBE8; border-radius:8px; padding:8px 10px; font-size:12.5px;" onchange="applyMapFilters()">
+          <option value="all">All Mine Types</option>
+          <option value="OC">Open-cast (OC)</option>
+          <option value="UG">Underground (UG)</option>
+          <option value="Mixed">Mixed (OC+UG)</option>
+        </select>
+
+        <button class="btn btn-outline btn-sm" onclick="resetMapFilters()" style="height:36px;">Reset</button>
+      </div>
     </div>
-    <div class="map-stage" id="mapStage">
-      <div id="mapSvgWrap" style="position:absolute; inset:0;"></div>
-      <div class="map-tooltip" id="mapTooltip"></div>
+
+    <!-- Aggregate KPI Stat Bar -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:16px;">
+      <div style="background:#FFF; border:1.5px solid #E5E7EB; border-radius:12px; padding:12px 16px;">
+        <div style="font-size:11px; color:#6B7280; font-weight:600; text-transform:uppercase;">Active Mines Filtered</div>
+        <div style="font-size:22px; font-weight:700; color:var(--navy); margin-top:2px;" id="kpiFilteredMines">107 <span style="font-size:13px; color:#8593A8; font-weight:400;">/ 107</span></div>
+      </div>
+      <div style="background:#FFF; border:1.5px solid #E5E7EB; border-radius:12px; padding:12px 16px;">
+        <div style="font-size:11px; color:#6B7280; font-weight:600; text-transform:uppercase;">Total Production (MT)</div>
+        <div style="font-size:22px; font-weight:700; color:var(--royal); margin-top:2px;" id="kpiFilteredProd">—</div>
+      </div>
+      <div style="background:#FFF; border:1.5px solid #E5E7EB; border-radius:12px; padding:12px 16px;">
+        <div style="font-size:11px; color:#6B7280; font-weight:600; text-transform:uppercase;">Subsidiaries Covered</div>
+        <div style="font-size:22px; font-weight:700; color:var(--navy); margin-top:2px;" id="kpiFilteredSubs">8</div>
+      </div>
+      <div style="background:#FFF; border:1.5px solid #E5E7EB; border-radius:12px; padding:12px 16px;">
+        <div style="font-size:11px; color:#6B7280; font-weight:600; text-transform:uppercase;">Dataset Provenance</div>
+        <div style="font-size:13px; font-weight:600; color:#1E9E63; margin-top:6px;">Audited 107 Records ✓</div>
+      </div>
+    </div>
+
+    <!-- Map Stage (Leaflet Container with SVG Fallback) -->
+    <div class="map-stage" id="mapStage" style="position:relative; height:540px; border-radius:20px; overflow:hidden; border:1.5px solid #16305F;">
+      <div id="leafletMap" style="width:100%; height:100%; position:absolute; inset:0; z-index:1;"></div>
+      <div id="mapSvgWrap" style="position:absolute; inset:0; display:none; z-index:2;"></div>
+      <div class="map-tooltip" id="mapTooltip" style="z-index:25;"></div>
+
+      <!-- Fallback indicator badge -->
+      <div id="mapModeIndicator" style="position:absolute; bottom:14px; left:14px; z-index:20; background:rgba(7,26,61,0.85); color:#fff; padding:5px 12px; border-radius:8px; font-size:11px; font-family:monospace; backdrop-filter:blur(4px);">
+        GIS ENGINE: LEAFLET 1.9.4
+      </div>
+    </div>
+
+    <!-- Real Mine Directory Table -->
+    <div class="card card-pad mt-16" style="margin-top:20px;">
+      <div class="card-title-row">
+        <div>
+          <h3>Verified Mines Directory</h3>
+          <div class="sub">Official 2024-25 reporting data from mining_map_phase8.csv (Zero fabricated coordinates)</div>
+        </div>
+        <div style="font-size:11.5px; color:#D97706; font-weight:600;">
+          ⚠ Star Rating is not in verified dataset
+        </div>
+      </div>
+      <div style="overflow-x:auto; max-height:420px; margin-top:12px;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+          <thead style="position:sticky; top:0; background:#fff; z-index:2;">
+            <tr style="border-bottom:1.5px solid #E4E9F2; color:#8593A8; font-size:11px; text-transform:uppercase;">
+              <th style="padding:9px 12px;">Mine Name</th>
+              <th style="padding:9px 12px;">Subsidiary</th>
+              <th style="padding:9px 12px;">Coalfield</th>
+              <th style="padding:9px 12px;">District</th>
+              <th style="padding:9px 12px;">State</th>
+              <th style="padding:9px 12px;">Type</th>
+              <th style="padding:9px 12px; text-align:right;">Production (MT)</th>
+              <th style="padding:9px 12px; text-align:center;">GPS Coordinates</th>
+              <th style="padding:9px 12px; text-align:center;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="minesTableTbody">
+            <tr><td colspan="9" style="text-align:center; padding:24px; color:#8593A8;">Loading verified mine records...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>`;
 }
-function afterMap(){
-  renderMapPins();
-  document.getElementById("mapSearch").addEventListener("input", renderMapPins);
-  document.getElementById("mapSubFilter").addEventListener("change", renderMapPins);
-  let scale=1;
-  const wrap = ()=> document.getElementById("mapSvgWrap");
-  document.getElementById("mapZoomIn").addEventListener("click", ()=>{ scale=Math.min(1.8,scale+0.15); wrap().style.transform=`scale(${scale})`; });
-  document.getElementById("mapZoomOut").addEventListener("click", ()=>{ scale=Math.max(0.7,scale-0.15); wrap().style.transform=`scale(${scale})`; });
+
+async function afterMap(){
+  await loadMinesData();
+  initLeafletMap();
 }
-function renderMapPins(){
-  const q = (document.getElementById("mapSearch")?.value || "").toLowerCase();
+
+async function loadMinesData(){
+  try {
+    const res = await apiServices.phase8.getMines({ all: 'true' });
+    if(res && res.results && res.results.length > 0){
+      _allMinesData = res.results;
+    } else {
+      _allMinesData = [...BUNDLED_MINES_DATA];
+    }
+  } catch(err) {
+    console.warn("Could not load mines from API, using bundled 107 verified dataset:", err);
+    _allMinesData = [...BUNDLED_MINES_DATA];
+  }
+}
+
+function initLeafletMap(){
+  const container = document.getElementById("leafletMap");
+  if(!container) return;
+
+  // Check if Leaflet is available in window
+  if(typeof L !== 'undefined'){
+    try {
+      if(_leafletMapInstance) {
+        _leafletMapInstance.remove();
+        _leafletMapInstance = null;
+      }
+      _leafletMapInstance = L.map('leafletMap', {
+        center: [23.2, 83.5],
+        zoom: 6,
+        minZoom: 4,
+        maxZoom: 18,
+        attributionControl: true
+      });
+      if(_leafletMapInstance.attributionControl){
+        _leafletMapInstance.attributionControl.setPrefix(false);
+      }
+
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a> &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom · CMPDI Phase 8',
+        maxZoom: 18
+      }).addTo(_leafletMapInstance);
+
+      _leafletMarkersGroup = L.layerGroup().addTo(_leafletMapInstance);
+      plotLeafletMarkers();
+      renderMinesTable();
+      updateMapKpis();
+
+      const validCoords = _allMinesData
+        .filter(m => m.latitude && m.longitude && !isNaN(m.latitude) && !isNaN(m.longitude))
+        .map(m => [m.latitude, m.longitude]);
+      if(validCoords.length > 0){
+        _leafletMapInstance.fitBounds(L.latLngBounds(validCoords), { padding: [40, 40], maxZoom: 10 });
+      }
+      return;
+    } catch(e) {
+      console.warn("Leaflet initialization failed, falling back to projected SVG:", e);
+    }
+  }
+
+  // Fallback if Leaflet CDN blocked
+  const indicator = document.getElementById("mapModeIndicator");
+  if(indicator) indicator.textContent = "GIS ENGINE: PROJECTED SVG (OFFLINE FALLBACK)";
+  container.style.display = "none";
+  document.getElementById("mapSvgWrap").style.display = "block";
+  renderSvgProjectedPins();
+  renderMinesTable();
+  updateMapKpis();
+}
+
+function getFilteredMines(){
+  const q = (document.getElementById("mapSearch")?.value || "").toLowerCase().trim();
   const sub = document.getElementById("mapSubFilter")?.value || "all";
+  const st = document.getElementById("mapStateFilter")?.value || "all";
+  const type = document.getElementById("mapTypeFilter")?.value || "all";
+
+  return _allMinesData.filter(m => {
+    if(sub !== "all" && m.subsidiary !== sub) return false;
+    if(st !== "all" && m.state !== st) return false;
+    if(type !== "all" && m.mine_type !== type) return false;
+    if(q) {
+      const match = (m.mine_name || '').toLowerCase().includes(q) ||
+                    (m.coalfield || '').toLowerCase().includes(q) ||
+                    (m.district || '').toLowerCase().includes(q) ||
+                    (m.state || '').toLowerCase().includes(q);
+      if(!match) return false;
+    }
+    return true;
+  });
+}
+
+function plotLeafletMarkers(){
+  if(!_leafletMarkersGroup || !_leafletMapInstance) return;
+  _leafletMarkersGroup.clearLayers();
+
+  const filtered = getFilteredMines();
+  filtered.forEach(m => {
+    const color = SUB_COLORS[m.subsidiary] || "#1565C0";
+    const radius = m.production_mt > 5 ? 8 : (m.production_mt > 1 ? 6 : 5);
+
+    const marker = L.circleMarker([m.latitude, m.longitude], {
+      radius: radius,
+      fillColor: color,
+      color: "#FFFFFF",
+      weight: 1.5,
+      opacity: 1,
+      fillOpacity: 0.85
+    });
+
+    const popupHtml = `
+      <div style="font-family:inherit; min-width:200px; padding:4px 0;">
+        <div style="font-weight:700; color:#071A3D; font-size:14px; margin-bottom:2px;">${m.mine_name}</div>
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <span style="background:${color}; color:#fff; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:4px;">${m.subsidiary}</span>
+          <span style="background:#EEF2F8; color:#071A3D; font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:4px;">${m.mine_type}</span>
+        </div>
+        <div style="font-size:11.5px; color:#4B5563; line-height:1.5;">
+          <div>Coalfield: <strong>${m.coalfield || '—'}</strong></div>
+          <div>District: <strong>${m.district || '—'}, ${m.state}</strong></div>
+          <div>Production: <strong>${m.production_mt !== null ? m.production_mt + ' MT' : '—'}</strong> (2024-25)</div>
+          <div>Coordinates: <strong>${m.latitude.toFixed(4)}° N, ${m.longitude.toFixed(4)}° E</strong></div>
+        </div>
+        <div style="margin-top:8px; border-top:1px solid #EEF2F8; padding-top:4px; font-size:10px; color:#D97706; font-weight:600;">
+          ⚠ Star Rating: Not in verified dataset
+        </div>
+      </div>`;
+
+    marker.bindPopup(popupHtml);
+    _leafletMarkersGroup.addLayer(marker);
+  });
+}
+
+function renderSvgProjectedPins(){
   const wrap = document.getElementById("mapSvgWrap");
+  if(!wrap) return;
   wrap.innerHTML = buildMiningMapSVG();
   const tooltip = document.getElementById("mapTooltip");
-  MOCK.mines.filter(m=> (sub==="all"||m.subsidiary===sub) && m.name.toLowerCase().includes(q)).forEach(m=>{
+
+  // Project lat 17 to 25, lon 78 to 88 onto 100x100 SVG
+  const filtered = getFilteredMines();
+  filtered.forEach(m => {
+    const x = ((m.longitude - 78) / (88 - 78)) * 80 + 10;
+    const y = 90 - (((m.latitude - 17) / (25 - 17)) * 75 + 10);
     const pin = document.createElement("div");
     pin.className = "map-pin";
-    pin.style.cssText = `position:absolute; left:${m.x}%; top:${m.y}%; transform:translate(-50%,-50%);`;
-    pin.innerHTML = `<svg width="20" height="20"><circle cx="10" cy="10" r="${m.important?7:5.5}" fill="${m.important?'#DFAE24':'#1976D2'}" stroke="#fff" stroke-width="2"/></svg>`;
-    pin.addEventListener("mousemove", (e)=>{
+    const color = SUB_COLORS[m.subsidiary] || "#1976D2";
+    pin.style.cssText = `position:absolute; left:${x}%; top:${y}%; transform:translate(-50%,-50%); z-index:5;`;
+    pin.innerHTML = `<svg width="18" height="18"><circle cx="9" cy="9" r="6" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`;
+    pin.addEventListener("mousemove", (e) => {
       const box = document.getElementById("mapStage").getBoundingClientRect();
-      tooltip.style.left = (e.clientX-box.left+14)+"px";
-      tooltip.style.top = (e.clientY-box.top-10)+"px";
+      tooltip.style.left = (e.clientX - box.left + 14) + "px";
+      tooltip.style.top = (e.clientY - box.top - 10) + "px";
       tooltip.style.display = "block";
-      tooltip.innerHTML = `<div class="mt-name">${m.name}</div><div class="mt-meta">${m.subsidiary} · ${m.type}</div>`;
+      tooltip.innerHTML = `<div class="mt-name">${m.mine_name}</div><div class="mt-meta">${m.subsidiary} · ${m.state} · ${m.production_mt || 0} MT</div>`;
     });
-    pin.addEventListener("mouseleave", ()=> tooltip.style.display="none");
+    pin.addEventListener("mouseleave", () => tooltip.style.display = "none");
     wrap.appendChild(pin);
   });
+}
+
+function applyMapFilters(){
+  if(_leafletMapInstance) {
+    plotLeafletMarkers();
+  } else {
+    renderSvgProjectedPins();
+  }
+  renderMinesTable();
+  updateMapKpis();
+}
+
+function resetMapFilters(){
+  const s = document.getElementById("mapSearch");
+  const sub = document.getElementById("mapSubFilter");
+  const st = document.getElementById("mapStateFilter");
+  const ty = document.getElementById("mapTypeFilter");
+  if(s) s.value = "";
+  if(sub) sub.value = "all";
+  if(st) st.value = "all";
+  if(ty) ty.value = "all";
+  applyMapFilters();
+  if(_leafletMapInstance && _allMinesData.length > 0){
+    const validCoords = _allMinesData
+      .filter(m => m.latitude && m.longitude && !isNaN(m.latitude) && !isNaN(m.longitude))
+      .map(m => [m.latitude, m.longitude]);
+    if(validCoords.length > 0){
+      _leafletMapInstance.fitBounds(L.latLngBounds(validCoords), { padding: [40, 40], maxZoom: 10 });
+    }
+  }
+}
+
+function updateMapKpis(){
+  const filtered = getFilteredMines();
+  const countEl = document.getElementById("kpiFilteredMines");
+  const prodEl = document.getElementById("kpiFilteredProd");
+  const subsEl = document.getElementById("kpiFilteredSubs");
+
+  if(countEl) countEl.innerHTML = `${filtered.length} <span style="font-size:13px; color:#8593A8; font-weight:400;">/ 107</span>`;
+  const totalProd = filtered.reduce((acc, m) => acc + (parseFloat(m.production_mt) || 0), 0);
+  if(prodEl) prodEl.textContent = `${totalProd.toFixed(2)} MT`;
+  const uniqueSubs = new Set(filtered.map(m => m.subsidiary));
+  if(subsEl) subsEl.textContent = uniqueSubs.size;
+}
+
+function renderMinesTable(){
+  const tbody = document.getElementById("minesTableTbody");
+  if(!tbody) return;
+
+  const filtered = getFilteredMines();
+  if(filtered.length === 0){
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:#8593A8;">No mines match current filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(m => {
+    const color = SUB_COLORS[m.subsidiary] || "#1565C0";
+    return `
+      <tr style="border-bottom:1px solid #EEF2F8;">
+        <td style="padding:8px 12px; font-weight:600; color:var(--navy);">${m.mine_name}</td>
+        <td style="padding:8px 12px;">
+          <span style="background:${color}; color:#fff; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:4px;">
+            ${m.subsidiary}
+          </span>
+        </td>
+        <td style="padding:8px 12px; color:#4B5563;">${m.coalfield || '—'}</td>
+        <td style="padding:8px 12px; color:#4B5563;">${m.district || '—'}</td>
+        <td style="padding:8px 12px; color:#4B5563;">${m.state}</td>
+        <td style="padding:8px 12px;"><span style="background:#F3F4F6; color:#374151; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:600;">${m.mine_type}</span></td>
+        <td style="padding:8px 12px; text-align:right; font-family:var(--font-mono); font-weight:600; color:var(--royal);">${m.production_mt !== null ? m.production_mt : '—'}</td>
+        <td style="padding:8px 12px; text-align:center; font-family:var(--font-mono); font-size:11px; color:#6B7280;">${m.latitude.toFixed(4)}°, ${m.longitude.toFixed(4)}°</td>
+        <td style="padding:8px 12px; text-align:center;">
+          <button class="btn btn-outline btn-sm" style="padding:3px 8px; font-size:11px;" onclick="focusMineOnMap(${m.latitude}, ${m.longitude})">
+            Locate ⌖
+          </button>
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+function focusMineOnMap(lat, lon){
+  if(_leafletMapInstance){
+    _leafletMapInstance.setView([lat, lon], 11, { animate: true });
+    window.scrollTo({ top: document.getElementById("mapStage").offsetTop - 80, behavior: 'smooth' });
+  }
 }
 
 /* ============================================================
@@ -4968,8 +5924,9 @@ function toast(title, message){
    - Document title rendered safely via textContent (not innerHTML)
    ============================================================ */
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = '';  // Same-origin: Django serves both frontend and API
 const API_TIMEOUT_MS = 5000;
+
 const UPLOAD_TIMEOUT_MS = 30000;
 const TOKEN_KEY = 'cmpdi_auth_token';
 
@@ -5173,6 +6130,21 @@ function _hideLoginModal() {
 
 /* --- API Services ------------------------------------------ */
 const apiServices = {
+    phase8: {
+      getWordCloud: (limit = 60) => _apiFetch(`/api/phase8/topics/wordcloud/?limit=${limit}`),
+      getTopics: () => _apiFetch('/api/phase8/topics/topics/'),
+      getTopicDocuments: () => _apiFetch('/api/phase8/topics/documents/'),
+      getMines: (params) => _apiFetch('/api/phase8/map/mines/' + (params ? '?' + new URLSearchParams(params) : '')),
+      getMapFilters: () => _apiFetch('/api/phase8/map/filters/'),
+      getMapStats: (params) => _apiFetch('/api/phase8/map/stats/' + (params ? '?' + new URLSearchParams(params) : '')),
+      getGSIReports: (params) => _apiFetch('/api/phase8/geo3d/gsi-reports/' + (params ? '?' + new URLSearchParams(params) : '')),
+      getGSIFilters: () => _apiFetch('/api/phase8/geo3d/gsi-filters/'),
+      getGSISummary: () => _apiFetch('/api/phase8/geo3d/gsi-summary/'),
+      getOCBISBlocks: (params) => _apiFetch('/api/phase8/geo3d/ocbis-blocks/' + (params ? '?' + new URLSearchParams(params) : '')),
+      getOCBISSummary: () => _apiFetch('/api/phase8/geo3d/ocbis-summary/'),
+      getReferenceStrata: () => _apiFetch('/api/phase8/geo3d/reference-strata/'),
+    },
+
   health: () => _apiFetch('/api/health/'),
 
   auth: {

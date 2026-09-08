@@ -53,7 +53,9 @@ LOCAL_APPS = [
     'apps.analytics',
     'apps.reports',
     'apps.frontend',
+    'apps.phase8',
 ]
+
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

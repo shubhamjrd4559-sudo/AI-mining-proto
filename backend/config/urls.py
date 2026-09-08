@@ -29,6 +29,10 @@ urlpatterns = [
     path('api/', include('apps.pipeline.urls')),
     path('api/maintainer/', include('apps.maintainer.urls')),
     path('api/intelligence/', include('apps.intelligence.urls')),
+    path('api/phase8/', include('apps.phase8.urls')),
+
+
+
 
     # Auth — obtain token via POST username/password
     path('api/auth/token/', obtain_auth_token, name='api-token-auth'),
