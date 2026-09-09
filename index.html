@@ -223,6 +223,60 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     radial-gradient(1100px 500px at 88% -8%, rgba(25,118,210,.06), transparent 60%),
     var(--gray);
 }
+/* AI Query page background */
+.ai-query-page{
+  position:relative;
+  min-height:calc(100vh - 120px);
+  overflow:hidden;
+}
+
+/* AI Query page background */
+.ai-query-page{
+  position:relative;
+  min-height:calc(100vh - 120px);
+  overflow:hidden;
+
+  /* Remove white background */
+  background:#12324A;
+}
+
+/* AI Query page */
+.ai-query-page{
+  position:relative;
+
+  /* Extend to the edges of the content area */
+  margin:-24px -28px -60px;
+  padding:24px 28px 60px;
+
+  min-height:calc(100vh - 120px);
+  overflow:hidden;
+
+  background:#12324A;
+}
+
+/* Background image */
+.ai-query-page::before{
+  content:"";
+  position:absolute;
+  inset:-15px;
+
+  background-image:url("assets/mining-background.png");
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+
+  filter:blur(4px);
+  opacity:0.55;
+
+  z-index:0;
+  pointer-events:none;
+}
+
+/* Keep page content above image */
+.ai-query-page > *{
+  position:relative;
+  z-index:1;
+}
 .page{display:none; animation:fadein .35s ease;}
 .page.active{display:block;}
 @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
@@ -231,6 +285,34 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .page-head .eyebrow{font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--blue); font-weight:700; margin-bottom:6px;}
 .page-head h1{font-size:26px; font-weight:600;}
 .page-head p{color:#5A6B85; font-size:13.5px; margin-top:6px; max-width:640px;}
+
+/* AI Query text highlight */
+.ai-query-page .page-head{
+  position:relative;
+  z-index:2;
+
+  display:inline-block;
+  padding:14px 20px;
+  border-radius:12px;
+
+  background:rgba(5,25,40,0.65);
+  backdrop-filter:blur(6px);
+}
+
+.ai-query-page .page-head h1{
+  color:#fff;
+  text-shadow:0 2px 6px rgba(0,0,0,0.8);
+}
+
+.ai-query-page .page-head p{
+  color:#fff;
+  text-shadow:0 1px 4px rgba(0,0,0,0.8);
+}
+
+.ai-query-page .page-head .eyebrow{
+  color:#E4C44A;
+  text-shadow:0 1px 3px rgba(0,0,0,0.8);
+}
 
 /* ============================================================
    Geological background watermark (behind all content)
@@ -335,13 +417,30 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
    Hero (dashboard)
    ============================================================ */
 .hero{
-  border-radius:26px; overflow:hidden; position:relative;
-  background:
-    radial-gradient(900px 420px at 100% 0%, rgba(223,174,36,.14), transparent 60%),
-    linear-gradient(120deg, var(--navy) 0%, #0C2E63 55%, var(--royal) 130%);
+  border-radius:26px;
+  overflow:hidden;
+  position:relative;
+
+  /* Background image */
+  background-image:
+  linear-gradient(
+    120deg,
+    rgba(10, 35, 50, 0.55),
+    rgba(10, 35, 50, 0.30)
+  ),
+  url("assets/mining-background.png");
+
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+
   padding:34px 34px 30px;
   color:#fff;
-  display:grid; grid-template-columns:1.15fr 1fr; gap:26px; align-items:center;
+
+  display:grid;
+  grid-template-columns:1.15fr 1fr;
+  gap:26px;
+  align-items:center;
   box-shadow:0 20px 50px rgba(7,26,61,.35);
 }
 .hero-eyebrow{
@@ -2244,7 +2343,7 @@ function openDocDetail(id){
    ============================================================ */
 function pageAIQuery(){
   return `
-  <div class="page active">
+  <div class="page active ai-query-page">
     <div class="page-head">
       <div class="eyebrow">Mining Intelligence AI</div>
       <h1>Mining Intelligence AI</h1>
@@ -2262,6 +2361,7 @@ function pageAIQuery(){
     <div id="aiAnswerArea"></div>
   </div>`;
 }
+
 function afterAIQuery(){
   document.getElementById("aiAskBtn").addEventListener("click", ()=> runAIQuery(document.getElementById("aiInput").value.trim()));
   document.getElementById("aiInput").addEventListener("keydown", e=>{ if(e.key==="Enter") runAIQuery(e.target.value.trim()); });
