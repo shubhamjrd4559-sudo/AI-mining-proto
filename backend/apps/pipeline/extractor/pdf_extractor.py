@@ -46,14 +46,40 @@ def extract_pdf(file_bytes: bytes) -> ExtractedDocument:
     ocr_used = False
     errors = []
 
+    pdfium_doc = None
+    try:
+        import pypdfium2 as pdfium
+        pdfium_doc = pdfium.PdfDocument(file_bytes)
+    except Exception as exc:
+        logger.info('pypdfium2 native text extraction unavailable (%s); using pdfplumber fallback', exc)
+        pdfium_doc = None
+
     try:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             page_count = len(pdf.pages)
             for page_num, page in enumerate(pdf.pages, start=1):
-                page_text = page.extract_text() or ''
+                page_text = ''
+                # 1. High-performance native text extraction via pypdfium2
+                if pdfium_doc is not None:
+                    try:
+                        page_idx = page_num - 1
+                        if 0 <= page_idx < len(pdfium_doc):
+                            p_obj = pdfium_doc[page_idx]
+                            textpage = p_obj.get_textpage()
+                            raw_t = textpage.get_text_range()
+                            if raw_t:
+                                page_text = raw_t.replace('\r\n', '\n').replace('\r', '\n')
+                    except Exception as p_exc:
+                        logger.warning('pypdfium2 extraction failed on page %d: %s; falling back to pdfplumber', page_num, p_exc)
+                        page_text = ''
+
+                # 2. Fallback to pdfplumber text extraction if pypdfium2 returned empty or failed
+                if not page_text:
+                    page_text = page.extract_text() or ''
+
                 page_info = {'page': page_num, 'text_chars': len(page_text), 'ocr': False}
 
-                # Extract tables from this page
+                # 3. Extract tables from this page using pdfplumber (preserved completely)
                 for t_idx, tbl in enumerate(page.extract_tables() or []):
                     if not tbl:
                         continue
@@ -69,7 +95,7 @@ def extract_pdf(file_bytes: bytes) -> ExtractedDocument:
                         page_number=page_num,
                     ))
 
-                # OCR fallback for scanned pages
+                # 4. OCR fallback for scanned pages
                 if len(page_text.strip()) < OCR_TEXT_THRESHOLD:
                     try:
                         pil_img = page.to_image(resolution=200).original
@@ -94,6 +120,12 @@ def extract_pdf(file_bytes: bytes) -> ExtractedDocument:
             extractor_type='pdf_text',
             error=f'PDF extraction failed: {exc}'
         )
+    finally:
+        if pdfium_doc is not None:
+            try:
+                pdfium_doc.close()
+            except Exception:
+                pass
 
     full_text = '\n'.join(pages_text)
     return ExtractedDocument(

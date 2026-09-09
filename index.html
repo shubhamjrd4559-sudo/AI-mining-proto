@@ -1831,6 +1831,35 @@ function renderDocRows(){
 }
 
 let _docPagination = { count: 0, next: null, previous: null, page: 1 };
+let _docPollTimer = null;
+let _isPolling = false;
+
+function startDocumentPolling() {
+  if (_docPollTimer) return; // Prevent duplicate polling loops
+  _docPollTimer = setInterval(async () => {
+    if (_isPolling) return; // Prevent overlapping requests
+    if (window.CMPDI_AI && window.CMPDI_AI.apiServices && window.CMPDI_AI.apiServices.auth && !window.CMPDI_AI.apiServices.auth.isAuthenticated()) {
+      stopDocumentPolling();
+      return;
+    }
+    _isPolling = true;
+    try {
+      const currPage = (_docPagination && _docPagination.page) ? _docPagination.page : 1;
+      await loadLiveDocuments(currPage);
+    } catch (err) {
+      console.warn("[CMPDI AI] Document polling cycle error:", err);
+    } finally {
+      _isPolling = false;
+    }
+  }, 3000);
+}
+
+function stopDocumentPolling() {
+  if (_docPollTimer) {
+    clearInterval(_docPollTimer);
+    _docPollTimer = null;
+  }
+}
 
 async function loadLiveDocuments(page) {
   if (!window.CMPDI_AI || !window.CMPDI_AI.ensureBackendStatus) return;
@@ -1874,6 +1903,35 @@ async function loadLiveDocuments(page) {
         ${statusMiniCard("Needs Review", statusCounts.review, "gold", true)}
         ${statusMiniCard("Failed", statusCounts.failed, "red", true)}
       `;
+    }
+
+    // Auto-manage polling: poll every 3s while active documents exist, stop when all terminal
+    if (statusCounts.processing > 0) {
+      startDocumentPolling();
+      const pRow = document.getElementById("pipelineRow");
+      if (pRow && pRow.style.display !== "none") {
+        const steps = pRow.querySelectorAll(".pstep");
+        const hasValidating = _liveDocuments.some(d => d.status === 'validating');
+        if (hasValidating) {
+          if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
+          if (steps[1]) { steps[1].classList.remove("active"); steps[1].classList.add("done"); }
+          if (steps[2]) { steps[2].classList.remove("active"); steps[2].classList.add("done"); }
+          if (steps[3]) { steps[3].classList.remove("done"); steps[3].classList.add("active"); }
+        } else {
+          if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
+          if (steps[1]) { steps[1].classList.remove("active"); steps[1].classList.add("done"); }
+          if (steps[2]) { steps[2].classList.remove("done"); steps[2].classList.add("active"); }
+          if (steps[3]) { steps[3].classList.remove("active", "done"); }
+        }
+      }
+    } else {
+      stopDocumentPolling();
+      const pRow = document.getElementById("pipelineRow");
+      if (pRow && pRow.style.display !== "none") {
+        const steps = pRow.querySelectorAll(".pstep");
+        steps.forEach(s => { s.classList.remove("active"); s.classList.add("done"); });
+        setTimeout(() => { if (pRow) pRow.style.display = "none"; }, 3000);
+      }
     }
   } catch (err) {
     console.warn("[CMPDI AI] Failed to load live documents from backend:", err);
@@ -1935,7 +1993,8 @@ function statusPill(status){
 }
 
 async function handleRealUpload(fileList){
-  if (!fileList || fileList.length === 0) return;
+  const files = Array.from(fileList || []);
+  if (files.length === 0) return;
 
   const isLive = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
 
@@ -1945,10 +2004,10 @@ async function handleRealUpload(fileList){
   }
 
   const formData = new FormData();
-  for (let i = 0; i < fileList.length; i++) {
-    formData.append("files", fileList[i]);
+  for (let i = 0; i < files.length; i++) {
+    formData.append("files", files[i]);
   }
-  const label = fileList.length === 1 ? fileList[0].name : `${fileList.length} documents`;
+  const label = files.length === 1 ? files[0].name : `${files.length} documents`;
   toast("Uploading...", `Sending ${label} to backend storage.`);
 
   // Show pipeline animation
@@ -1964,13 +2023,17 @@ async function handleRealUpload(fileList){
     const res = await window.CMPDI_AI.apiServices.documents.upload(formData);
     if (row) {
       const steps = row.querySelectorAll(".pstep");
-      // Only mark Phase 2 steps complete: Upload (0) and Storage Persistence (1)
-      // Steps 2 and 3 (OCR/Extraction/Validation) are Phase 3 — leave as pending
+      // Mark upload & storage persistence complete; activate extraction
       if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
       if (steps[1]) { steps[1].classList.remove("active"); steps[1].classList.add("done"); }
+      if (steps[2]) { steps[2].classList.add("active"); }
     }
-    toast("Upload successful", `${res.uploaded_count || fileList.length} file(s) stored and registered in database.`);
-    await loadLiveDocuments();
+    toast("Upload successful", `${res.uploaded_count || files.length} file(s) stored — processing in background.`);
+    APP.docFilter = "all";
+    const filterSelect = document.getElementById("docStatusFilter");
+    if (filterSelect) filterSelect.value = "all";
+    await loadLiveDocuments(1);
+    startDocumentPolling();
   } catch (err) {
     if (row) row.style.display = "none";
     toast("Upload failed", err.message || "Could not upload files to backend.");
@@ -2007,8 +2070,9 @@ async function afterDocuments(){
   if (fileInput) {
     fileInput.addEventListener("change", (e)=>{
       if (e.target.files && e.target.files.length > 0) {
-        handleRealUpload(e.target.files);
+        const selected = Array.from(e.target.files);
         fileInput.value = "";
+        handleRealUpload(selected);
       }
     });
   }
@@ -2042,7 +2106,7 @@ async function afterDocuments(){
     zone.addEventListener("drop", e=>{
       if (window.CMPDI_AI && window.CMPDI_AI.isBackendOnline && window.CMPDI_AI.isBackendOnline()) {
         if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          handleRealUpload(e.dataTransfer.files);
+          handleRealUpload(Array.from(e.dataTransfer.files));
         }
       } else {
         toast("Upload unavailable", "Backend service is offline. Please start backend on port 8000 to upload files.");
@@ -5926,7 +5990,7 @@ function toast(title, message){
 
 const API_BASE = '';  // Same-origin: Django serves both frontend and API
 const API_TIMEOUT_MS = 5000;
-
+const AI_QUERY_TIMEOUT_MS = 30000;
 const UPLOAD_TIMEOUT_MS = 30000;
 const TOKEN_KEY = 'cmpdi_auth_token';
 
@@ -5954,9 +6018,9 @@ function _authHeaders(extra) {
 }
 
 /* --- Low-level fetch helper with timeout + auth header ----- */
-async function _apiFetch(path, options = {}) {
+async function _apiFetch(path, options = {}, timeoutMs = API_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), options.timeout || timeoutMs);
   // Merge auth headers; caller-supplied headers take precedence
   const headers = _authHeaders(
     options.headers && !(options.body instanceof FormData)
@@ -6009,6 +6073,7 @@ async function doLogin(username, password) {
 }
 
 function doLogout() {
+  if (typeof stopDocumentPolling === 'function') stopDocumentPolling();
   _clearToken();
   _backendOnline = false;
   _healthPromise = null;
@@ -6212,7 +6277,7 @@ const apiServices = {
   },
   chat: {
     query: (message, context = {}) =>
-      _apiFetch('/api/chat/', { method: 'POST', body: JSON.stringify({ message, context }) }),
+      _apiFetch('/api/chat/', { method: 'POST', body: JSON.stringify({ message, context }) }, AI_QUERY_TIMEOUT_MS),
   },
   excel: {
     list:  () => _apiFetch('/api/excel/'),

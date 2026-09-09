@@ -191,7 +191,9 @@ def _persist_structured_data(doc: Document, extracted) -> Optional[StructuredDat
             schema_json=schema,
         )
 
-        record_count = 0
+        record_objs = []
+        provenance_meta = []
+
         for table in extracted.tables:
             if not table.headers or not table.rows:
                 continue
@@ -202,29 +204,54 @@ def _persist_structured_data(doc: Document, extracted) -> Optional[StructuredDat
                     row_dict[header] = cell
 
                 normalized = normalize_row(row_dict, column_map)
-
                 source_ref = f'doc:{doc.pk}:{table.source_ref}:row:{r_idx}'
-                record = StructuredRecord.objects.create(
+
+                record_objs.append(StructuredRecord(
                     dataset=dataset,
                     row_index=r_idx,
                     data_json=normalized,
                     is_valid=True,
-                )
-                record_count += 1
+                ))
 
-                # Create provenance
-                ExtractionProvenance.objects.create(
-                    record=record,
-                    document=doc,
-                    page_number=table.page_number,
-                    section_heading=table.section_heading or '',
-                    table_reference=table.source_ref,
-                    sheet_name=table.sheet_name or '',
-                    row_index=r_idx,
-                    extraction_method=extracted.extractor_type,
-                    ocr_used=extracted.ocr_used,
-                    source_reference=source_ref,
-                )
+                provenance_meta.append({
+                    'page_number': table.page_number,
+                    'section_heading': table.section_heading or '',
+                    'table_reference': table.source_ref,
+                    'sheet_name': table.sheet_name or '',
+                    'row_index': r_idx,
+                    'extraction_method': extracted.extractor_type,
+                    'ocr_used': extracted.ocr_used,
+                    'source_reference': source_ref,
+                })
+
+        record_count = len(record_objs)
+        if record_objs:
+            created_records = StructuredRecord.objects.bulk_create(record_objs)
+
+            # Ensure primary keys are populated for foreign key relation
+            if created_records and created_records[0].pk:
+                provenance_objs = [
+                    ExtractionProvenance(
+                        record=rec,
+                        document=doc,
+                        **meta
+                    )
+                    for rec, meta in zip(created_records, provenance_meta)
+                ]
+            else:
+                # Safe fallback for database backends that do not return PKs from bulk_create
+                persisted_records = list(StructuredRecord.objects.filter(dataset=dataset).order_by('id'))
+                provenance_objs = [
+                    ExtractionProvenance(
+                        record=rec,
+                        document=doc,
+                        **meta
+                    )
+                    for rec, meta in zip(persisted_records, provenance_meta)
+                ]
+
+            if provenance_objs:
+                ExtractionProvenance.objects.bulk_create(provenance_objs)
 
         dataset.record_count = record_count
         dataset.save(update_fields=['record_count'])
