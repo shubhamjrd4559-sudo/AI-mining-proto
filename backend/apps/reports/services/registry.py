@@ -16,6 +16,7 @@ from apps.reports.services.generators.coal_seam import CoalSeamAnalysisReportGen
 from apps.reports.services.generators.parliamentary import ParliamentaryQuestionResponseGenerator
 from apps.reports.services.generators.administrative import AdministrativeQueryReportGenerator
 from apps.reports.services.generators.custom import CustomReportGenerator
+from apps.reports.services.generators.comparative import ComparativeIntelligenceReportGenerator
 
 GENERATOR_REGISTRY = {
     ReportType.PRODUCTION: ProductionReportGenerator,
@@ -26,6 +27,8 @@ GENERATOR_REGISTRY = {
     ReportType.PARLIAMENTARY_QUESTION: ParliamentaryQuestionResponseGenerator,
     ReportType.ADMINISTRATIVE_QUERY: AdministrativeQueryReportGenerator,
     ReportType.CUSTOM: CustomReportGenerator,
+    'Comparative Intelligence Report': ComparativeIntelligenceReportGenerator,
+    'Comparative Report': ComparativeIntelligenceReportGenerator,
     # Also support friendly string variations
     'Production Report': ProductionReportGenerator,
     'Geological Report': GeologicalExplorationReportGenerator,

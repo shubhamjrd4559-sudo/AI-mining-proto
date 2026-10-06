@@ -8,7 +8,10 @@ from collections import defaultdict
 from django.utils import timezone
 
 from apps.reports.services.base_generator import BaseReportGenerator, NOT_AVAILABLE_MSG
-from apps.analytics.query_engine import parse_numeric, parse_financial_year, format_financial_year
+from apps.analytics.query_engine import (
+    parse_financial_year, format_financial_year, record_metric_value,
+    record_financial_year, dataset_metric_total,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +20,40 @@ class ProductionReportGenerator(BaseReportGenerator):
     report_type_name = "Production Report"
 
     def generate(self) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+        scoped_datasets = self.get_scoped_datasets()
+        scoped_documents = self.get_scoped_documents()
+
+        # Check if the selected sources represent a comparative intelligence scenario
+        from apps.reports.services.comparative_builder import ComparativeReportBuilder
+        builder = ComparativeReportBuilder(
+            user=self.user,
+            organization=self.organization,
+            date_range=self.date_range,
+            filters=self.filters,
+            datasets=scoped_datasets,
+            documents=scoped_documents,
+        )
+
+        is_comparative = builder.is_comparative_scenario()
+        # If explicitly comparative date_range ('vs') or multiple distinct sources selected
+        if is_comparative and ('vs' in (self.date_range or '').lower() or len(scoped_datasets) >= 2):
+            return builder.generate_comparative_report()
+
         records = self.extract_matching_records()
         self.provenance_records = self.collect_provenance_for_records(records)
+
+        # If strict period filter yielded 0 records (e.g. FY 2025-26), check comparative or fallback
+        if not records:
+            if is_comparative:
+                return builder.generate_comparative_report()
+
+            fallback_records = []
+            for ds in scoped_datasets:
+                fallback_records.extend(list(ds.records.all()))
+            if fallback_records:
+                records = fallback_records
+                self.provenance_records = self.collect_provenance_for_records(records)
+
         aggs = self.calculate_production_aggregates(records)
 
         now_str = timezone.now().strftime("%d %B %Y, %H:%M IST")
@@ -55,35 +90,47 @@ class ProductionReportGenerator(BaseReportGenerator):
 
         for r in records:
             data = r.data_json or {}
-            sub = (data.get('subsidiary') or 'OTHER').strip().upper()
-            fy = data.get('financial_year') or 'N/A'
-            p = parse_numeric(data.get('production')) or 0.0
-            t = parse_numeric(data.get('target')) or 0.0
-            d = parse_numeric(data.get('dispatch')) or 0.0
-            mine = data.get('mine') or 'Unknown'
+            sub = (data.get('subsidiary') or '').strip().upper()
+            resolved_fy = record_financial_year(r)
+            fy = format_financial_year(resolved_fy) if resolved_fy else 'N/A'
+            p = record_metric_value(data, 'production') or 0.0
+            t = record_metric_value(data, 'target') or 0.0
+            d = record_metric_value(data, 'dispatch') or 0.0
+            mine = data.get('mine') or data.get('mine_name')
 
-            sub_groups[sub]['prod'] += p
-            sub_groups[sub]['target'] += t
-            sub_groups[sub]['disp'] += d
-            sub_groups[sub]['mines'].add(mine)
-            sub_groups[sub]['records'] += 1
+            if sub:
+                sub_groups[sub]['prod'] += p
+                sub_groups[sub]['target'] += t
+                sub_groups[sub]['disp'] += d
+                if mine:
+                    sub_groups[sub]['mines'].add(mine)
+                sub_groups[sub]['records'] += 1
 
-            if fy != 'N/A':
-                fy_groups[fy]['prod'] += p
-                fy_groups[fy]['target'] += t
-                fy_groups[fy]['disp'] += d
+            if mine:
+                mine_rows.append({
+                    'mine': mine,
+                    'subsidiary': sub,
+                    'coalfield': data.get('coalfield', '—'),
+                    'state': data.get('state', '—'),
+                    'fy': fy,
+                    'grade': data.get('grade', '—'),
+                    'production': p,
+                    'target': t,
+                    'dispatch': d,
+                })
 
-            mine_rows.append({
-                'mine': mine,
-                'subsidiary': sub,
-                'coalfield': data.get('coalfield', '—'),
-                'state': data.get('state', '—'),
-                'fy': fy,
-                'grade': data.get('grade', '—'),
-                'production': p,
-                'target': t,
-                'dispatch': d,
-            })
+        # Dataset-level totals take precedence over component rows
+        by_dataset = {}
+        for record in records:
+            by_dataset.setdefault(record.dataset_id, []).append(record)
+        for dataset_records in by_dataset.values():
+            fy_value = record_financial_year(dataset_records[0])
+            if not fy_value:
+                continue
+            fy = format_financial_year(fy_value)
+            fy_groups[fy]['prod'] += dataset_metric_total(dataset_records, 'production') or 0.0
+            fy_groups[fy]['target'] += dataset_metric_total(dataset_records, 'target') or 0.0
+            fy_groups[fy]['disp'] += dataset_metric_total(dataset_records, 'dispatch') or 0.0
 
         # Build Subsidiary Table
         sub_table_rows = []
@@ -93,7 +140,7 @@ class ProductionReportGenerator(BaseReportGenerator):
                 s,
                 f"{round(vals['prod'], 2)} MT",
                 f"{round(vals['target'], 2)} MT" if vals['target'] > 0 else "—",
-                f"{round(vals['disp'], 2)} MT",
+                f"{round(vals['disp'], 2)} MT" if vals['disp'] > 0 else "—",
                 f"{ach}%" if ach != '—' else "—",
                 str(len(vals['mines'])),
             ])
@@ -144,7 +191,7 @@ class ProductionReportGenerator(BaseReportGenerator):
         # Top subsidiary & mine
         top_sub = max(sub_groups.items(), key=lambda x: x[1]['prod'])[0] if sub_groups else "N/A"
         top_sub_prod = round(sub_groups[top_sub]['prod'], 2) if top_sub != "N/A" else 0
-        top_mine_name = mine_rows[0]['mine'] if mine_rows else "N/A"
+        top_mine_name = mine_rows[0]['mine'] if mine_rows else None
         top_mine_prod = round(mine_rows[0]['production'], 2) if mine_rows else 0
 
         ach_str = f"{aggs['achievement_pct']}%" if aggs['achievement_pct'] is not None else "N/A"
@@ -154,21 +201,18 @@ class ProductionReportGenerator(BaseReportGenerator):
             f"Total raw coal production across verified reporting records reached {aggs['total_production']} MT "
             f"against a target of {aggs['total_target']} MT, representing an overall achievement of {ach_str}. "
             f"Total coal dispatched to thermal power plants and non-power sectors was {aggs['total_dispatch']} MT. "
-            f"Leading production was registered by {top_sub} ({top_sub_prod} MT), with {top_mine_name} "
-            f"emerging as the highest individual producing asset ({top_mine_prod} MT)."
+            f"Leading production was registered by {top_sub} ({top_sub_prod} MT)."
         )
 
         analysis = (
-            f"Production performance across {aggs['subsidiary_count']} subsidiaries and {aggs['mine_count']} active mines "
-            f"demonstrates steady operational resilience. Key opencast and underground assets maintained favorable dispatch-to-production "
-            f"ratios ({round(aggs['total_dispatch']/aggs['total_production']*100, 1) if aggs['total_production']>0 else 0}% of offtake realized). "
-            f"Target attainment in key coalfields reflected robust logistics connectivity and heavy earth-moving machinery (HEMM) availability."
+            f"The selected sources contain {aggs['subsidiary_count']} subsidiaries and {aggs['record_count']} reporting records. "
+            "Mine-level, logistics, and equipment conclusions are omitted where the selected structured records do not contain those fields."
         )
 
         conclusions = (
             f"1. Target Realization: {self.organization} recorded {ach_str} target fulfillment.\n"
-            f"2. Core Asset Reliance: Top assets including {top_mine_name} continue to drive high-volume baseload supply.\n"
-            f"3. Logistics & Offtake: Total dispatch volume of {aggs['total_dispatch']} MT closely matched production volumes with minimal pithead stockpile accumulation."
+            + (f"2. Highest identified asset: {top_mine_name} ({top_mine_prod} MT).\n" if top_mine_name else "2. Mine-level conclusion: Not available in selected sources.\n")
+            + f"3. Total dispatch recorded in selected sources: {aggs['total_dispatch']} MT."
         )
 
         content = {

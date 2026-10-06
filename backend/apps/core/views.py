@@ -65,6 +65,36 @@ def health_check(request):
     return Response(payload, status=http_status)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def current_user(request):
+    """
+    GET /api/auth/me/
+    Returns the currently authenticated user's details, role, and permissions.
+    """
+    if request.user and request.user.is_authenticated:
+        is_admin = request.user.is_superuser or request.user.is_staff or request.user.username.lower() == 'admin'
+        role = "Administrator · CMPDI" if is_admin else "Contributor · CMPDI"
+        return Response({
+            "authenticated": True,
+            "username": request.user.username,
+            "email": request.user.email or f"{request.user.username.lower()}@cmpdi.local",
+            "first_name": request.user.first_name,
+            "last_name": request.user.last_name,
+            "is_staff": request.user.is_staff,
+            "is_superuser": request.user.is_superuser,
+            "role": role,
+        }, status=status.HTTP_200_OK)
+    return Response({
+        "authenticated": False,
+        "username": None,
+        "email": None,
+        "is_staff": False,
+        "is_superuser": False,
+        "role": None,
+    }, status=status.HTTP_200_OK)
+
+
 def _stub_response(endpoint_name: str) -> Response:
     """Return a consistent Phase 1 stub response for unimplemented endpoints."""
     return Response(
@@ -91,6 +121,13 @@ def chat_stub(request):
     """
     GET /api/chat/  — Phase 1 stub compatibility
     POST /api/chat/ — Phase 5 authenticated RAG Mining Intelligence Query
+
+    IMPORTANT: We call execute_query() directly rather than query_view(request).
+    Calling another @api_view as a function causes DRF to re-wrap the already-wrapped
+    DRF Request, raising:
+      AssertionError: The `request` argument must be an instance of
+      django.http.HttpRequest, not rest_framework.request.Request.
+    execute_query() is a plain function that accepts a DRF Request safely.
     """
     if request.method == 'POST':
         if not request.user or not request.user.is_authenticated:
@@ -98,8 +135,8 @@ def chat_stub(request):
                 {'detail': 'Authentication credentials were not provided.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        from apps.intelligence.views import query_view
-        return query_view(request)
+        from apps.intelligence.views import execute_query
+        return execute_query(request)
     return _stub_response('chat')
 
 

@@ -18,6 +18,7 @@ class ReportType(models.TextChoices):
     PARLIAMENTARY_QUESTION = 'Parliamentary Question Response', 'Parliamentary Question Response'
     ADMINISTRATIVE_QUERY = 'Administrative Query', 'Administrative Query'
     CUSTOM = 'Custom Report', 'Custom Report'
+    COMPARATIVE = 'Comparative Intelligence Report', 'Comparative Intelligence Report'
 
 
 class ReportStatus(models.TextChoices):

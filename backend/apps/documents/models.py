@@ -117,6 +117,11 @@ class Document(models.Model):
         db_index=True,
         help_text='True if the document has been archived/soft-deleted.',
     )
+    is_reference = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='True if the document is official baseline reference data protected from removal.',
+    )
     notes = models.TextField(
         blank=True,
         help_text='Reviewer notes or processing remarks.',

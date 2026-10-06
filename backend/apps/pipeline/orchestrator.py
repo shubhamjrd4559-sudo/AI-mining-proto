@@ -264,6 +264,7 @@ def _persist_structured_data(doc: Document, extracted) -> Optional[StructuredDat
 def _persist_validation_results(doc: Document, findings: list) -> None:
     """Save ValidationResult records to the database."""
     with transaction.atomic():
+        ValidationResult.objects.filter(document=doc).delete()
         objs = [
             ValidationResult(
                 document=doc,
@@ -360,6 +361,15 @@ def _run_pipeline(document_id: int) -> None:
 
         extracted = extractor_fn(file_bytes)
 
+        # OCR engines can return successfully but yield no usable characters.
+        # Do not label such a result completed/indexed unless a table supplies
+        # meaningful structured output.
+        meaningful_text = bool((extracted.raw_text or '').strip())
+        meaningful_tables = any(table.headers and table.rows for table in extracted.tables)
+        if extracted.ocr_used and not meaningful_text and not meaningful_tables:
+            extracted.error = extracted.error or 'OCR produced no usable text or structured table output.'
+            extracted.status_note = 'ocr_empty_output'
+
         # --- Step 4: Save ExtractionResult ---
         ex_status = 'completed'
         if extracted.error:
@@ -367,7 +377,9 @@ def _run_pipeline(document_id: int) -> None:
                 ex_status = 'failed'
             # else partial success
 
-        if hasattr(extracted, 'status_note') and extracted.status_note == 'ocr_unavailable':
+        if hasattr(extracted, 'status_note') and extracted.status_note == 'ocr_empty_output':
+            ex_status = 'failed'
+        elif hasattr(extracted, 'status_note') and extracted.status_note == 'ocr_unavailable':
             ex_status = 'ocr_unavailable'
 
         tables_json = [
@@ -418,7 +430,14 @@ def _run_pipeline(document_id: int) -> None:
                 all_headers.update(t.headers)
             column_map = map_columns(list(all_headers))
 
-            findings = validate_dataset(extracted.tables, column_map)
+            doc_context = {
+                'raw_text': getattr(extracted, 'raw_text', '') or '',
+                'metadata': getattr(extracted, 'metadata', {}) or {},
+                'title': getattr(doc, 'title', '') or '',
+                'filename': getattr(doc, 'original_filename', '') or '',
+                'tables': extracted.tables,
+            }
+            findings = validate_dataset(extracted.tables, column_map, doc_context=doc_context)
             _persist_validation_results(doc, findings)
 
             has_errors = any(f.severity == 'ERROR' for f in findings)

@@ -72,6 +72,11 @@ def _get_owned_dataset(dataset_id: Any, request) -> Tuple[Optional[StructuredDat
             {'error': 'You do not have permission to access this dataset.'},
             status=status.HTTP_403_FORBIDDEN
         )
+    if doc.is_archived:
+        return None, Response(
+            {'error': 'Dataset belongs to an archived document.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
     return dataset, None
 
 
@@ -87,7 +92,10 @@ def dataset_list(request):
     Lists all structured datasets owned by the requesting user.
     """
     datasets = (
-        StructuredDataset.objects.filter(source_document__uploaded_by=request.user)
+        StructuredDataset.objects.filter(
+            source_document__uploaded_by=request.user,
+            source_document__is_archived=False,
+        )
         .select_related('source_document')
         .order_by('-created_at')
     )
@@ -269,6 +277,11 @@ def dataset_records(request, dataset_id):
         ).values_list('record_id', flat=True)
     )
 
+    # Available columns for table rendering
+    schema_cols = dataset.schema_json.get('columns', []) if dataset.schema_json else []
+    if not schema_cols:
+        schema_cols = list(fields.keys())
+
     rows = []
     for r in page_records:
         r_provs = prov_cache.get(r.id, [])
@@ -283,8 +296,16 @@ def dataset_records(request, dataset_id):
         # Clean display data (hide internal metadata keys from main view)
         display_data = {
             k: v for k, v in r.data_json.items()
-            if not k.endswith('_original') and not k.endswith('_original_before_apply')
+            if not k.endswith('_original_before_apply')
         }
+        # Ensure exact keys matching schema_cols exist regardless of case
+        for col_name in schema_cols:
+            if col_name not in display_data:
+                col_lower = col_name.lower()
+                if col_lower in display_data:
+                    display_data[col_name] = display_data[col_lower]
+                elif f'{col_lower}_original' in display_data:
+                    display_data[col_name] = display_data[f'{col_lower}_original']
 
         rows.append({
             'record_id': r.id,
@@ -296,11 +317,6 @@ def dataset_records(request, dataset_id):
             'is_maintained': r.id in maintained_record_ids,
             'provenance': prov_summary,
         })
-
-    # Available columns for table rendering
-    schema_cols = dataset.schema_json.get('columns', [])
-    if not schema_cols:
-        schema_cols = list(fields.keys())
 
     return Response({
         'dataset': {
@@ -469,7 +485,14 @@ def dataset_export_csv(request, dataset_id):
     writer.writerow(cols)
 
     for r in matched_records:
-        row = [str(r.data_json.get(c, '')) for c in cols]
+        row = []
+        for c in cols:
+            val = r.data_json.get(c)
+            if val is None:
+                val = r.data_json.get(c.lower())
+            if val is None:
+                val = r.data_json.get(f'{c.lower()}_original')
+            row.append(str(val) if val is not None else '')
         writer.writerow(row)
 
     csv_data = output.getvalue()

@@ -74,3 +74,26 @@ class HealthCheckTestCase(TestCase):
                 data = response.json()
                 self.assertEqual(data['status'], 'not_implemented')
                 self.assertEqual(data['phase'], 2)
+
+    def test_current_user_unauthenticated(self):
+        """Unauthenticated call to /api/auth/me/ returns authenticated: False."""
+        url = reverse('api-auth-me')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertFalse(data['authenticated'])
+        self.assertIsNone(data['username'])
+
+    def test_current_user_authenticated(self):
+        """Authenticated call to /api/auth/me/ returns user details and role."""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.create_user(username='admin', password='testpassword123', is_staff=True)
+        self.client.force_authenticate(user=user)
+        url = reverse('api-auth-me')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertTrue(data['authenticated'])
+        self.assertEqual(data['username'], 'admin')
+        self.assertEqual(data['role'], 'Administrator · CMPDI')

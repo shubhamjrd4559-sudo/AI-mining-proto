@@ -105,6 +105,17 @@ def chunk_text(
                 'metadata': meta,
                 'token_count': max(1, len(chunk_str.split())),
             })
+        elif chunk_str and not chunks:
+            # Short document (e.g. small image OCR): emit as a single chunk rather
+            # than silently dropping it.  This ensures Ask AI can retrieve the content.
+            chunks.append({
+                'content': chunk_str,
+                'content_hash': compute_hash(chunk_str),
+                'page_number': page_number,
+                'section_heading': current_heading,
+                'metadata': meta,
+                'token_count': max(1, len(chunk_str.split())),
+            })
 
     return chunks
 

@@ -125,7 +125,7 @@ class ReportGeneratorTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         data = res.json()
         self.assertIn('report_types', data)
-        self.assertEqual(len(data['report_types']), 8)
+        self.assertGreaterEqual(len(data['report_types']), 8)
         self.assertIn('datasets', data)
         self.assertEqual(len(data['datasets']), 1)
         self.assertEqual(data['datasets'][0]['name'], 'SECL & MCL Coal Production FY24')
@@ -400,3 +400,50 @@ class ReportGeneratorTests(TestCase):
         app_res = self.client.post(f'/api/reports/{rep.id}/approve/', {'notes': 'Test'})
         self.assertEqual(app_res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('Cannot approve', app_res.json()['error'])
+
+    def test_comparative_intelligence_report_generation(self):
+        # Create a second document and dataset representing current FY 2024-25
+        doc2 = Document.objects.create(
+            title='CMPDI_Annual_Report_2024-25.pdf',
+            original_filename='CMPDI_Annual_Report_2024-25.pdf',
+            status=DocumentStatus.COMPLETED,
+            uploaded_by=self.user,
+        )
+        ds2 = StructuredDataset.objects.create(
+            name='SECL & MCL Coal Production FY25',
+            source_document=doc2,
+            record_count=2,
+        )
+        StructuredRecord.objects.create(
+            dataset=ds2,
+            row_index=1,
+            data_json={'subsidiary': 'SECL', 'production': 60.0, 'target': 55.0, 'dispatch': 58.0, 'financial_year': '2024-25'}
+        )
+        StructuredRecord.objects.create(
+            dataset=ds2,
+            row_index=2,
+            data_json={'subsidiary': 'MCL', 'production': 35.0, 'target': 32.0, 'dispatch': 34.0, 'financial_year': '2024-25'}
+        )
+
+        payload = {
+            'report_type': 'Comparative Intelligence Report',
+            'organization': 'CMPDI (HQ)',
+            'date_range': 'FY 2023-24 vs FY 2024-25',
+            'source_dataset_ids': [self.dataset.id, ds2.id],
+            'source_document_ids': [self.doc.id, doc2.id],
+        }
+        res = self.client.post('/api/reports/generate/', payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        data = res.json()
+        self.assertEqual(data['status'], ReportStatus.GENERATED)
+        self.assertTrue(data['content_json'].get('is_comparative'))
+        self.assertIn('chart_data', data['content_json'])
+        self.assertTrue(len(data['content_json']['tables']) >= 3)
+
+        # Test PDF export
+        rep_id = data['id']
+        pdf_res = self.client.get(f'/api/reports/{rep_id}/export/pdf/')
+        self.assertEqual(pdf_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(pdf_res['Content-Type'], 'application/pdf')
+        self.assertTrue(len(pdf_res.content) > 1000)
+

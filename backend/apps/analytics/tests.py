@@ -42,7 +42,13 @@ from apps.documents.models import Document, DocumentStatus
 from apps.datasets.models import StructuredDataset, StructuredRecord
 from apps.pipeline.models import ExtractionProvenance, ValidationResult
 from apps.maintainer.models import MaintainerSuggestion, SuggestionStatus
-from apps.analytics.query_engine import AnalyticsQueryEngine, parse_financial_year, parse_numeric
+from apps.analytics.query_engine import (
+    AnalyticsQueryEngine, parse_financial_year, parse_numeric,
+    record_metric_value, dataset_metric_total,
+)
+from apps.analytics.views import ScopedAnalyticsEngine
+from apps.reports.services.generators.production import ProductionReportGenerator
+from apps.intelligence.generator.answer_engine import _comparison_answer
 
 User = get_user_model()
 
@@ -401,3 +407,51 @@ class AnalyticsAndExplorerTestCase(TestCase):
         self.assertIn('subsidiary', content)
         self.assertIn('BCCL', content)
         self.assertNotIn('SECL', content)
+
+    def test_metric_value_records_drive_reports_trends_and_comparison(self):
+        """Totals are taken from source-linked Metric/Value rows, not invented fields."""
+        user = User.objects.create_user(username='metric-owner', password='password123')
+        datasets = []
+        for year, production, target, dispatch, is_reference in (
+            ('2023-24', '1,000.00', '1,100.00', '920.00', True),
+            ('2024-25', '1,200.00', '1,250.00', '1,100.00', False),
+        ):
+            doc = Document.objects.create(
+                title=f'Demo Mining {year}', original_filename=f'Demo_Mining_{year}.pdf',
+                file_extension='.pdf', status=DocumentStatus.INDEXED,
+                uploaded_by=user, is_reference=is_reference,
+            )
+            dataset = StructuredDataset.objects.create(name=f'Metric values {year}', source_document=doc)
+            datasets.append(dataset)
+            for row_index, (metric, value) in enumerate((
+                ('Total Production', production), ('Total Target', target), ('Total Dispatch', dispatch),
+            ), start=1):
+                record = StructuredRecord.objects.create(
+                    dataset=dataset, row_index=row_index,
+                    data_json={'Metric': metric, 'Value': value, 'unit': 'MT'}, is_valid=True,
+                )
+                ExtractionProvenance.objects.create(
+                    record=record, document=doc, page_number=1, row_index=row_index,
+                    source_reference=f'doc:{doc.id}:page:1:row:{row_index}', extraction_method='pdf_text',
+                )
+
+        self.assertEqual(record_metric_value(datasets[0].records.first().data_json, 'production'), 1000.0)
+        self.assertEqual(dataset_metric_total(list(datasets[1].records.all()), 'dispatch'), 1100.0)
+
+        trends = ScopedAnalyticsEngine(user=user).calculate_trends()
+        self.assertEqual([row['value'] for row in trends['series']], [1000.0, 1200.0])
+        self.assertEqual(trends['series'][1]['growth_pct'], 20.0)
+
+        report, provenance = ProductionReportGenerator(
+            user=user, date_range='FY 2023-24 and FY 2024-25', datasets=datasets,
+        ).generate()
+        self.assertEqual(report['kpis'][0]['value'], '2200.0 MT')
+        self.assertEqual(report['kpis'][1]['value'], '2020.0 MT')
+        self.assertEqual([trend['production'] for trend in report['trends']], [1000.0, 1200.0])
+        self.assertEqual(report['tables'][1]['rows'], [])
+        self.assertEqual({item['document_id'] for item in provenance}, {datasets[0].source_document_id, datasets[1].source_document_id})
+
+        comparison = _comparison_answer(user, 'Compare FY 2023-24 and FY 2024-25 production')
+        self.assertEqual(comparison['confidence'], 'HIGH')
+        self.assertIn('200.00 MT (20.0%)', comparison['answer'])
+        self.assertEqual({item['document_id'] for item in comparison['sources']}, {datasets[0].source_document_id, datasets[1].source_document_id})

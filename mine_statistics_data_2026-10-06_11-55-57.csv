@@ -1,0 +1,409 @@
+"Sr. No.","Mine Name","Company Name",Region,"Owner Company",State,District,Coalfield,Area,Act,Type,Public/Pvt,Production,Despatch
+1,Aadocm,CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","Dhori Area",CMN,OC,Public,2.613,0
+2,ABGC,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Govindpur,CMN,OC,Public,0.228,0
+3,"Adasa (UG to OC)",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,OC,Public,0.715,0
+4,"Adriyala Saft Project",SCCL,Kothagudam,SCCL,Telangana,PEDDAPALLI,"Godavari Valley",Adriyala,CMN,UG,Public,1.47,0
+5,AGKCC,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Katras,CMN,OC,Public,0.02,0
+6,"AKK OCP",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","B & K Area",CMN,OC,Public,5.36,0
+7,AKWMC,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Katras,CMN,OC,Public,3.1,0
+8,Amadand,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India","Jamuna & Kotma",CMN,OC,Public,1.38,0
+9,"Amagamated Dhansar-Industry",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Kusunda,CMN,OC,Public,0.79,0
+10,"Amalgamated BOCP",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Block-II,CMN,OC,Public,5.357,0
+11,"Amalgamated Gondegaon Ghatrohana",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,OC,Public,3.501,0
+12,"Amalgamated Inder Kamptee OCM",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,OC,Public,3.09,0
+13,"Amalgamated Yekona I & II",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Majri,CMN,OC,Public,2.75,0
+14,"Amalgameted Sudamdih-Patherdih",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,E.Jharia,CMN,OC,Public,0.411,0
+15,"Amelia (North ) Coal Mine",JPVL,Ranchi,Captive,"Madhya Pradesh",SINGRAULI,Singrauli,"Singrauli Main Basin",CM(SP),OC,Private,3.92,0
+16,"Amelia Coal Block",THDC,Ranchi,Captive,"Madhya Pradesh",SINGRAULI,Singrauli,Pidarwah,CM(SP),OC,Public,1.251,0
+17,Amera,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bisrampur,CMN,OC,Public,0.279,0
+18,Amgaon,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bisrampur,CMN,OC,Public,1,0
+19,"Amlai OC",SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,OC,Public,2.025,0
+20,Amlohri,NCL,Ranchi,CIL,"Madhya Pradesh",SINGRAULI,Singrauli,Amlohri,CMN,OC,Public,22.003,0
+21,"AMP Colliery",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Barora,CMN,Mixed,Public,4.86,0
+22,"Amrapali OCP",CCL,Ranchi,CIL,Jharkhand,CHATRA,N.K.Coalfields,Amrapali,CMN,OC,Public,22.581,0
+23,"Amritnagar Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kunustoria,CMN,UG,Public,0.052,0
+24,"Ananta OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Jagannath,CMN,OC,Public,20,0
+25,"ARA Reorganisation",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,OC,Public,0,0
+26,Ashoka,CCL,Ranchi,CIL,Jharkhand,CHATRA,N.K.Coalfields,Piparwar,CMN,OC,Public,9.853,0
+27,"Badjna Colliery",ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,Mixed,Public,0.105,0
+28,Bagdeva,SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Korba,CMN,UG,Public,0.285,0
+29,"Bahula Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,UG,Public,0.048,0
+30,"Ballarpur 3 & 4 Pits",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Ballarpur,CMN,UG,Public,0.071,0
+31,"Ballarpur OCM",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Ballarpur,CMN,OC,Public,0.625,0
+32,"Balram OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Hingula,CMN,OC,Public,7.74,0
+33,Balrampur,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bisrampur,CMN,UG,Public,0.119,0
+34,Bangwar,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,UG,Public,0.65,0
+35,"Bankola Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Bankola,CMN,UG,Public,0.157,0
+36,"Bansra Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kunustoria,CMN,Mixed,Public,0.126,0
+37,Baranj,KPCL,Nagpur,Captive,Maharashtra,CHANDRAPUR,"Warda Valley",Maijari,CM(SP),OC,Public,2.5,0
+38,"Barjora (North) Coal Mine",WBPDCL,Dhanbad,Captive,"West Bengal",BANKURA,"Barjora North","Barjora North",CM(SP),OC,Public,1.124,0
+39,Barmuri,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,OC,Public,0.505,0
+40,"Baroud OC",SECL,Bilaspur,CIL,Chhattisgarh,RAIGARH,"Central India",Raigarh,CMN,OC,Public,4.2,0
+41,Bartarai,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India","Jamuna & Kotma",CMN,UG,Public,0.172,0
+42,"Basantimata -Dahibari",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma,Chanch/Victoria,CMN,OC,Public,0.546,0
+43,Basdeopur,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Sijua,CMN,OC,Public,0.14,0
+44,Bastacolla,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Bastacolla,CMN,OC,Public,2.099,0
+45,"Basundhara (West) OCP",MCL,Sambalpur,CIL,Odisha,SUNDARGARH,"IB Valley",Mahalaxmi,CMN,OC,Public,1.432,0
+46,Behraband,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Hasdeo,CMN,UG,Public,0.6,0
+47,"Bejdih Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sodepur,CMN,UG,Public,0.038,0
+48,"Belbaid Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kunustoria,CMN,UG,Public,0.044,0
+49,"Belgaon Coal Mine",SISCO,Nagpur,Captive,Maharashtra,CHANDRAPUR,"Wardha Valley",Warora,CM(SP),UG,Private,0.146,0
+50,Bhadra,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India","Jamuna & Kotma",CMN,UG,Public,0.1,0
+51,"Bhanegaon OCM",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,OC,Public,1.15,0
+52,"Bhanora West Block colliery & Bhanora OC patch (H)",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sripur,CMN,Mixed,Public,0.028,0
+53,"Bharatpur OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Bharatpur,CMN,OC,Public,11.12,0
+54,"Bhatadi OC Mine",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,OC,Public,0.854,0
+55,Bhatgaon,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bhatgaon,CMN,UG,Public,0.185,0
+56,"Bhelatand Colliery",TSL,Dhanbad,Other,Jharkhand,DHANBAD,Jharia,Bhelatand,"Legacy Mines",UG,Private,0.219,0
+57,Bhowra(S),BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,E.Jharia,CMN,OC,Public,0.707,0
+58,"Bhubaneswari OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Bhubaneswari,CMN,OC,Public,24.235,0
+59,Bhurkunda,CCL,Ranchi,CIL,Jharkhand,RAMGARH,S.K.Coalfields,Barka-Sayal,CMN,UG,Public,0,0
+60,"Bhurkunda (Sangum)",CCL,Ranchi,CIL,Jharkhand,RAMGARH,S.K.Coalfields,Barka-Sayal,CMN,OC,Public,0.138,0
+61,Bicharpur,UTCL,Bilaspur,Captive,"Madhya Pradesh",SHAHDOL,Sohagpur,Bicharpur,CM(SP),UG,Private,0.75,0
+62,"Bijari OC",SECL,Bilaspur,CIL,Chhattisgarh,RAIGARH,"Central India",Raigarh,CMN,OC,Public,1.608,0
+63,Bijuri,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Hasdeo,CMN,UG,Public,0.715,0
+64,"Bina Extn",NCL,Ranchi,CIL,"Uttar Pradesh",SONBHADRA,Singrauli,Bina,CMN,OC,Public,3.894,0
+65,"Block-B Project",NCL,Ranchi,CIL,"Madhya Pradesh",SINGRAULI,Singrauli,Block-B,CMN,OC,Public,8.027,0
+66,"Bokaro OC (Bermo)",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","B & K Area",CMN,OC,Public,0.325,0
+67,"Bonjemehari OC (Extn)",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Mugma/Salanpur,Salanpur,CMN,OC,Public,0.321,0
+68,"C L Jambad OCP",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,OC,Public,0.031,0
+69,"Central Kajora Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,UG,Public,0.071,0
+70,"Central Saunda",CCL,Ranchi,CIL,Jharkhand,RAMGARH,S.K.Coalfields,Barka-Sayal,CMN,UG,Public,0,0
+71,"Chainpur(Sarubera) Colly.",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,OC,Public,0,0
+72,"Chanda Rayatwari Colliery",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,UG,Public,0,0
+73,"Chapapur-II & Chappapur 10 Quarry (OC)",ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,Mixed,Public,0.445,0
+74,"Chapuikhas Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Satgram,CMN,UG,Public,0.024,0
+75,"Chasnalla Colliery",IISCO,Dhanbad,Other,Jharkhand,DHANBAD,Jharia,Chasnala,"Legacy Mines",UG,Public,0.104,0
+76,"Chatti Bariatu Coal Mining Project",NTPC,Ranchi,Captive,Jharkhand,HAZARIBAGH,"North Karanpura",Keredari,CM(SP),OC,Public,3.304,0
+77,"Chhal OC",SECL,Bilaspur,CIL,Chhattisgarh,RAIGARH,"Central India",Raigarh,CMN,OC,Public,5.512,0
+78,"Chhatarpur -II",WCL,Nagpur,CIL,"Madhya Pradesh",BETUL,Pathakhera,Pathakhera,CMN,UG,Public,0.052,0
+79,"Chhatarpur 1",WCL,Nagpur,CIL,"Madhya Pradesh",BETUL,Pathakhera,Pathakhera,CMN,UG,Public,0.65,0
+80,Chhinda,WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,OC,Public,0,0
+81,"Chinakuri Mine III",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sodepur,CMN,UG,Public,0.069,0
+82,Chirimiri,SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Chirimiri,CMN,OC,Public,0.961,0
+83,"Chitra East OCP",ECL,Dhanbad,CIL,Jharkhand,DEOGHAR,"Saherjuri Coalfield","S. P. Mines",CMN,OC,Public,1.755,0
+84,"Chora 10 Pit Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,UG,Public,0.041,0
+85,"Chora 7&9 Pits Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,UG,Public,0.064,0
+86,"Chora Block Incline UG & Shankarpur OC & Banbahal OC",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,Mixed,Public,0.277,0
+87,"Churcha RO",SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Baikunthpur,CMN,UG,Public,1.408,0
+88,"Dabor Ph-II & III OC",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Mugma/Salanpur,Salanpur,CMN,OC,Public,0.335,0
+89,"Dakra Bukbuka OC",CCL,Ranchi,CIL,Jharkhand,RANCHI,N.K.Coalfields,"North Karanpura",CMN,OC,Public,0.293,0
+90,"Dalurband OC",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Pandaveswar,CMN,OC,Public,0.729,0
+91,Damini,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,UG,Public,0.265,0
+92,Damoda,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Barora,CMN,OC,Public,0.556,0
+93,"Dhankasa & Jamunia",WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,UG,Public,0,0
+94,Dhanpuri,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,OC,Public,0.128,0
+95,"Dhelwadih Colliery",SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Korba,CMN,UG,Public,0.205,0
+96,"Dhemomain Incl Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sodepur,CMN,UG,Public,0.023,0
+97,"Dhemomain Pit Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sodepur,CMN,UG,Public,0.025,0
+98,"Dhoptala OC (Sasti Colliery)",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Ballarpur,CMN,OC,Public,1.681,0
+99,"Dhori Khas(UG)",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","Dhori Area",CMN,UG,Public,0.136,0
+100,Dipka,SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Dipka,CMN,OC,Public,33.417,0
+101,"Dubeswari Colliery",ECL,Dhanbad,CIL,"West Bengal",PURULIA,Raniganj,Sodepur,CMN,UG,Public,0.052,0
+102,"Dudhichua Project",NCL,Ranchi,CIL,"Uttar Pradesh",SONBHADRA,Singrauli,Dudhichua,CMN,OC,Public,9.272,0
+103,"Dulanga Coal Mining Project",NTPC,Sambalpur,Captive,Odisha,SUNDARGARH,"IB Vlley",Dulanga,CM(SP),OC,Public,7,0
+104,"Durgapur Open Cast",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,OC,Public,2.5,0
+105,"Durgapur Rayatwari Colly",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,UG,Public,0.1,0
+106,"DVC Tubed Mines",DVC,Ranchi,Captive,Jharkhand,LATEHAR,Auranga,"DVC Tubed",CM(SP),OC,Public,1.52,0
+107,E.Basuria,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Kusunda,CMN,OC,Public,0.142,0
+108,Ena,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Kusunda,CMN,OC,Public,2.998,0
+109,"G & G B Coal Mine",WBPDCL,Dhanbad,Captive,"West Bengal",BIRBHUM,Raniganj,Gangaramchak,CM(SP),OC,Public,3,0
+110,"Gare Palma IV 6",JSPL,Bilaspur,Commercial,Chhattisgarh,RAIGARH,Mand-Raigarh,Raigarh,CM(SP),OC,Private,1.803,0
+111,"Gare Palma IV-2&3",BALCO,Bilaspur,Captive,Chhattisgarh,KORBA,Hasdeo-Arand,Korba,CM(SP),OC,Private,1,0
+112,"Gare Palma IV/1",JPL,Bilaspur,Commercial,Chhattisgarh,RAIGARH,"Mand Raigarh","Gare Palma",CM(SP),OC,Private,7.195,0
+113,"Gare Palma IV/2&3",SECL,Bilaspur,CIL,Chhattisgarh,RAIGARH,"Central India",Raigarh,CM(SP),OC,Public,0.16,0
+114,"Gare Palma IV/2&3",JPL,Bilaspur,Commercial,Chhattisgarh,RAIGARH,"Mand- Raigarh","Gare Palma",CM(SP),OC,Private,0.712,0
+115,"Gare Palma IV/7",SEML,Bilaspur,Commercial,Chhattisgarh,RAIGARH,"Mand Raigarh","Tamnar Tehsil",CM(SP),OC,Private,1.44,0
+116,"Gare Palma Sector III",CSPGCL,Bilaspur,Captive,Chhattisgarh,RAIGARH,"Mand Raigarh",Raigarh,CM(SP),OC,Public,4.003,0
+117,"Garjanbahal OCP",MCL,Sambalpur,CIL,Odisha,SUNDARGARH,"IB Valley",Basundhara,CMN,OC,Public,18.2,0
+118,Gayatri,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bisrampur,CMN,UG,Public,0.579,0
+119,Gevra,SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Gevra,CMN,OC,Public,59.107,0
+120,"Ghonsa,",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,"Wardha Valley","Wani North",CMN,OC,Public,0.6,0
+121,"Gidi `A'",CCL,Ranchi,CIL,Jharkhand,HAZARIBAGH,S.K.Coalfields,Argada,CMN,OC,Public,0.494,0
+122,"Gidi `C'",CCL,Ranchi,CIL,Jharkhand,HAZARIBAGH,S.K.Coalfields,Argada,CMN,OC,Public,0.599,0
+123,"Giridih OC",CCL,Ranchi,CIL,Jharkhand,GIRIDIH,Giridih,"Giridih OC",CMN,OC,Public,0,0
+124,"Godavari Khani 1 & 3",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Ramagundam-I,CMN,UG,Public,0.169,0
+125,"Godavari Khani-11 Incline",SCCL,Kothagudam,SCCL,Telangana,PEDDAPALLI,"Godavari Valley",Ramagundam-I,CMN,UG,Public,0.606,0
+126,"Godavari Khani-2 & 2A",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Ramagundam-I,CMN,UG,Public,0.215,0
+127,"Godavarikhani V OC",SCCL,Kothagudam,SCCL,Telangana,PEDDAPALLI,"Godavari Valley",Ramagundam-I,CMN,OC,Public,3.505,0
+128,"Gokul OC Mine + Gokul Extn.",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Umrer,Umrer,CMN,OC,Public,1.807,0
+129,"Gondudih/Khas Kusunda",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Kusunda,CMN,OC,Public,1.45,0
+130,Gopalichuck,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,P.B.Project,CMN,OC,Public,0.358,0
+131,Gopinathpur,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,OC,Public,0,0
+132,"Gotitoria E & W",BSMPL,Nagpur,Commercial,"Madhya Pradesh",Narsinghpur,Mohpani,Dharamsthal,CM(SP),OC,Private,0.3,0
+133,"Gourangdi-A OCP",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Mugma/Salanpur,Salanpur,CMN,OC,Public,1.407,0
+134,"Gourangdih Extn OC",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Mugma/Salanpur,Salanpur,CMN,OC,Public,0.74,0
+135,"Gouri -Pauni(A) OCM",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Ballarpur,CMN,OC,Public,2.574,0
+136,"Gouri Deep",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Ballarpur,CMN,OC,Public,0.378,0
+137,"Gouthampur Khani OCP",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Kothagudem,CMN,OC,Public,0.127,0
+138,Govindpur,CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro",Kathara,CMN,UG,Public,0.016,0
+139,"Govindpur Ph-II OCP",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro",Kathara,CMN,OC,Public,0.944,0
+140,"GP-IV-8 Coal Mine",AMBUJA,Bilaspur,Captive,Chhattisgarh,RAIGARH,"Mand Raigarh",Raigarh,CM(SP),UG,Private,0.95,0
+141,Haldibari,SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Hasdeo,CMN,UG,Public,0.592,0
+142,Hariajam,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,UG,Public,0.047,0
+143,"Hindustan Lalpeth Colliery No.1",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,UG,Public,0,0
+144,"Hindustan Lalpeth OC",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,OC,Public,1,0
+145,"Hingula OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Hingula,CMN,OC,Public,13.06,0
+146,"Hirakhand Bundia Mine",MCL,Sambalpur,CIL,Odisha,JHARSUGUDA,"IB Valley",Orient,CMN,UG,Public,0.201,0
+147,"Hurra C",ECL,Dhanbad,CIL,Jharkhand,GODDA,Rajmahal,Rajmahal,CMN,OC,Public,2.074,0
+148,"Indaram Khani-1A, Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,UG,Public,0.196,0
+149,"Indaram Khani-OC",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,OC,Public,1.221,0
+150,"Int. Lakhanpur-Belpahar-Lilari OCP",MCL,Sambalpur,CIL,Odisha,JHARSUGUDA,"IB Valley",Lakhanpur,CMN,OC,Public,32.201,0
+151,"Itapara OC Patch",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Mugma/Salanpur,Salanpur,CMN,OC,Public,0.208,0
+152,"J. K. Nagar Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Satgram,CMN,UG,Public,0.137,0
+153,Jaganathpur,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bhatgaon,CMN,OC,Public,2.832,0
+154,"Jagannath Re-org OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Jagannath,CMN,OC,Public,7.5,0
+155,"Jalagam Vengala Rao OC-2",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Kothagudem,CMN,OC,Public,11.068,0
+156,Jalipa,HIL,Bilaspur,Captive,Chhattisgarh,RAIGARH,Mand-Raigarh,"Gare Palma Area",CM(SP),OC,Private,0.468,0
+157,"Jamadoba Colliery",TSL,Dhanbad,Other,Jharkhand,DHANBAD,Jharia,Jamadoba,"Legacy Mines",Mixed,Private,0.05,0
+158,"Jambad OCP",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,OC,Public,0.47,0
+159,"Jambad UG Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,UG,Public,0.113,0
+160,"Jamkhani Coal Mine",Vedanta,Sambalpur,Captive,Odisha,SUNDARGARH,"IB River","IB River",CM(SP),OC,Private,2.126,0
+161,Jampali,SECL,Bilaspur,CIL,Chhattisgarh,RAIGARH,"Central India",Raigarh,CMN,OC,Public,3,0
+162,"Jamuna 9 & 10 Jamuna RO",SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India","Jamuna & Kotma",CMN,UG,Public,0.142,0
+163,"Jarangdih OC",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro",Kathara,CMN,OC,Public,1.481,0
+164,"Jawahar Khani OC-5,",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Yellandu,CMN,OC,Public,1.369,0
+165,"Jayant Project",NCL,Ranchi,CIL,"Madhya Pradesh",SINGRAULI,Singrauli,Jayant,CMN,OC,Public,44.007,0
+166,"Jhanjra Project Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Jhanjra,CMN,UG,Public,2.659,0
+167,"Jharkhand OCP",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Hazaribagh,CMN,OC,Public,0.408,0
+168,"Jhilimili Colliery",SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Baikunthpur,CMN,UG,Public,0.37,0
+169,"Jhingurda Project",NCL,Ranchi,CIL,"Madhya Pradesh",SINGRAULI,Singrauli,Jhingurda,CMN,OC,Public,4.9,0
+170,Jhiria,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Hasdeo,CMN,UG,Public,0.189,0
+171,"Jitpur Colliery",IISCO,Dhanbad,Other,Jharkhand,DHANBAD,Jharia,SAIL-BSL,"Legacy Mines",UG,Public,0.027,0
+172,Jogidih,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Govindpur,CMN,UG,Public,0.013,0
+173,Joyrampur,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Lodna,CMN,OC,Public,0.705,0
+174,"Junad,",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,"Wardha Valley","Wani North",CMN,OC,Public,0.464,0
+175,"K. Dewarkhand",CCL,Ranchi,CIL,Jharkhand,RANCHI,N.K.Coalfields,"North Karanpura",CMN,OC,Public,0.863,0
+176,"Kabribad OC",CCL,Ranchi,CIL,Jharkhand,GIRIDIH,Giridih,"Giridih OC",CMN,OC,Public,0.41,0
+177,"Kakatiya Khani-1 & 1A Incline",SCCL,Kothagudam,SCCL,Telangana,"JAYASHANKAR BHUPALPALLY","Godavari Valley",Bhupalpalli,CMN,UG,Public,0.221,0
+178,"Kakatiya Khani-5 Incline",SCCL,Kothagudam,SCCL,Telangana,"JAYASHANKAR BHUPALPALLY","Godavari Valley",Bhupalpalli,CMN,UG,Public,0.208,0
+179,"Kakatiya Khani-6, Incline",SCCL,Kothagudam,SCCL,Telangana,"JAYASHANKAR BHUPALPALLY","Godavari Valley",Bhupalpalli,CMN,UG,Public,0.121,0
+180,"Kakatiya Khani-8 & 8A Incline",SCCL,Kothagudam,SCCL,Telangana,"JAYASHANKAR BHUPALPALLY","Godavari Valley",Bhupalpalli,CMN,UG,Public,0.167,0
+181,"Kakatiya Khani-OC II",SCCL,Kothagudam,SCCL,Telangana,"JAYASHANKAR BHUPALPALLY","Godavari Valley",Bhupalpalli,CMN,OC,Public,1.499,0
+182,"Kakatiya Khani-OC-III",SCCL,Kothagudam,SCCL,Telangana,"JAYASHANKAR BHUPALPALLY","Godavari Valley",Bhupalpalli,CMN,OC,Public,1.369,0
+183,"Kakri Project",NCL,Ranchi,CIL,"Madhya Pradesh",SINGRAULI,Singrauli,Kakri,CMN,OC,Public,2.695,0
+184,"Kalidaspur Project",ECL,Dhanbad,CIL,"West Bengal",BANKURA,Raniganj,Satgram,CMN,UG,Public,0.075,0
+185,"Kalyan Khani OC",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Mandamari,CMN,OC,Public,1.775,0
+186,"Kalyan Khani-1 & 5 Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Mandamari,CMN,UG,Public,0.213,0
+187,"Kanchan OC",SECL,Bilaspur,CIL,"Madhya Pradesh",UMARIA,"Central India",Johilla,CMN,OC,Public,0.908,0
+188,"Kaniha OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Kaniha,CMN,OC,Public,11.811,0
+189,Kankanee,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Sijua,CMN,OC,Public,0.334,0
+190,Kapasara,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,OC,Public,0.04,0
+191,Kapurdi,HIL,Bilaspur,Captive,Chhattisgarh,RAIGARH,Mand-Raigarh,"Gare Palma Area",CM(SP),UG,Private,0,0
+192,"Kargali OC",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","B & K Area",CMN,OC,Public,0,0
+193,Karma,CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,OC,Public,0.861,0
+194,"KARO SPL OC",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","B & K Area",CMN,UG,Public,0,0
+195,"Karo-I OC",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","B & K Area",CMN,OC,Public,1.318,0
+196,"Kasipet 1 Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Mandamari,CMN,UG,Public,0.146,0
+197,"Kasipet 2 Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Mandamari,CMN,UG,Public,0.097,0
+198,"Kathara Colly",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro",Kathara,CMN,OC,Public,0.419,0
+199,"Kathautia Open Cast Coal Mine",HIL,Ranchi,Captive,Jharkhand,PALAMU,Daltonganj,Kathautia,CM(SP),OC,Private,0.183,0
+200,"Katkona 1 & 2",SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Baikunthpur,CMN,UG,Public,0.216,0
+201,"Kedla (OC)",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Hazaribagh,CMN,OC,Public,0,0
+202,"Kedla UG",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Hazaribagh,CMN,UG,Public,0,0
+203,Kerandari,NTPC,Ranchi,Captive,Jharkhand,HAZARIBAGH,"North Karanpura",Keredari,CM(SP),OC,Public,0.235,0
+204,Ketki,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bisrampur,CMN,UG,Public,0.028,0
+205,"Khadia Project",NCL,Ranchi,CIL,"Uttar Pradesh",SONBHADRA,Singrauli,Khadia,CMN,OC,Public,5.563,0
+206,"Khairagura OC",SCCL,Kothagudam,SCCL,Telangana,"Komaram Bheem","Godavari Valley",Belampalli,CMN,OC,Public,3.749,0
+207,Khairaha,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,UG,Public,0.877,0
+208,"Khandra Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Bankola,CMN,UG,Public,0.091,0
+209,Kharkharee,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Govindpur,CMN,UG,Public,0.005,0
+210,"Khas Kajora Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,UG,Public,0.136,0
+211,Khoodia,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,UG,Public,0.025,0
+212,"Khottadih OCP",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Pandaveswar,CMN,OC,Public,0.435,0
+213,"Khottadih UG",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Pandaveswar,CMN,UG,Public,0.521,0
+214,"Kistaram OC",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Kothagudem,CMN,OC,Public,2.4,0
+215,"Kolarpimpri,",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,"Wardha Valley","Wani North",CMN,OC,Public,1.5,0
+216,"Kolgaon OC",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,Wardha,Wani,CMN,OC,Public,0.6,0
+217,"Kondapuram UG",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Manuguru,CMN,UG,Public,0.141,0
+218,"Koya Gundem OC II",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Yellandu,CMN,OC,Public,3.001,0
+219,"Krishnshila OCP",NCL,Ranchi,CIL,"Uttar Pradesh",SONBHADRA,Singrauli,Krishnshila,CMN,OC,Public,2.781,0
+220,Kujama,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Lodna,CMN,OC,Public,0.588,0
+221,"Kuju Colliery",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,OC,Public,0,0
+222,"Kulda OCP Balinga",MCL,Sambalpur,CIL,Odisha,SUNDARGARH,"IB Valley",Basundhara,CMN,OC,Public,21,0
+223,"Kumardhubi Colliery",ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,UG,Public,0.02,0
+224,"Kumardihi-A Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Bankola,CMN,UG,Public,0.089,0
+225,"Kumda 7 & 8",SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bisrampur,CMN,UG,Public,0.011,0
+226,"Kunustoria Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kunustoria,CMN,UG,Public,0.079,0
+227,"Kurasia UG",SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Chirimiri,CMN,UG,Public,0.204,0
+228,Kurja/Sheetaldhara/Kapildhara,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Hasdeo,CMN,UG,Public,0.808,0
+229,"Kusmunda Project",SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Kusmunda,CMN,OC,Public,50.125,0
+230,Kuya,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Bastacolla,CMN,OC,Public,2.8,0
+231,"Laiyo UGP",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Hazaribagh,CMN,UG,Public,0,0
+232,"Lajkura OCP",MCL,Sambalpur,CIL,Odisha,JHARSUGUDA,"IB Valley","IB Valley",CMN,OC,Public,4.5,0
+233,Lakhimata,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,UG,Public,0.059,0
+234,"Lingaraj OCP",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,Lingaraj,CMN,OC,Public,17.54,0
+235,"Lower Kenda Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,UG,Public,0.048,0
+236,Madhaipur,ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,Mixed,Public,0.036,0
+237,"Madhaipur Mixed",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Pandaveswar,CMN,Mixed,Public,0.162,0
+238,"Madhusudanpur 7 Pit & Incline",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,UG,Public,0.018,0
+239,"Magadh OCP",CCL,Ranchi,CIL,Jharkhand,CHATRA,N.K.Coalfields,Magadh,CMN,OC,Public,20,0
+240,Mahadeopuri,WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,UG,Public,0.033,0
+241,"Mahakali Colliery",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,UG,Public,0,0
+242,Maheshpur,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Govindpur,CMN,UG,Public,0.029,0
+243,"Makardhokra-I OC Expansion Mine",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Umrer,Umrer,CMN,OC,Public,4.2,0
+244,"Makardhokra-III OC MINE",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Umrer,Umrer,CMN,OC,Public,4.433,0
+245,Mandarboni,ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Pandaveswar,CMN,UG,Public,0.033,0
+246,Manikpur,SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Korba,CMN,OC,Public,5.25,0
+247,Manki/Churi,CCL,Ranchi,CIL,Jharkhand,RANCHI,N.K.Coalfields,"North Karanpura",CMN,UG,Public,0.628,0
+248,"Manna Incline",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,UG,Public,0,0
+249,"Manoharpur Coal Mine",OCPL,Sambalpur,Captive,Odisha,SUNDARGARH,"IB Valley",Sundargarh,CM(SP),OC,Public,8.509,0
+250,"Manuguru Opencast",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Manuguru,CMN,OC,Public,2.1,0
+251,"Marki Mangli - I Coal Mine",TUML,Nagpur,Captive,Maharashtra,YAVATMAL,"Wardha Valley","Marki Mangli-1 Coal Mine",CM(SP),OC,Private,0.001,0
+252,"Marki Mangli III",BSIL,Nagpur,Captive,Maharashtra,YAVATMAL,"Warda Valley","Marki Mangli -III",CM(SP),OC,Private,0.105,0
+253,Mathani,WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,UG,Public,0.091,0
+254,Meera,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India","Jamuna & Kotma",CMN,UG,Public,0.076,0
+255,"Methani Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sodepur,CMN,UG,Public,0.054,0
+256,"Metica Coal Mine",JKML,NA,Other,"Jammu & Kashmir",Rajouri,Kalakota,Kalakota,"Legacy Mines",UG,Public,0.002,0
+257,"Mohan (Mohan UG)",WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Kanhan,CMN,Mixed,Public,0.038,0
+258,"Mohanpur (Expn)",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Mugma/Salanpur,Salanpur,CMN,OC,Public,2,0
+259,"Moher & Moher Amlohri Extn","Sasan Power Limited",Ranchi,Captive,"Madhya Pradesh",SINGRAULI,Singrauli,"Sasan Power Ltd",CMN,OC,Private,18.276,0
+260,"Moher & Moher Amlohri Extn",WBPDCL,Dhanbad,Captive,"West Bengal",BIRBHUM,Raniganj,Bhimgarah,CM(SP),OC,Public,0.5,0
+261,Moonidih,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,"West Jharia",CMN,UG,Public,0.484,0
+262,Mudidih,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Sijua,CMN,OC,Public,0.823,0
+263,"Mungoli OCM",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,Wardha,Wani,CMN,OC,Public,5.25,0
+264,"N.C.P.H. Colliery (NEW)",SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Chirimiri,CMN,UG,Public,0.351,0
+265,"Nabakajora Colliery",ECL,Dhanbad,CIL,Jharkhand,RAMGARH,Raniganj,Kajora,CMN,UG,Public,0,0
+266,"Naigaon OCM",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,Wardha,Wani,CMN,OC,Public,1.25,0
+267,NAKC,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Govindpur,CMN,Mixed,Public,0.707,0
+268,"Nakrakonda -Kumardihi 'B' UG",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Bankola,CMN,Mixed,Public,1.511,0
+269,"Nandgaon Incline",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,UG,Public,0.064,0
+270,"Nandira Colliery",MCL,Sambalpur,CIL,Odisha,Angul,Talcher,"Talcher (UG)",CMN,UG,Public,0.056,0
+271,"Narsamuda Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sodepur,CMN,UG,Public,0.053,0
+272,Navapara,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bhatgaon,CMN,UG,Public,0.052,0
+273,"Neelijay OCM",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,Wardha,Wani,CMN,OC,Public,4.5,0
+274,Nehariya,WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,UG,Public,0.25,0
+275,"New Godhur-Kusunda-Alkusa",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Kusunda,CMN,OC,Public,1.208,0
+276,"New Kenda Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,OC,Public,0.622,0
+277,"New Majri - I(A) & II Extn. (A) OC",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Majri,CMN,OC,Public,2.5,0
+278,"New Majri UG to OC Expn.",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Majri,CMN,OC,Public,1.527,0
+279,"New Moghla Coal Mine",JKML,NA,Other,"Jammu & Kashmir",Rajouri,Kalakota,Kalakota,"Legacy Mines",UG,Public,0.006,0
+280,"New Sethia",WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,OC,Public,0,0
+281,Nichitpur,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Sijua,CMN,OC,Public,1.794,0
+282,"Nigahi Project",NCL,Ranchi,CIL,"Madhya Pradesh",SINGRAULI,Singrauli,Nigahi,CMN,OC,Public,33.006,0
+283,"Nimcha Colliery , Nimcha OC (Amkola) & Nimcha Highwall",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Satgram,CMN,Mixed,Public,0.59,0
+284,"Ningah Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sripur,CMN,UG,Public,0.017,0
+285,"Ningha (SSI) OC",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sripur,CMN,OC,Public,0.258,0
+286,Nirsha,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,OC,Public,0.147,0
+287,"North Searsole OC Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kunustoria,CMN,OC,Public,1.056,0
+288,"North Urimari/Birsa-OC",CCL,Ranchi,CIL,Jharkhand,HAZARIBAGH,S.K.Coalfields,Barka-Sayal,CMN,OC,Public,4.2,0
+289,"Nowrozabad (W)",SECL,Bilaspur,CIL,"Madhya Pradesh",UMARIA,"Central India",Johilla,CMN,UG,Public,0.098,0
+290,NTST-Jeenagora,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Lodna,CMN,OC,Public,4.767,0
+291,"Orient Mine No. 1 & 2",MCL,Sambalpur,CIL,Odisha,JHARSUGUDA,"IB Valley",Orient,CMN,UG,Public,0.199,0
+292,"Pacchwara North Coal Mine",WBPDCL,Dhanbad,Captive,Jharkhand,PAKUR,"Rajmahal Area",Pacchwara,CM(SP),OC,Public,13.707,0
+293,"Pachhwara Central Coal Mine",PSPCL,Dhanbad,Captive,Jharkhand,PAKUR,Rajmahal,Amrapara-Maheshpur,CM(SP),OC,Public,4.628,0
+294,"Padampur OC",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Chandrapur,CMN,OC,Public,0,0
+295,"Padmavathi Khani No.5 Incline",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Kothagudem,CMN,UG,Public,0.206,0
+296,"Pakri Barwadih",NTPC,Ranchi,Captive,Jharkhand,HAZARIBAGH,"North Karanpura",Hazaribagh,CMN,OC,Public,16.308,0
+297,Pali,SECL,Bilaspur,CIL,"Madhya Pradesh",UMARIA,"Central India",Johilla,CMN,UG,Public,0.085,0
+298,"Pandaveswar UG",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Pandaveswar,CMN,UG,Public,0.076,0
+299,"Pandavpara Colliery",SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Baikunthpur,CMN,UG,Public,0.248,0
+300,"Paoni II OCM",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Ballarpur,CMN,OC,Public,3.25,0
+301,"Parasea Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kunustoria,CMN,UG,Public,0.109,0
+302,"Parbelia Colliery",ECL,Dhanbad,CIL,"West Bengal",PURULIA,Raniganj,Sodepur,CMN,UG,Public,0.043,0
+303,"Parej East OCP",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Hazaribagh,CMN,OC,Public,0.403,0
+304,"Parsa East and Kanta Basan OCM",RRVUNL,Bilaspur,Captive,Chhattisgarh,SURGUJA,Hasdo-Arand,"Parsa East and Kanta",CM(SP),OC,Public,6.701,0
+305,"Patansaongi Colliery",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,UG,Public,0.039,0
+306,"Patmohana Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sodepur,CMN,UG,Public,0.046,0
+307,"Penganga OC",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Wani,CMN,OC,Public,4.806,0
+308,"Pimpalgaon,",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,"Wardha Valley","Wani North",CMN,OC,Public,0,0
+309,"Pindra Colliery",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,OC,Public,0,0
+310,Piparia,SECL,Bilaspur,CIL,"Madhya Pradesh",UMARIA,"Central India",Johilla,CMN,UG,Public,0.081,0
+311,"Porascol East Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,UG,Public,0.065,0
+312,"Porascol West Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kajora,CMN,UG,Public,0.062,0
+313,"Prakasham Khani OC",SCCL,Kothagudam,SCCL,Telangana,KHAMMAM,"Godavari Valley",Manuguru,CMN,OC,Public,10.45,0
+314,Pundi,CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,OC,Public,0,0
+315,"Pure Searsole Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Satgram,CMN,UG,Public,0.035,0
+316,Purnadih,CCL,Ranchi,CIL,Jharkhand,RANCHI,N.K.Coalfields,"North Karanpura",CMN,OC,Public,0.589,0
+317,Rajendra,SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,UG,Public,0.158,0
+318,Rajhara,CCL,Ranchi,CIL,Jharkhand,PALAMU,N.K.Coalfields,Rajhara,CMN,OC,Public,0,0
+319,"Rajmahal OCP",ECL,Dhanbad,CIL,Jharkhand,GODDA,Rajmahal,Rajmahal,CMN,OC,Public,12.052,0
+320,"Rajnagar RO",SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Hasdeo,CMN,UG,Public,0.13,0
+321,Rajpura,ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,OC,Public,0.076,0
+322,"Rajrappa Project",CCL,Ranchi,CIL,Jharkhand,RAMGARH,Rajrappa,Rajrappa,CMN,OC,Public,1.303,0
+323,"Rajur UG",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,"Wardha Valley","Wani North",CMN,UG,Public,0.055,0
+324,"Ramagundam OC-I Extn. Ph-II",SCCL,Kothagudam,SCCL,Telangana,PEDDAPALLI,"Godavari Valley",Ramagundam-III,CMN,OC,Public,5.911,0
+325,"Ramagundam-OC 3 & OC III",SCCL,Kothagudam,SCCL,Telangana,PEDDAPALLI,"Godavari Valley",Ramagundam-II,CMN,OC,Public,9.5,0
+326,"Ramakrishnapur OC",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Mandamari,CMN,OC,Public,1.872,0
+327,"Ramnagar Colliery",IISCO,Dhanbad,Other,"West Bengal","PASCHIM BARDHAMAN",Raniganj,Ramnagore,"Legacy Mines",UG,Public,0,0
+328,"Ramnagar Colliery",IISCO,Dhanbad,Other,"West Bengal","PASCHIM BARDHAMAN",Raniganj,Ramnagore,"Legacy Mines",OC,Public,0.075,0
+329,"Rampur Batura",SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,OC,Public,1.216,0
+330,Raniatari,SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Chirimiri,CMN,UG,Public,0.48,0
+331,"Ravindra Khani-5 Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,UG,Public,0.277,0
+332,"Ravindra Khani-6 Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,UG,Public,0.195,0
+333,"Ravindra Khani-7,Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,UG,Public,0.339,0
+334,"Ravindra Khani-New Tech,",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,UG,Public,0.161,0
+335,Rehar,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bisrampur,CMN,UG,Public,0.031,0
+336,Religara,CCL,Ranchi,CIL,Jharkhand,HAZARIBAGH,S.K.Coalfields,Argada,CMN,OC,Public,0.499,0
+337,"ROCP/S. Jharia",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Bastacolla,CMN,OC,Public,2.158,0
+338,Rohini,CCL,Ranchi,CIL,Jharkhand,RANCHI,N.K.Coalfields,"North Karanpura",CMN,OC,Public,0.039,0
+339,"Samleswari OCP",MCL,Sambalpur,CIL,Odisha,JHARSUGUDA,"IB Valley","IB Valley",CMN,OC,Public,8.06,0
+340,"Sankarpur Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Bankola,CMN,UG,Public,0.191,0
+341,"Saoner Mine - II",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,UG,Public,0.179,0
+342,"Saoner Mine - III",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,UG,Public,0.14,0
+343,"Saoner Mine-I",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,UG,Public,0.186,0
+344,Saraipali,SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Korba,CMN,UG,Public,1.68,0
+345,"Sarisatolli Coal Mine",CESC,Dhanbad,Captive,"West Bengal","PASCHIM BARDHAMAN",Raniganj,Sarisatolli,CM(SP),OC,Private,1.293,0
+346,"Sarni Mine",WCL,Nagpur,CIL,"Madhya Pradesh",BETUL,Pathakhera,Pathakhera,CMN,UG,Public,0,0
+347,Sarubera,CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,UG,Public,0,0
+348,"Sasti Expn. OCM",WCL,Nagpur,CIL,Maharashtra,CHANDRAPUR,Wardha,Ballarpur,CMN,OC,Public,1.889,0
+349,"Satgram Incline",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Satgram,CMN,UG,Public,0.032,0
+350,"Satgram Project",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Satgram,CMN,UG,Public,0.03,0
+351,"Saunda (Ncdc)",CCL,Ranchi,CIL,Jharkhand,RAMGARH,S.K.Coalfields,Barka-Sayal,CMN,UG,Public,0,0
+352,"Sayal `D'",CCL,Ranchi,CIL,Jharkhand,RAMGARH,S.K.Coalfields,Barka-Sayal,CMN,OC,Public,1.009,0
+353,"SD OC Mine",CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","Dhori Area",CMN,OC,Public,1.581,0
+354,"Sendra Bansjora",BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Sijua,CMN,OC,Public,0.601,0
+355,"Shampur B",ECL,Dhanbad,CIL,Jharkhand,DHANBAD,Mugma/Salanpur,Mugma,CMN,UG,Public,0.049,0
+356,"Shanthi Khani",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Mandamari,CMN,UG,Public,0.09,0
+357,"Sharda Highwall",SECL,Bilaspur,CIL,"Madhya Pradesh",SHAHDOL,"Central India",Sohagpur,CMN,UG,Public,0.711,0
+358,"Sharda UG",WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Kanhan,CMN,UG,Public,0.035,0
+359,Shivani,SECL,Bilaspur,CIL,Chhattisgarh,SURGUJA,"Central India",Bhatgaon,CMN,UG,Public,0.233,0
+360,"Shyam Sundarpur Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Bankola,CMN,UG,Public,0.72,0
+361,"Sial Ghogri Coal Mine",RCCPL,Nagpur,Captive,"Madhya Pradesh",CHHINDWARA,"Pench- Kanhan","Sial Ghogri",CM(SP),UG,Private,0.329,0
+362,"Siarmal OCP",MCL,Sambalpur,CIL,Odisha,SUNDARGARH,"IB Valley",Mahalaxmi,CMN,OC,Public,7.244,0
+363,"Siduli Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Kenda,CMN,Mixed,Public,0.051,0
+364,"Sijua Colliery",TSL,Dhanbad,Other,Jharkhand,DHANBAD,Jharia,Sijua,"Legacy Mines",UG,Private,0.246,0
+365,"Sikni OC Mine",JSMDCL,Ranchi,Other,Jharkhand,LATEHAR,Auranga,Sikni,"Legacy Mines",OC,Public,0.336,0
+366,"Silewara Colliery",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,UG,Public,0.069,0
+367,"Singhali Colliery",SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Korba,CMN,UG,Public,0.13,0
+368,"Singori OC",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Kamptee/Silewara,Nagpur,CMN,OC,Public,1.2,0
+369,Sirka,CCL,Ranchi,CIL,Jharkhand,RAMGARH,S.K.Coalfields,Argada,CMN,OC,Public,0.116,0
+370,"Sonepur Bazari Project OCM",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Sonepur-Bazari,CMN,OC,Public,12.374,0
+371,"South Samla",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Pandaveswar,CMN,UG,Public,0.033,0
+372,"Srirampur OC",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,OC,Public,3.173,0
+373,"Srirampur-1, Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,UG,Public,0.114,0
+374,"Srirampur-3 & 3A Incline",SCCL,Kothagudam,SCCL,Telangana,MANCHERIAL,"Godavari Valley",Srirampur,CMN,UG,Public,0.23,0
+375,Suliyari,APMDCL,Nagpur,Commercial,"Madhya Pradesh",SINGRAULI,Singrauli,Suliyari,CM(SP),OC,Public,5,0
+376,"Tadicherla 1 OCM",TGGENCO,Kothagudam,Captive,Telangana,"JAYASHANKAR BHUPALPALLY","Godavari Valley","Tadicherla 1",CM(SP),OC,Public,2.5,0
+377,"Takli Jena Bellora",AIPL,Nagpur,Commercial,Maharashtra,CHANDRAPUR,Wardha,Wardha,CM(SP),OC,Private,0.085,0
+378,"Talabira II & III",NLCIL,Sambalpur,Captive,Odisha,SAMBALPUR,"IB Valley","Neyvelli Lignite Field",CM(SP),OC,Public,12.641,0
+379,"Talaipalli Coal Mine",NTPC,Bilaspur,Captive,Chhattisgarh,RAIGARH,Mand-Raigarh,Talaipalli,CM(SP),OC,Public,7.543,0
+380,Tandsi,WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Kanhan,CMN,UG,Public,0.036,0
+381,"Tapin North",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Hazaribagh,CMN,OC,Public,2.216,0
+382,"Tapin South",CCL,Ranchi,CIL,Jharkhand,HAZARIBAGH,W.Bokaro,Hazaribagh,CMN,OC,Public,1.43,0
+383,Tara(E&W),WBPDCL,Dhanbad,Captive,"West Bengal",BIRBHUM,Raniganj,Gangaramchak,CM(SP),OC,Public,0.109,0
+384,Tarmi,CCL,Ranchi,CIL,Jharkhand,BOKARO,"E. Bokaro","Dhori Area",CMN,OC,Public,0.283,0
+385,"Tasra Colliery",SAIL,Dhanbad,Captive,Jharkhand,DHANBAD,Jharia,Tasra,CMN,OC,Public,0.333,0
+386,"Tawa Mine",WCL,Nagpur,CIL,"Madhya Pradesh",BETUL,Pathakhera,Pathakhera,CMN,UG,Public,0.283,0
+387,Tawa-II,WCL,Nagpur,CIL,"Madhya Pradesh",BETUL,Pathakhera,Pathakhera,CMN,UG,Public,0.415,0
+388,"Tetaria Khar",CCL,Ranchi,CIL,Jharkhand,LATEHAR,N.K.Coalfields,Rajhara,CMN,OC,Public,1.032,0
+389,Tetulmari,BCCL,Dhanbad,CIL,Jharkhand,DHANBAD,Jharia,Sijua,CMN,OC,Public,0.318,0
+390,"Tikak Colliery",NEC,Kolkata,CIL,Assam,TINSUKIA,Makum,Margherita,CMN,OC,Public,0.2,0
+391,"Tilaboni Colliery",ECL,Dhanbad,CIL,"West Bengal",Bardhaman,Raniganj,Bankola,CMN,UG,Public,0.122,0
+392,"Topa Marginal Scheme",CCL,Ranchi,CIL,Jharkhand,RAMGARH,W.Bokaro,Kuju,CMN,OC,Public,0.823,0
+393,"Trans Damodar Coal Mine",DPL,Dhanbad,Captive,"West Bengal","PASCHIM BARDHAMAN",Raniganj,Kasta,CM(SP),OC,Public,1,0
+394,"Ukni OC",WCL,Nagpur,CIL,Maharashtra,YAVATMAL,"Wardha Valley","Wani North",CMN,OC,Public,1.839,0
+395,Umaria,SECL,Bilaspur,CIL,"Madhya Pradesh",UMARIA,"Central India",Johilla,CMN,UG,Public,0.117,0
+396,"Umrer OC Mine",WCL,Nagpur,CIL,Maharashtra,NAGPUR,Umrer,Umrer,CMN,OC,Public,3.11,0
+397,Urdhan,WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,OC,Public,0.7,0
+398,Urimari,CCL,Ranchi,CIL,Jharkhand,HAZARIBAGH,S.K.Coalfields,Barka-Sayal,CMN,UG,Public,0,0
+399,Urimari,CCL,Ranchi,CIL,Jharkhand,HAZARIBAGH,S.K.Coalfields,Barka-Sayal,CMN,OC,Public,0.791,0
+400,"Utkal C Coal Mine",JSPL,Sambalpur,Commercial,Odisha,Angul,Talchar,Angul,CM(SP),OC,Private,1.027,0
+401,"Utkal D",NALCO,Sambalpur,Captive,Odisha,Angul,Talchar,"Utkal D",CM(SP),OC,Public,2,0
+402,Vakilpalli,SCCL,Kothagudam,SCCL,Telangana,PEDDAPALLI,"Godavari Valley",Ramagundam-II,CMN,UG,Public,0.35,0
+403,"Vijay West",SECL,Bilaspur,CIL,Chhattisgarh,KORBA,"Central India",Chirimiri,CMN,UG,Public,0.5,0
+404,Vindhya,SECL,Bilaspur,CIL,"Madhya Pradesh",UMARIA,"Central India",Johilla,CMN,UG,Public,0.465,0
+405,Vishnupuri-II,WCL,Nagpur,CIL,"Madhya Pradesh",CHHINDWARA,"Pench & Kanhan",Pench,CMN,UG,Public,0.085,0
+406,"West Bokaro OC (Quarry-E & SE)",TSL,Ranchi,Other,Jharkhand,HAZARIBAGH,"West Bokaro","West Bokaro","Legacy Mines",OC,Private,5.081,0
+407,"West Bokaro OC Quarry-AB",TSL,Ranchi,Other,Jharkhand,HAZARIBAGH,"West Bokaro","West Bokaro","Legacy Mines",OC,Private,0.328,0
+408,"West Jhagrakhand",SECL,Bilaspur,CIL,Chhattisgarh,KOREA,"Central India",Hasdeo,CMN,UG,Public,0.082,0

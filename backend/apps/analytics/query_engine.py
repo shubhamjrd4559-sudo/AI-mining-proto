@@ -85,13 +85,73 @@ def format_financial_year(fy_tuple: Tuple[int, int]) -> str:
     return f"{fy_tuple[0]}-{str(fy_tuple[1])[-2:]}"
 
 
+def record_metric_value(data: Dict[str, Any], metric: str) -> Optional[float]:
+    """Read a canonical metric or a provenance-preserving Metric/Value row."""
+    direct = parse_numeric(data.get(metric))
+    if direct is not None:
+        return direct
+    label = str(data.get('Metric') or data.get('metric') or data.get('Field') or data.get('field') or '').strip().lower()
+    if metric.lower() in label:
+        return parse_numeric(data.get('Value') or data.get('value'))
+    return None
+
+
+def record_financial_year(record: StructuredRecord) -> Optional[Tuple[int, int]]:
+    """Resolve FY from a record first, then from its source document name/title.
+
+    The document fallback is intentionally limited to an unambiguous FY token,
+    preserving the source document as the provenance for that assignment.
+    """
+    data = record.data_json or {}
+    fy = parse_financial_year(data.get('financial_year') or data.get('year'))
+    if fy:
+        return fy
+    f_name = str(data.get('Field') or data.get('field') or data.get('Metric') or data.get('metric') or '').strip().lower()
+    if f_name in ('year', 'financial year', 'financial_year', 'period'):
+        fy = parse_financial_year(data.get('Value') or data.get('value'))
+        if fy:
+            return fy
+    doc = getattr(record.dataset, 'source_document', None)
+    if not doc:
+        return None
+    candidates = set()
+    for text in (getattr(doc, 'title', ''), getattr(doc, 'original_filename', '')):
+        parsed = parse_financial_year(text)
+        if parsed:
+            candidates.add(parsed)
+    return next(iter(candidates)) if len(candidates) == 1 else None
+
+
+def dataset_metric_total(records: List[StructuredRecord], metric: str) -> Optional[float]:
+    """Prefer an explicit Total Metric/Value row over component-row summation."""
+    explicit = []
+    components = []
+    for record in records:
+        data = record.data_json or {}
+        label = str(data.get('Metric') or data.get('metric') or data.get('Field') or data.get('field') or '').strip().lower()
+        value = record_metric_value(data, metric)
+        if value is None:
+            continue
+        is_summary_row = ('Metric' in data or 'Field' in data) and 'subsidiary' not in data and 'mine' not in data
+        if is_summary_row and metric.lower() in label:
+            explicit.append(value)
+        else:
+            components.append(value)
+    if components:
+        return sum(components)
+    if explicit:
+        return sum(explicit)
+    return None
+
+
 class AnalyticsQueryEngine:
     """
     Query execution and KPI aggregation engine for a single StructuredDataset.
     """
 
-    def __init__(self, dataset: StructuredDataset):
+    def __init__(self, dataset: Optional[StructuredDataset] = None, user=None):
         self.dataset = dataset
+        self.user = user
         self._records_cache: Optional[List[StructuredRecord]] = None
         self._provenance_cache: Optional[Dict[int, List[ExtractionProvenance]]] = None
         self._error_record_ids: Optional[Set[int]] = None
@@ -106,17 +166,29 @@ class AnalyticsQueryEngine:
         if self._available_fields is not None:
             return self._available_fields
 
-        schema = self.dataset.schema_json or {}
-        cols = schema.get('columns', [])
-        cmap = schema.get('column_map', {})
-
         fields = {}
-        for c in cols:
-            concept = cmap.get(c, {}).get('concept') or c
-            fields[concept] = 'numeric' if concept in NUMERIC_CONCEPT_NAMES else 'categorical'
+        if self.dataset is not None:
+            schema = self.dataset.schema_json or {}
+            cols = schema.get('columns', [])
+            cmap = schema.get('column_map', {})
+            for c in cols:
+                concept = cmap.get(c, {}).get('concept') or c
+                fields[concept] = 'numeric' if concept in NUMERIC_CONCEPT_NAMES else 'categorical'
+        elif self.user is not None:
+            for ds in StructuredDataset.objects.filter(
+                source_document__uploaded_by=self.user,
+                source_document__is_archived=False
+            ):
+                schema = ds.schema_json or {}
+                cols = schema.get('columns', [])
+                cmap = schema.get('column_map', {})
+                for c in cols:
+                    concept = cmap.get(c, {}).get('concept') or c
+                    if concept not in fields:
+                        fields[concept] = 'numeric' if concept in NUMERIC_CONCEPT_NAMES else 'categorical'
 
-        # Inspect up to first 50 records to discover actual keys in data_json
-        records = self._load_records()[:50]
+        # Inspect up to first 100 records to discover actual keys in data_json
+        records = self._load_records()[:100]
         for r in records:
             for k, v in r.data_json.items():
                 if k.endswith('_original') or k.endswith('_original_before_apply'):
@@ -134,16 +206,29 @@ class AnalyticsQueryEngine:
 
     def _load_records(self) -> List[StructuredRecord]:
         if self._records_cache is None:
-            self._records_cache = list(
-                StructuredRecord.objects.filter(dataset=self.dataset)
-                .select_related('dataset')
-                .order_by('row_index', 'id')
-            )
+            if self.dataset is not None:
+                qs = StructuredRecord.objects.filter(dataset=self.dataset).select_related('dataset')
+            elif self.user is not None:
+                qs = StructuredRecord.objects.filter(
+                    dataset__source_document__uploaded_by=self.user,
+                    dataset__source_document__is_archived=False
+                ).select_related('dataset', 'dataset__source_document')
+            else:
+                qs = StructuredRecord.objects.none()
+            self._records_cache = list(qs.order_by('row_index', 'id'))
         return self._records_cache
 
     def _load_provenance(self) -> Dict[int, List[ExtractionProvenance]]:
         if self._provenance_cache is None:
-            provs = ExtractionProvenance.objects.filter(record__dataset=self.dataset)
+            if self.dataset is not None:
+                provs = ExtractionProvenance.objects.filter(record__dataset=self.dataset)
+            elif self.user is not None:
+                provs = ExtractionProvenance.objects.filter(
+                    record__dataset__source_document__uploaded_by=self.user,
+                    record__dataset__source_document__is_archived=False
+                )
+            else:
+                provs = []
             cache = defaultdict(list)
             for p in provs:
                 cache[p.record_id].append(p)
@@ -168,16 +253,26 @@ class AnalyticsQueryEngine:
                 elif any(isinstance(e, dict) and e.get('severity') == 'WARNING' for e in r.validation_errors):
                     warning_ids.add(r.id)
 
-        doc = self.dataset.source_document
-        if doc:
-            v_results = ValidationResult.objects.filter(document=doc, status='open')
-            for v in v_results:
-                if v.severity == 'ERROR':
-                    if v.record_id:
+        if self.dataset is not None:
+            doc = self.dataset.source_document
+            if doc:
+                v_results = ValidationResult.objects.filter(document=doc, status='open')
+                for v in v_results:
+                    if v.severity == 'ERROR' and v.record_id:
                         error_ids.add(v.record_id)
-                elif v.severity == 'WARNING':
-                    if v.record_id:
+                    elif v.severity == 'WARNING' and v.record_id:
                         warning_ids.add(v.record_id)
+        elif self.user is not None:
+            v_results = ValidationResult.objects.filter(
+                document__uploaded_by=self.user,
+                document__is_archived=False,
+                status='open'
+            )
+            for v in v_results:
+                if v.severity == 'ERROR' and v.record_id:
+                    error_ids.add(v.record_id)
+                elif v.severity == 'WARNING' and v.record_id:
+                    warning_ids.add(v.record_id)
 
         self._error_record_ids = error_ids
         self._warning_record_ids = warning_ids
@@ -298,6 +393,12 @@ class AnalyticsQueryEngine:
                     elif val_str != fval:
                         matched = False
                         break
+                elif fk == 'subsidiary':
+                    if val_str != fval:
+                        words = [w.strip() for w in re.split(r'[\s\(\)\/,\.-]+', val_str) if w.strip()]
+                        if fval not in words:
+                            matched = False
+                            break
                 else:
                     if val_str != fval and fval not in val_str:
                         matched = False
@@ -349,17 +450,18 @@ class AnalyticsQueryEngine:
 
         # For YoY Growth calculation
         fy_production: Dict[Tuple[int, int], float] = defaultdict(float)
+        fy_dispatch: Dict[Tuple[int, int], float] = defaultdict(float)
+        fy_target: Dict[Tuple[int, int], float] = defaultdict(float)
 
         for r in filtered_records:
             d = r.data_json
+            fy_parsed = parse_financial_year(d.get('financial_year'))
 
             if has_production:
                 v = parse_numeric(d.get('production'))
                 if v is not None:
                     prod_sum += v
                     prod_count += 1
-                    fy_raw = d.get('financial_year')
-                    fy_parsed = parse_financial_year(fy_raw)
                     if fy_parsed:
                         fy_production[fy_parsed] += v
 
@@ -368,12 +470,16 @@ class AnalyticsQueryEngine:
                 if v is not None:
                     dispatch_sum += v
                     dispatch_count += 1
+                    if fy_parsed:
+                        fy_dispatch[fy_parsed] += v
 
             if has_target:
                 v = parse_numeric(d.get('target'))
                 if v is not None:
                     target_sum += v
                     target_count += 1
+                    if fy_parsed:
+                        fy_target[fy_parsed] += v
 
             if has_mine and d.get('mine'):
                 mines.add(str(d['mine']).strip())
@@ -408,16 +514,26 @@ class AnalyticsQueryEngine:
         if prod_count > 0 and target_count > 0 and target_sum > 0:
             kpis['achievement_pct'] = round((prod_sum / target_sum * 100), 1)
 
-        # YoY Growth
-        if len(fy_production) >= 2:
-            sorted_fys = sorted(fy_production.keys())
+        # Grounded YoY Growth Calculation with Insufficient Historical Data Protection
+        fy_metric = fy_production if len(fy_production) >= 2 else (fy_dispatch if len(fy_dispatch) >= 2 else fy_target)
+        if len(fy_metric) >= 2:
+            sorted_fys = sorted(fy_metric.keys())
             prev_fy = sorted_fys[-2]
             curr_fy = sorted_fys[-1]
-            prev_val = fy_production[prev_fy]
-            curr_val = fy_production[curr_fy]
+            prev_val = fy_metric[prev_fy]
+            curr_val = fy_metric[curr_fy]
             if prev_val > 0:
                 kpis['growth_pct'] = round(((curr_val - prev_val) / prev_val * 100), 1)
                 kpis['growth_periods'] = f"{format_financial_year(prev_fy)} → {format_financial_year(curr_fy)}"
+                kpis['growth_status'] = 'calculated'
+            else:
+                kpis['growth_pct'] = None
+                kpis['growth_status'] = 'insufficient_historical_data'
+                kpis['growth_message'] = 'Insufficient historical data for comparison'
+        else:
+            kpis['growth_pct'] = None
+            kpis['growth_status'] = 'insufficient_historical_data'
+            kpis['growth_message'] = 'Insufficient historical data for comparison'
 
         if len(mines) > 0:
             kpis['mine_count'] = len(mines)

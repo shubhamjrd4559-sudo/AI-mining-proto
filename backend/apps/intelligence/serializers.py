@@ -25,6 +25,12 @@ class AIQueryInputSerializer(serializers.Serializer):
         help_text='Optional query context parameters.',
     )
 
+    document_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text='Optional ID of specific document to restrict query to.',
+    )
+
     def validate(self, attrs):
         query = attrs.get('message') or attrs.get('question')
         if not query or not query.strip():
@@ -32,6 +38,18 @@ class AIQueryInputSerializer(serializers.Serializer):
         if len(query.strip()) > 1000:
             raise serializers.ValidationError('Query text exceeds maximum length of 1000 characters.')
         attrs['query'] = query.strip()
+
+        # Extract document_id from top-level field or context dict
+        doc_id = attrs.get('document_id')
+        if doc_id is None:
+            ctx = attrs.get('context') or {}
+            raw_id = ctx.get('document_id')
+            if raw_id is not None:
+                try:
+                    doc_id = int(raw_id)
+                except (TypeError, ValueError):
+                    doc_id = None
+        attrs['document_id'] = doc_id
         return attrs
 
 

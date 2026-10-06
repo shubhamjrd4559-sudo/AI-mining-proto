@@ -24,28 +24,27 @@ def _get_client_ip(request) -> str:
     return request.META.get('REMOTE_ADDR')
 
 
-@api_view(['POST', 'GET'])
-@permission_classes([IsAuthenticated])
-def query_view(request):
+def execute_query(request) -> Response:
     """
-    POST /api/chat/ or /api/intelligence/query/
-    Execute grounded RAG query over user's documents and structured datasets.
-    """
-    if request.method == 'GET':
-        return Response({
-            'service': 'CMPDI Mining Intelligence AI',
-            'status': 'active',
-            'endpoint': 'POST with {"message": "..."} to query',
-        })
+    Core RAG query business logic — accepts a DRF Request object directly.
 
+    This is a plain function (NOT an @api_view) so it is safe to call from
+    any other @api_view without triggering DRF's double-wrapping assertion
+    ("The `request` argument must be an instance of django.http.HttpRequest,
+    not rest_framework.request.Request").
+
+    Both query_view (at /api/intelligence/query/) and chat_stub (at /api/chat/)
+    delegate here instead of calling each other as view functions.
+    """
     serializer = AIQueryInputSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     question = serializer.validated_data['query']
+    document_id = serializer.validated_data.get('document_id')
 
     try:
-        result = generate_grounded_answer(request.user, question)
+        result = generate_grounded_answer(request.user, question, document_id=document_id)
 
         # Record in persistent query history
         AIQueryLog.objects.create(
@@ -80,13 +79,27 @@ def query_view(request):
         return Response(result, status=status.HTTP_200_OK)
 
     except Exception as exc:
-        # Generation/provider/database exceptions can include implementation or
-        # credential-adjacent details.  Keep the request path and logs generic.
-        logger.error('Error executing AI query.')
+        logger.error('Error executing AI query: %s', exc, exc_info=True)
         return Response(
             {'error': 'An internal error occurred while processing your query.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated])
+def query_view(request):
+    """
+    POST /api/intelligence/query/
+    Execute grounded RAG query over user's documents and structured datasets.
+    """
+    if request.method == 'GET':
+        return Response({
+            'service': 'CMPDI Mining Intelligence AI',
+            'status': 'active',
+            'endpoint': 'POST with {"message": "..."} to query',
+        })
+    return execute_query(request)
 
 
 @api_view(['GET'])

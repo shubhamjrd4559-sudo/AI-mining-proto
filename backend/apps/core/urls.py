@@ -15,6 +15,7 @@ from . import views
 
 urlpatterns = [
     path('health/', views.health_check, name='api-health'),
+    path('auth/me/', views.current_user, name='api-auth-me'),
     path('analytics/', views.analytics_stub, name='api-analytics'),
     path('chat/', views.chat_stub, name='api-chat'),
     path('excel/', views.excel_stub, name='api-excel'),

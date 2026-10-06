@@ -80,28 +80,35 @@ class ReportEngine:
                 created_by=user,
             )
 
-            # Associate only owner-scoped datasets
+            # Associate owner-scoped and authorized reference datasets
+            from django.db.models import Q
             if source_dataset_ids:
                 datasets = list(StructuredDataset.objects.filter(
+                    Q(source_document__uploaded_by=user) | Q(source_document__is_reference=True),
                     id__in=source_dataset_ids,
-                    source_document__uploaded_by=user
+                    source_document__is_archived=False,
                 ))
                 report.source_datasets.set(datasets)
             else:
                 datasets = list(StructuredDataset.objects.filter(
-                    source_document__uploaded_by=user
+                    Q(source_document__uploaded_by=user) | Q(source_document__is_reference=True),
+                    source_document__is_archived=False,
                 ))
                 report.source_datasets.set(datasets)
 
-            # Associate only owner-scoped documents
+            # Associate owner-scoped and authorized reference documents
             if source_document_ids:
                 docs = list(Document.objects.filter(
+                    Q(uploaded_by=user) | Q(is_reference=True),
                     id__in=source_document_ids,
-                    uploaded_by=user
+                    is_archived=False,
                 ))
                 report.source_documents.set(docs)
             else:
-                docs = list(Document.objects.filter(uploaded_by=user))
+                docs = list(Document.objects.filter(
+                    Q(uploaded_by=user) | Q(is_reference=True),
+                    is_archived=False,
+                ))
                 report.source_documents.set(docs)
 
         # Execute generation

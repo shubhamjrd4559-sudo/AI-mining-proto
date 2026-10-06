@@ -465,6 +465,12 @@ def document_detail(request, pk: int):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'DELETE':
+        if doc.is_reference:
+            return Response(
+                {'error': 'Baseline reference documents are protected and cannot be removed.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         hard_delete = request.query_params.get('hard', 'false').lower() == 'true'
 
         if hard_delete:
@@ -591,7 +597,7 @@ def document_retry(request, pk: int):
     if denied:
         return denied
 
-    allowed_retry_statuses = [DocumentStatus.FAILED, DocumentStatus.NEEDS_REVIEW]
+    allowed_retry_statuses = [DocumentStatus.FAILED, DocumentStatus.NEEDS_REVIEW, DocumentStatus.QUEUED, DocumentStatus.UPLOADED]
     if doc.status not in allowed_retry_statuses:
         return Response(
             {
@@ -601,16 +607,12 @@ def document_retry(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Check for existing active/pending jobs
-    active_jobs = doc.jobs.filter(status__in=[JobStatus.PENDING, JobStatus.RUNNING])
-    if active_jobs.exists():
-        return Response(
-            {
-                'error': 'Duplicate retry rejected.',
-                'message': 'Document already has an active or pending processing job in progress.',
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    # Mark any stale pending/running jobs as superseded so retry isn't permanently locked out
+    doc.jobs.filter(status__in=[JobStatus.PENDING, JobStatus.RUNNING]).update(
+        status=JobStatus.FAILED,
+        error_message='Superseded by user retry request.',
+        completed_at=dj_timezone.now(),
+    )
 
     try:
         with transaction.atomic():
@@ -638,6 +640,13 @@ def document_retry(request, pk: int):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    # Launch pipeline orchestrator in daemon thread
+    try:
+        from apps.pipeline.orchestrator import trigger_processing
+        trigger_processing(doc.pk)
+    except Exception as exc:
+        logger.warning('Could not trigger pipeline for doc %d: %s', doc.pk, exc)
+
     return Response(
         DocumentSerializer(doc, context={'request': request}).data,
         status=status.HTTP_200_OK,
@@ -655,6 +664,12 @@ def document_archive(request, pk: int):
     denied = _require_owner(doc, request)
     if denied:
         return denied
+
+    if doc.is_reference:
+        return Response(
+            {'error': 'Baseline reference documents are protected and cannot be archived.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     try:
         with transaction.atomic():

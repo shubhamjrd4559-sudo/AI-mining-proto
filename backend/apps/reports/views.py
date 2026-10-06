@@ -52,16 +52,20 @@ def report_options(request):
     Get available report types, user's structured datasets, uploaded documents,
     subsidiaries, and date periods for configuring a report.
     """
+    from django.db.models import Q
     datasets = StructuredDataset.objects.filter(
-        source_document__uploaded_by=request.user
-    ).values('id', 'name', 'record_count')
+        Q(source_document__uploaded_by=request.user) | Q(source_document__is_reference=True),
+        source_document__is_archived=False,
+    ).values('id', 'name', 'record_count', 'source_document__title', 'source_document__is_reference')
 
     documents = Document.objects.filter(
-        uploaded_by=request.user
-    ).values('id', 'title', 'status', 'created_at')
+        Q(uploaded_by=request.user) | Q(is_reference=True),
+        is_archived=False,
+    ).values('id', 'title', 'status', 'created_at', 'is_reference')
 
     # Available report types with metadata
     types = [
+        {'key': ReportType.COMPARATIVE, 'label': 'Comparative Intelligence Report', 'icon': '⚖️', 'description': 'Intelligent comparison between Organization / Reference reports and Current User-uploaded reports.'},
         {'key': ReportType.PRODUCTION, 'label': 'Production Report', 'icon': '📊', 'description': 'Subsidiary and national raw coal production, targets and dispatch summaries.'},
         {'key': ReportType.GEOLOGICAL_EXPLORATION, 'label': 'Geological & Exploration Report', 'icon': '⛏', 'description': 'Exploration status, borehole evaluation, and coal grade distribution.'},
         {'key': ReportType.MINING_PERFORMANCE, 'label': 'Mining Performance Report', 'icon': '🏭', 'description': 'Mine-level target vs actual operational performance and evacuation efficiency.'},
@@ -73,7 +77,7 @@ def report_options(request):
     ]
 
     subsidiaries = ['CMPDI (HQ)', 'SECL', 'MCL', 'NCL', 'CCL', 'WCL', 'ECL', 'BCCL']
-    ranges = ['All Available', 'FY 2021-22', 'FY 2022-23', 'FY 2023-24', 'FY 2024-25', 'FY 2025-26']
+    ranges = ['All Available', 'FY 2023-24 vs FY 2024-25', 'FY 2024-25', 'FY 2023-24', 'FY 2022-23', 'FY 2021-22']
 
     return Response({
         'report_types': types,

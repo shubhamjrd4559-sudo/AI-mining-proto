@@ -515,3 +515,38 @@ class AIQueryAPITests(TestCase):
         data = res.json()
         self.assertEqual(data['status'], 'success')
         self.assertGreaterEqual(data['indexed_documents'], 1)
+
+    def test_scoped_document_answer_generation(self):
+        """When document_id is provided, generation is scoped strictly to that document."""
+        # Querying with valid document_id
+        res = generate_grounded_answer(self.user, "What was coal production target achievement in FY 2024?", document_id=self.doc.pk)
+        self.assertIn('98%', res['answer'])
+        self.assertEqual(res['sources'][0]['document_id'], self.doc.pk)
+
+        # Querying with non-matching document_id returns document-specific no-evidence message
+        res_empty = generate_grounded_answer(self.user, "What was coal production target achievement in FY 2024?", document_id=99999)
+        self.assertIn("could not find sufficient evidence in the selected document", res_empty['answer'])
+        self.assertEqual(len(res_empty['sources']), 0)
+
+    def test_api_chat_with_scoped_document(self):
+        """POST /api/chat/ with document_id restricts answer to that document."""
+        self.client.force_authenticate(user=self.user)
+        url_chat = '/api/chat/'
+
+        res = self.client.post(url_chat, {
+            'message': 'What was coal production target achievement in FY 2024?',
+            'document_id': self.doc.pk
+        }, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.json()
+        self.assertIn('98%', data.get('answer', ''))
+        self.assertEqual(data.get('sources', [{}])[0].get('document_id'), self.doc.pk)
+
+        # Non-matching document_id
+        res_mismatch = self.client.post(url_chat, {
+            'message': 'What was coal production target achievement in FY 2024?',
+            'document_id': 99999
+        }, format='json')
+        self.assertEqual(res_mismatch.status_code, status.HTTP_200_OK)
+        self.assertIn("could not find sufficient evidence in the selected document", res_mismatch.json().get('answer', ''))
+

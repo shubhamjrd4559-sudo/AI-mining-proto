@@ -1,0 +1,313 @@
+================================================================================
+CMPDI / CIL AI MINING INTELLIGENCE COMMAND CENTER (SIH 2026 — SIH26023)
+COMPLETE SYSTEM AND PYTHON DEPENDENCIES SPECIFICATION
+================================================================================
+Generated: 2026-09-10
+Audited for Repository: AI-mining-proto
+Target OS: Windows 10/11 / Linux (Ubuntu 22.04+ / Debian 12+)
+Python Version: Python 3.12.x or 3.14.x (64-bit recommended)
+Database: SQLite (Prototype/Dev) · PostgreSQL 15+ (Production)
+Frontend: Vanilla HTML5 / CSS3 / ES6+ JavaScript SPA (Zero Node.js build step)
+
+
+================================================================================
+1. PYTHON DEPENDENCIES — QUICK COPY-PASTE INSTALLATION
+================================================================================
+
+--- 1.1 MINIMAL CORE (Foundation, Auth, Upload, Static SPA) ---
+pip install Django>=6.0.4 djangorestframework>=3.16.0 django-cors-headers>=4.7.0 python-decouple>=3.8 python-dotenv>=1.0.0 asgiref>=3.8.0 sqlparse>=0.5.0 tzdata>=2024.1
+
+--- 1.2 DOCUMENT EXTRACTION & OCR (Phase 3 Pipeline) ---
+pip install pdfplumber>=0.11.4 python-docx>=1.1.2 openpyxl>=3.1.5 Pillow>=10.4.0 pytesseract>=0.3.13 pypdfium2>=4.30.0
+
+--- 1.3 PRODUCTION REPORT GENERATOR (Phase 7 Exporters) ---
+pip install reportlab>=4.2.5 python-docx>=1.1.2 openpyxl>=3.1.5
+
+--- 1.4 PRODUCTION DEPLOYMENT & DATABASE (Phase 10 Production) ---
+pip install dj-database-url>=2.0.0 psycopg2-binary>=2.9.9 whitenoise>=6.7.0 gunicorn>=22.0.0
+
+--- 1.5 ALL-IN-ONE SINGLE INSTALL COMMAND (EVERY PYTHON DEPENDENCY) ---
+pip install Django==6.0.4 djangorestframework==3.16.0 django-cors-headers==4.7.0 python-decouple==3.8 python-dotenv==1.2.3 asgiref==3.12.1 sqlparse==0.6.0 tzdata==2026.3 pdfplumber==0.11.4 python-docx==1.1.2 openpyxl==3.1.5 Pillow==10.4.0 pytesseract==0.3.13 reportlab==4.2.5 pypdfium2==4.30.0 dj-database-url==2.1.0 psycopg2-binary==2.9.9 whitenoise==6.7.0 gunicorn==22.0.0
+
+
+================================================================================
+2. DETAILED PYTHON LIBRARY BREAKDOWN BY SUBSYSTEM & PHASE
+================================================================================
+
+--------------------------------------------------------------------------------
+A. CORE WEB FRAMEWORK, REST API & CONFIGURATION (Phase 1)
+--------------------------------------------------------------------------------
+1. Django (6.0.4 / 6.1.1)
+   - Role: Core web framework, ORM, multi-app modular monolith architecture,
+     database migrations, URL routing, session management, and admin interface.
+   - Used in: Entire backend (backend/config/, backend/apps/*)
+   - Status: Installed in venv
+
+2. djangorestframework (3.16.0 / 3.18.0)
+   - Role: RESTful API serialization, TokenAuthentication, API permissions
+     (IsAuthenticated), request parsing (JSON/Multipart), and error handling.
+   - Used in: All API endpoints (apps.documents, apps.intelligence, apps.analytics,
+     apps.maintainer, apps.reports, apps.phase8, apps.audit)
+   - Status: Installed in venv
+
+3. django-cors-headers (4.7.0 / 4.9.0)
+   - Role: Cross-Origin Resource Sharing middleware for frontend/backend communication.
+   - Used in: backend/config/settings/base.py, development.py, production.py
+   - Status: Installed in venv
+
+4. python-decouple (3.8)
+   - Role: Strict separation of environment secrets and settings from source code.
+     Reads configuration safely from .env file.
+   - Used in: backend/config/settings/base.py, development.py, production.py
+   - Status: Installed in venv
+
+5. python-dotenv (1.2.3)
+   - Role: Fallback loader for .env environment variables.
+   - Used in: Environment configuration and test runners.
+   - Status: Installed in venv
+
+6. asgiref (3.12.1)
+   - Role: ASGI standard specification and async-to-sync adapters for Django.
+   - Used in: Django core async runtime.
+   - Status: Installed in venv
+
+7. sqlparse (0.6.0)
+   - Role: Non-validating SQL parser and engine required by Django ORM.
+   - Used in: Django ORM migrations and DB operations.
+   - Status: Installed in venv
+
+8. tzdata (2026.3)
+   - Role: IANA timezone database provider for timezone-aware datetimes
+     (Asia/Kolkata timezone support).
+   - Used in: Django timezone utilities.
+   - Status: Installed in venv
+
+
+--------------------------------------------------------------------------------
+B. MULTI-FORMAT DOCUMENT INGESTION, EXTRACTION & OCR (Phase 3 & 4)
+--------------------------------------------------------------------------------
+9. pdfplumber (0.11.4)
+   - Role: High-precision PDF text extraction and structured table parsing.
+     Extracts tabular mining data (production tables, borehole logs, mine specs).
+   - Used in: backend/apps/pipeline/extractor/pdf_extractor.py
+   - Status: Required in requirements.txt; needs venv installation for Phase 3.
+
+10. pypdfium2 (4.30.0) [Recommended Acceleration]
+    - Role: High-performance native PDF rendering and ultra-fast text extraction engine.
+      Provides 10x faster parsing for large 100+ page CMPDI annual reports.
+    - Used in: backend/apps/pipeline/extractor/pdf_extractor.py
+    - Status: Optional accelerator (code contains automatic fallback if absent).
+
+11. python-docx (1.1.2)
+    - Role: Reading, parsing, and generating Microsoft Word (.docx) documents.
+      Extracts paragraphs and tables from exploration notes and official memos.
+    - Used in: backend/apps/pipeline/extractor/docx_extractor.py,
+      backend/apps/reports/services/exporters/docx_exporter.py
+    - Status: Required in requirements.txt; needs venv installation for Phase 3 & 7.
+
+12. openpyxl (3.1.5)
+    - Role: Reading, manipulating, and writing Excel spreadsheets (.xlsx).
+      Parses multi-sheet mining datasets, cleans workbooks in Data Maintainer,
+      and generates multi-tab official Excel reports with styled formulas.
+    - Used in: backend/apps/pipeline/extractor/xlsx_extractor.py,
+      backend/apps/maintainer/views.py,
+      backend/apps/reports/services/exporters/xlsx_exporter.py
+    - Status: Required in requirements.txt; needs venv installation for Phase 3, 4, 7.
+
+13. Pillow (10.4.0)
+    - Role: Python Imaging Library for image reading, conversion, and preprocessing
+      prior to OCR (contrast adjustments, resolution rescaling).
+    - Used in: backend/apps/pipeline/extractor/image_extractor.py,
+      backend/apps/pipeline/extractor/pdf_extractor.py (scanned page OCR)
+    - Status: Required in requirements.txt; needs venv installation for Phase 3.
+
+14. pytesseract (0.3.13)
+    - Role: Python wrapper for Google Tesseract-OCR engine. Extracts text from
+      scanned documents, maps, borehole photographs, and non-searchable PDFs.
+    - Used in: backend/apps/pipeline/extractor/image_extractor.py,
+      backend/apps/pipeline/extractor/pdf_extractor.py
+    - Status: Required in requirements.txt; needs venv installation for Phase 3.
+      (Note: Also requires host Tesseract-OCR binary; see Section 3).
+
+
+--------------------------------------------------------------------------------
+C. MINING INTELLIGENCE, NLP & RAG PIPELINE (Phase 5 & 8)
+--------------------------------------------------------------------------------
+15. Python Standard Library urllib (urllib.request, urllib.error, urllib.parse)
+    - Role: Lightweight, zero-dependency HTTP client for Google Gemini 2.5 Flash API.
+      Eliminates heavy external SDKs while providing strict timeout and retry safety.
+    - Used in: backend/apps/intelligence/generator/llm_client.py
+    - Status: Built into Python standard library.
+
+16. Google Generative AI SDK (google-generativeai>=0.8.0) [Optional Alternate]
+    - Role: Official Google Gemini Python SDK (optional alternative to urllib client).
+    - Status: Optional; current codebase uses native urllib to minimize overhead.
+
+17. requests (2.32.3) [Optional]
+    - Role: Standard HTTP client library for external integrations and health checks.
+    - Status: Installed via pip dependencies.
+
+18. math, re, collections, hashlib (Python Standard Library)
+    - Role: BM25 chunk ranking, TF-IDF topic modeling, SHA-256 fingerprinting,
+      concept regex detection, and numerical parsing.
+    - Used in: backend/apps/intelligence/retrieval/retriever.py,
+      backend/apps/intelligence/indexing/chunker.py,
+      backend/apps/phase8/services/topics_service.py
+    - Status: Built into Python standard library.
+
+
+--------------------------------------------------------------------------------
+D. OFFICIAL REPORT GENERATION & DOCUMENT EXPORT (Phase 7)
+--------------------------------------------------------------------------------
+19. reportlab (4.2.5+)
+    - Role: Enterprise PDF generation engine. Builds official Government of India /
+      CMPDI multi-page reports with running headers/footers, page numbering (Page X of Y),
+      styled summary tables, KPI cards, and authority signature sign-off blocks.
+    - Used in: backend/apps/reports/services/exporters/pdf_exporter.py
+    - Status: Required in requirements.txt; needs venv installation for Phase 7.
+
+
+--------------------------------------------------------------------------------
+E. PRODUCTION HARDENING, DATABASE & DEPLOYMENT (Phase 10)
+--------------------------------------------------------------------------------
+20. dj-database-url (2.1.0+)
+    - Role: Parses 12-factor DATABASE_URL connection strings into Django DATABASES config.
+    - Used in: backend/config/settings/production.py
+    - Status: In requirements.txt; required for PostgreSQL deployment.
+
+21. psycopg2-binary (2.9.9+)
+    - Role: PostgreSQL database adapter for production deployment.
+    - Used in: Production database connectivity (Render, Docker, AWS RDS).
+    - Status: Required when migrating from SQLite to PostgreSQL.
+
+22. whitenoise (6.7.0+)
+    - Role: Embedded static file serving for Python web apps with Gzip/Brotli compression.
+    - Used in: backend/config/settings/production.py
+    - Status: Required for production single-port deployment.
+
+23. gunicorn (22.0.0+)
+    - Role: Production WSGI HTTP server for Linux and container environments.
+    - Used in: Dockerfile, Procfile (Render/Heroku/AWS).
+    - Status: Required for production container deployment.
+
+
+================================================================================
+3. SYSTEM-LEVEL TOOLS & BINARIES (NON-PYTHON DEPENDENCIES)
+================================================================================
+
+--------------------------------------------------------------------------------
+3.1 Tesseract-OCR Engine (Required for Image & Scanned PDF OCR)
+--------------------------------------------------------------------------------
+PyTesseract is a Python wrapper that communicates with the native Tesseract binary.
+To perform OCR on scanned PDFs and images, Tesseract must be installed on the host OS:
+
+• Windows Installation:
+  1. Download installer: https://github.com/UB-Mannheim/tesseract/wiki
+  2. Run installer and install to default location:
+     C:\Program Files\Tesseract-OCR\tesseract.exe
+  3. Add "C:\Program Files\Tesseract-OCR" to Windows System PATH.
+  4. Verify in PowerShell/CMD:
+     tesseract --version
+
+• Linux (Ubuntu / Debian) Installation:
+  sudo apt-get update
+  sudo apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev
+
+• MacOS Installation:
+  brew install tesseract
+
+--------------------------------------------------------------------------------
+3.2 Git Version Control System
+--------------------------------------------------------------------------------
+• Required for repository tracking, phase checkpoints, and deployment.
+• Verify:
+  git --version
+
+--------------------------------------------------------------------------------
+3.3 C/C++ Build Tools (Windows Only — Optional)
+--------------------------------------------------------------------------------
+• Most packages (Pillow, reportlab, psycopg2-binary) provide pre-compiled wheels.
+• If building from source, Microsoft Visual C++ 14.0+ Build Tools is required.
+
+
+================================================================================
+4. FRONTEND DEPENDENCIES & ASSETS
+================================================================================
+
+The frontend is a self-contained single-page application (index.html).
+It requires ZERO npm, Node.js, Webpack, or Vite build steps.
+
+• Google Fonts (loaded via CDN link in index.html, gracefully degrades offline):
+  - Fraunces (Headings / Display)
+  - Inter (Body text)
+  - IBM Plex Mono (Code / Numerical Metadata)
+
+• Charting & Rendering:
+  - Native SVG elements (Interactive 3D Geological Block, Mining Map with Pins,
+    custom production bar/line charts).
+  - Pure ES6+ JavaScript rendering pipeline with Chart.js fallback.
+
+• Static Assets (stored in backend/static/assets/ and assets/):
+  - mineminds-logo.png (Branding logo in top navbar)
+  - mining-background.png (Subtle geological background illustration)
+
+
+================================================================================
+5. REQUIRED ENVIRONMENT VARIABLES (.env CONFIGURATION)
+================================================================================
+
+The following environment variables should be defined in the .env file at the project root:
+
+# Django Core
+SECRET_KEY=your-secure-secret-key-here
+DEBUG=True
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Database (Leave blank for development SQLite; supply URL for PostgreSQL)
+DATABASE_URL=
+# Example PostgreSQL: postgresql://user:password@localhost:5432/cmpdi_db
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000
+
+# Storage & Media Paths (Leave blank for default backend/media/ and backend/staticfiles/)
+STORAGE_BACKEND=local
+MEDIA_ROOT=
+STATIC_ROOT=
+
+# AI & LLM Services
+GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_MODEL=gemini-2.5-flash
+
+# Seed Admin User (Required for `manage.py seed_dev_user`)
+DEV_USER_USERNAME=admin
+DEV_USER_PASSWORD=mineminds
+DEV_USER_EMAIL=admin@cmpdi.local
+
+
+================================================================================
+6. VERIFICATION & HEALTH-CHECK COMMANDS
+================================================================================
+
+After installing dependencies, verify the environment with these commands:
+
+1. Verify Django System Integrity:
+   ./venv/Scripts/python.exe backend/manage.py check
+
+2. Verify Database Migrations are Complete:
+   ./venv/Scripts/python.exe backend/manage.py showmigrations
+
+3. Verify Python Packages Import Cleanly:
+   ./venv/Scripts/python.exe -c "
+   import django, rest_framework, decouple
+   print('Core: OK')
+   try:
+       import pdfplumber, docx, openpyxl, PIL, pytesseract, reportlab
+       print('Extraction & Reports: OK')
+   except ImportError as e:
+       print('Extraction & Reports: MISSING ->', e)
+   "
+
+4. Run Full Non-Destructive Test Suite:
+   ./venv/Scripts/python.exe backend/manage.py test apps --keepdb
+================================================================================

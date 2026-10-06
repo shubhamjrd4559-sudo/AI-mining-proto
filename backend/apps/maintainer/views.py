@@ -170,7 +170,7 @@ def dataset_records(request, dataset_id):
     if err:
         return err
 
-    qs = dataset.records.all().order_by('row_index').prefetch_related('provenance', 'suggestions')
+    qs = dataset.records.all().order_by('id').prefetch_related('provenance', 'suggestions')
 
     paginator = PageNumberPagination()
     paginator.page_size = request.query_params.get('page_size', 50)

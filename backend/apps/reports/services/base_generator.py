@@ -13,7 +13,10 @@ from django.utils import timezone
 from apps.datasets.models import StructuredDataset, StructuredRecord
 from apps.documents.models import Document
 from apps.pipeline.models import ExtractionProvenance
-from apps.analytics.query_engine import AnalyticsQueryEngine, parse_numeric, parse_financial_year, format_financial_year
+from apps.analytics.query_engine import (
+    AnalyticsQueryEngine, parse_numeric, parse_financial_year, format_financial_year,
+    record_metric_value, record_financial_year, dataset_metric_total,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,21 +47,23 @@ class BaseReportGenerator:
         self.provenance_records: List[Dict[str, Any]] = []
 
     def get_scoped_datasets(self) -> List[StructuredDataset]:
-        """Return owner-scoped datasets passed or all available to user."""
+        """Return owner-scoped and authorized reference datasets passed or available to user."""
         if self.datasets:
-            return [d for d in self.datasets if d.source_document and d.source_document.uploaded_by == self.user]
+            return [d for d in self.datasets if d.source_document and (d.source_document.uploaded_by == self.user or getattr(d.source_document, 'is_reference', False))]
+        from django.db.models import Q
         return list(
-            StructuredDataset.objects.filter(source_document__uploaded_by=self.user)
+            StructuredDataset.objects.filter(Q(source_document__uploaded_by=self.user) | Q(source_document__is_reference=True))
             .select_related('source_document')
             .order_by('-created_at')
         )
 
     def get_scoped_documents(self) -> List[Document]:
-        """Return owner-scoped documents passed or all available to user."""
+        """Return owner-scoped and authorized reference documents passed or available to user."""
         if self.documents:
-            return [d for d in self.documents if d.uploaded_by == self.user]
+            return [d for d in self.documents if d.uploaded_by == self.user or getattr(d, 'is_reference', False)]
+        from django.db.models import Q
         return list(
-            Document.objects.filter(uploaded_by=self.user).order_by('-uploaded_at')
+            Document.objects.filter(Q(uploaded_by=self.user) | Q(is_reference=True)).order_by('-created_at')
         )
 
     def extract_matching_records(self) -> List[StructuredRecord]:
@@ -71,22 +76,20 @@ class BaseReportGenerator:
         if self.organization and self.organization not in ("CMPDI (HQ)", "All", "All / CMPDI", "CIL (National)"):
             org_filter = self.organization.strip().upper()
 
-        fy_filter = None
+        fy_filters = []
         if self.date_range and self.date_range not in ("All Available", "All", "Custom Range"):
             # Extract FY if present e.g. "FY 2024-25" -> "2024-25"
-            m = re.search(r'(\d{2,4}[\-/]\d{2,4})', self.date_range)
-            if m:
-                fy_filter = m.group(1)
+            fy_filters = re.findall(r'(\d{2,4}[\-/]\d{2,4})', self.date_range)
 
         for ds in datasets:
             engine = AnalyticsQueryEngine(ds)
             filters = dict(self.filters)
             if org_filter:
                 filters['subsidiary'] = org_filter
-            if fy_filter:
-                filters['financial_year'] = fy_filter
-
             matched = engine.filter_records(filters=filters, exclude_errors=True)
+            if fy_filters:
+                requested = {parse_financial_year(value) for value in fy_filters}
+                matched = [record for record in matched if record_financial_year(record) in requested]
             all_records.extend(matched)
 
         return all_records
@@ -173,18 +176,22 @@ class BaseReportGenerator:
         mines = set()
         subs = set()
 
+        by_dataset = {}
         for r in records:
-            data = r.data_json or {}
-            p = parse_numeric(data.get('production'))
-            t = parse_numeric(data.get('target'))
-            d = parse_numeric(data.get('dispatch'))
-
+            by_dataset.setdefault(r.dataset_id, []).append(r)
+        for dataset_records in by_dataset.values():
+            p = dataset_metric_total(dataset_records, 'production')
+            t = dataset_metric_total(dataset_records, 'target')
+            d = dataset_metric_total(dataset_records, 'dispatch')
             if p is not None:
                 prod_sum += p
             if t is not None:
                 target_sum += t
             if d is not None:
                 dispatch_sum += d
+
+        for r in records:
+            data = r.data_json or {}
 
             mine = data.get('mine') or data.get('mine_name')
             if mine:

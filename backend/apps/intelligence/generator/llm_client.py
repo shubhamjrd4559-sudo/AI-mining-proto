@@ -23,7 +23,7 @@ class GeminiClient:
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or getattr(settings, 'GEMINI_API_KEY', None)
-        self.model = model or getattr(settings, 'GEMINI_MODEL', 'gemini-2.5-flash')
+        self.model = model or getattr(settings, 'GEMINI_MODEL', 'gemini-3.1-flash-lite')
 
     @property
     def is_available(self) -> bool:
@@ -34,7 +34,7 @@ class GeminiClient:
         self,
         system_instruction: str,
         prompt: str,
-        timeout: int = 10,
+        timeout: int = 25,
     ) -> Tuple[Optional[str], Optional[str]]:
         """
         Call Gemini generateContent API.

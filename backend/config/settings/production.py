@@ -36,6 +36,11 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 X_FRAME_OPTIONS = 'DENY'
 
+# Render terminates TLS at its load balancer and forwards plain HTTP to the
+# application. Without this header Django does not recognise the request as
+# HTTPS and SECURE_SSL_REDIRECT causes an infinite redirect loop.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # CSRF trusted origins — required when deployed behind a reverse proxy (Render).
 # Set to the production app URL, e.g.: https://your-app.onrender.com
 CSRF_TRUSTED_ORIGINS = config(

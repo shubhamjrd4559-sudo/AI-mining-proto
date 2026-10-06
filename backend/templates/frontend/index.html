@@ -215,6 +215,15 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   object-fit: contain;
   display: block;
 }
+/* Backend connectivity pill */
+.backend-pill{
+  font-size:10.5px; font-weight:700; letter-spacing:.3px;
+  padding:5px 11px; border-radius:20px; display:inline-flex; align-items:center; gap:5px;
+  transition: background .3s, color .3s, border-color .3s;
+}
+.backend-pill--checking{ background:#F4F6FA; color:#8593A8; border:1px solid #DCE4F0; }
+.backend-pill--online  { background:#E4F6EA; color:var(--green); border:1px solid rgba(30,158,99,.35); }
+.backend-pill--offline { background:#FDF1D8; color:var(--earth-dark); border:1px solid #EAD9A8; }
 
 /* Content */
 .content{
@@ -224,6 +233,60 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     radial-gradient(1100px 500px at 88% -8%, rgba(25,118,210,.06), transparent 60%),
     var(--gray);
 }
+/* AI Query page background */
+.ai-query-page{
+  position:relative;
+  min-height:calc(100vh - 120px);
+  overflow:hidden;
+}
+
+/* AI Query page background */
+.ai-query-page{
+  position:relative;
+  min-height:calc(100vh - 120px);
+  overflow:hidden;
+
+  /* Remove white background */
+  background:#12324A;
+}
+
+/* AI Query page */
+.ai-query-page{
+  position:relative;
+
+  /* Extend to the edges of the content area */
+  margin:-24px -28px -60px;
+  padding:24px 28px 60px;
+
+  min-height:calc(100vh - 120px);
+  overflow:hidden;
+
+  background:#12324A;
+}
+
+/* Background image */
+.ai-query-page::before{
+  content:"";
+  position:absolute;
+  inset:-15px;
+
+  background-image:url("{% static 'assets/mining-background.png' %}");
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+
+  filter:blur(4px);
+  opacity:0.55;
+
+  z-index:0;
+  pointer-events:none;
+}
+
+/* Keep page content above image */
+.ai-query-page > *{
+  position:relative;
+  z-index:1;
+}
 .page{display:none; animation:fadein .35s ease;}
 .page.active{display:block;}
 @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
@@ -232,6 +295,34 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .page-head .eyebrow{font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--blue); font-weight:700; margin-bottom:6px;}
 .page-head h1{font-size:26px; font-weight:600;}
 .page-head p{color:#5A6B85; font-size:13.5px; margin-top:6px; max-width:640px;}
+
+/* AI Query text highlight */
+.ai-query-page .page-head{
+  position:relative;
+  z-index:2;
+
+  display:inline-block;
+  padding:14px 20px;
+  border-radius:12px;
+
+  background:rgba(5,25,40,0.65);
+  backdrop-filter:blur(6px);
+}
+
+.ai-query-page .page-head h1{
+  color:#fff;
+  text-shadow:0 2px 6px rgba(0,0,0,0.8);
+}
+
+.ai-query-page .page-head p{
+  color:#fff;
+  text-shadow:0 1px 4px rgba(0,0,0,0.8);
+}
+
+.ai-query-page .page-head .eyebrow{
+  color:#E4C44A;
+  text-shadow:0 1px 3px rgba(0,0,0,0.8);
+}
 
 /* ============================================================
    Geological background watermark (behind all content)
@@ -256,39 +347,57 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .card-title-row .sub{font-size:11.5px; color:#8593A8; margin-top:2px;}
 
 /* KPI cards */
-.kpi-grid{display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; margin:18px 0 22px;}
+.kpi-grid{display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; margin:16px 0 20px;}
 .kpi-card{
   background:linear-gradient(165deg, #fff 0%, #FBFDFF 100%);
-  border:1px solid #E9EDF5; border-radius:18px; padding:16px 16px 15px;
+  border:1px solid #E9EDF5; border-radius:16px; padding:12px 14px 10px;
   box-shadow:var(--shadow-1);
   transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
   cursor:default;
   position:relative; overflow:hidden;
+  min-height:86px;
+  display:flex; flex-direction:column; justify-content:space-between;
 }
 .kpi-card::after{
   content:""; position:absolute; right:-30px; top:-30px; width:90px; height:90px; border-radius:50%;
   background:radial-gradient(circle, rgba(25,118,210,.10), transparent 70%);
 }
-.kpi-card:hover{transform:translateY(-4px); box-shadow:var(--shadow-2); border-color:rgba(25,118,210,.25);}
-.kpi-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.kpi-card:hover{transform:translateY(-2px); box-shadow:var(--shadow-2); border-color:rgba(25,118,210,.25);}
+.kpi-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;}
 .kpi-icon{
-  width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(140deg, var(--light-blue), #DCEBFF); color:var(--royal); font-size:14px;
+  width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(140deg, var(--light-blue), #DCEBFF); color:var(--royal); font-size:13px;
   transition:transform .18s ease;
 }
-.kpi-card:hover .kpi-icon{transform:scale(1.12);}
+.kpi-card:hover .kpi-icon{transform:scale(1.10);}
 .badge{
-  font-size:9.5px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
-  padding:3px 7px; border-radius:20px;
+  font-size:9px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+  padding:2px 7px; border-radius:20px;
 }
 .badge.official{background:#E4F6EA; color:var(--green);}
 .badge.demo{background:#FDF1D8; color:var(--earth-dark);}
 .badge.prototype{background:#EAF1FF; color:var(--royal);}
-.kpi-label{font-size:11.5px; color:#7E8CA3; font-weight:600; letter-spacing:.2px;}
-.kpi-value{font-size:22px; font-weight:700; color:var(--navy); font-family:var(--font-display); margin-top:3px;}
-.kpi-delta{font-size:11.5px; font-weight:600; margin-top:6px; display:flex; align-items:center; gap:4px;}
+.badge.badge-green{background:#E4F6EA; color:var(--green);}
+.badge.badge-red{background:#FBE7E7; color:var(--red);}
+.kpi-label{font-size:11px; color:#7E8CA3; font-weight:600; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.kpi-value{font-size:19px; font-weight:700; color:var(--navy); font-family:var(--font-display); margin-top:2px; min-height:24px; display:flex; align-items:center;}
+.kpi-delta{font-size:10.5px; font-weight:600; margin-top:2px; display:flex; align-items:center; gap:4px; min-height:14px;}
 .kpi-delta.up{color:var(--green);}
 .kpi-delta.down{color:var(--red);}
+
+/* Skeleton shimmer for zero-layout-shift instant renders */
+.skeleton-shimmer{
+  background:linear-gradient(90deg, #F0F3F8 25%, #E2E8F0 50%, #F0F3F8 75%);
+  background-size:200% 100%;
+  animation:skeleton-wave 1.4s infinite ease-in-out;
+  border-radius:4px;
+  display:inline-block;
+  vertical-align:middle;
+}
+@keyframes skeleton-wave{
+  0%{background-position:200% 0;}
+  100%{background-position:-200% 0;}
+}
 
 /* Small stat cards (production snapshot) */
 .stat-mini{
@@ -336,57 +445,51 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
    Hero (dashboard)
    ============================================================ */
 .hero{
-  border-radius:26px; overflow:hidden; position:relative;
-  background:
-    radial-gradient(900px 420px at 100% 0%, rgba(223,174,36,.14), transparent 60%),
-    linear-gradient(120deg, var(--navy) 0%, #0C2E63 55%, var(--royal) 130%);
-  padding:34px 34px 30px;
+  border-radius:26px;
+  overflow:hidden;
+  position:relative;
+
+  /* Background image with contrast gradient on left */
+  background-image:
+    linear-gradient(
+      105deg,
+      rgba(7, 26, 61, 0.88) 0%,
+      rgba(7, 26, 61, 0.68) 42%,
+      rgba(7, 26, 61, 0.18) 85%
+    ),
+    url("{% static 'assets/mining-background.png' %}");
+
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+
+  padding:28px 36px 26px;
   color:#fff;
-  display:grid; grid-template-columns:1.15fr 1fr; gap:26px; align-items:center;
   box-shadow:0 20px 50px rgba(7,26,61,.35);
+}
+.hero-content{
+  max-width:540px;
 }
 .hero-eyebrow{
   display:inline-flex; align-items:center; gap:8px;
   font-size:11px; letter-spacing:1.2px; text-transform:uppercase; font-weight:700;
   color:#FFE9A8; background:rgba(223,174,36,.14); border:1px solid rgba(223,174,36,.35);
-  padding:6px 12px; border-radius:20px; margin-bottom:16px;
+  padding:5px 12px; border-radius:20px; margin-bottom:12px;
 }
-.hero h1{color:#fff; font-size:34px; line-height:1.15; font-weight:600; max-width:520px;}
-.hero p.lead{color:#C6D6F2; font-size:14.5px; margin-top:12px; max-width:460px; line-height:1.55;}
+.hero h1{color:#fff; font-size:30px; line-height:1.16; font-weight:600; max-width:520px;}
+.hero p.lead{color:#C6D6F2; font-size:13.5px; margin-top:8px; max-width:480px; line-height:1.5;}
 .hero-query{
-  margin-top:22px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18);
-  border-radius:18px; padding:6px 6px 6px 18px; display:flex; align-items:center; gap:10px;
-  backdrop-filter:blur(6px);
+  margin-top:16px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18);
+  border-radius:16px; padding:4px 4px 4px 16px; display:flex; align-items:center; gap:10px;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); max-width:480px;
 }
 .hero-query input{
-  flex:1; background:transparent; border:none; color:#fff; font-size:13.5px; padding:12px 0;
+  flex:1; background:transparent; border:none; color:#fff; font-size:13px; padding:10px 0;
 }
 .hero-query input::placeholder{color:#9FB4DC;}
 .hero-query input:focus{outline:none;}
-.hero-actions{display:flex; gap:12px; margin-top:18px; flex-wrap:wrap;}
-.hero-mini-note{margin-top:16px; font-size:11px; color:#8FA6D2; display:flex; gap:8px; align-items:center;}
-
-/* Hero 3D geo visual */
-.hero-visual{
-  position:relative; height:280px; border-radius:20px; overflow:hidden;
-  background:radial-gradient(circle at 50% 20%, rgba(255,255,255,.08), transparent 60%);
-  border:1px solid rgba(255,255,255,.14);
-  cursor:grab;
-}
-.hero-visual:active{cursor:grabbing;}
-.hero-visual svg{width:100%; height:100%; display:block;}
-.hero-visual-controls{
-  position:absolute; bottom:10px; right:10px; display:flex; gap:6px;
-}
-.vc-btn{
-  width:30px; height:30px; border-radius:9px; background:rgba(7,26,61,.55); border:1px solid rgba(255,255,255,.2);
-  color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; backdrop-filter:blur(4px);
-}
-.vc-btn:hover{background:rgba(11,77,184,.7);}
-.hero-visual-caption{
-  position:absolute; top:10px; left:12px; font-family:var(--font-mono); font-size:9.5px; color:#9FC0F5;
-  letter-spacing:.5px; line-height:1.6;
-}
+.hero-actions{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+.hero-mini-note{margin-top:12px; font-size:10.5px; color:#8FA6D2; display:flex; gap:8px; align-items:center;}
 
 /* ============================================================
    Grid helpers
@@ -537,6 +640,7 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
 .map-pin{cursor:pointer;}
 .map-pin circle{transition:r .15s;}
 .map-pin:hover circle{r:9;}
+
 .map-tooltip{
   position:absolute; background:#fff; border-radius:12px; padding:10px 13px; box-shadow:var(--shadow-2);
   font-size:12px; display:none; z-index:20; min-width:150px;
@@ -639,7 +743,7 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
   .kpi-grid{grid-template-columns:repeat(3,1fr);}
   .grid-2{grid-template-columns:1fr;}
   .hero{grid-template-columns:1fr;}
-  .hero-visual{height:220px;}
+  .hero-visual{height:160px; max-width:100%; margin-left:0;}
 }
 @media (max-width:860px){
   :root{--sidebar-w:0px;}
@@ -662,7 +766,7 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
 }
 @media (max-width:600px){
   .hero{padding:24px 20px 22px;}
-  .hero h1{font-size:26px;}
+  .hero h1{font-size:24px;}
   .hero-actions{flex-direction:column; align-items:stretch;}
   .hero-actions .btn{justify-content:center;}
 }
@@ -705,12 +809,12 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
     <ul class="nav" id="sidebarNav"></ul>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-bottom">
-      <div class="nav-item" id="settingsNav"><span class="ic">⚙</span><span>Settings</span></div>
-      <div class="sidebar-user" id="profileNav">
-        <div class="avatar-chip">RS</div>
+      <div class="nav-item" id="settingsNav" title="Open Settings" style="cursor:pointer;"><span class="ic">⚙</span><span>Settings</span></div>
+      <div class="sidebar-user" id="profileNav" title="View Account Profile & Settings" style="cursor:pointer;">
+        <div class="avatar-chip" id="sidebarAvatar">{% if request.user.is_authenticated %}{{ request.user.username|slice:":2"|upper }}{% else %}AD{% endif %}</div>
         <div>
-          <div class="who">R. Sharma</div>
-          <div class="role">Contributor · CMPDI</div>
+          <div class="who" id="sidebarUserName">{% if request.user.is_authenticated %}{{ request.user.username }}{% else %}admin{% endif %}</div>
+          <div class="role" id="sidebarUserRole">{% if request.user.is_authenticated %}{% if request.user.is_staff or request.user.is_superuser or request.user.username|lower == "admin" %}Administrator · CMPDI{% else %}Contributor · CMPDI{% endif %}{% else %}Administrator · CMPDI{% endif %}</div>
         </div>
       </div>
     </div>
@@ -726,6 +830,7 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
       </div>
       <div class="topbar-right">
         <img src="{% static 'assets/mineminds-logo.png' %}" alt="MINEMINDS" class="env-logo">
+        <span id="backendStatusPill" class="backend-pill backend-pill--checking" title="Backend connectivity">⬤ Checking…</span>
         <button class="icon-btn" id="notifBtn">🔔<span class="dot"></span></button>
       </div>
     </header>
@@ -734,6 +839,107 @@ table.dtable tbody tr:last-child td{border-bottom:none;}
 </div>
 
 <div class="toast-stack" id="toastStack"></div>
+
+<!-- Server User Data Payload (Safe for both Django & static execution) -->
+<script id="serverUserData" type="application/json">
+{
+  "isAuthenticated": {% if request.user.is_authenticated %}true{% else %}false{% endif %},
+  "username": "{{ request.user.username|default:''|escapejs }}",
+  "email": "{{ request.user.email|default:''|escapejs }}",
+  "isStaff": {% if request.user.is_staff %}true{% else %}false{% endif %},
+  "isSuperuser": {% if request.user.is_superuser %}true{% else %}false{% endif %}
+}
+</script>
+
+<!-- ============================================================
+     Settings & Account Modal
+     ============================================================ -->
+<div class="modal-overlay" id="cmpdiSettingsModal" style="display:none; position:fixed; inset:0; background:rgba(7,26,61,0.65); backdrop-filter:blur(3px); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+  <div class="modal-box" style="background:#fff; border-radius:20px; max-width:520px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 24px 60px rgba(7,26,61,0.3); border:1px solid #E2E8F0;">
+    <div class="modal-head" style="display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid #EEF2F8; position:sticky; top:0; background:#fff; z-index:2;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:22px;">⚙</span>
+        <div>
+          <div style="font-family:var(--font-display); font-size:18px; font-weight:700; color:var(--navy);">Settings & Account</div>
+          <div style="font-size:12px; color:#6B7A90;">Manage account preferences & system configuration</div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeSettingsModal()" style="width:32px; height:32px; border-radius:8px; border:1px solid #E4E9F2; background:#fff; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:24px;">
+      <!-- Profile Card -->
+      <div style="display:flex; align-items:center; gap:16px; padding:16px; background:#F8FAFC; border-radius:14px; border:1px solid #E2E8F0; margin-bottom:20px;">
+        <div id="settingsModalAvatar" style="width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg, var(--blue), var(--royal)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; flex-shrink:0;">
+          AD
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span id="settingsModalUsername" style="font-size:17px; font-weight:700; color:var(--navy); font-family:var(--font-body);">admin</span>
+            <span id="settingsModalRoleBadge" style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;">Administrator</span>
+          </div>
+          <div id="settingsModalEmail" style="font-size:12.5px; color:#64748B; margin-top:2px;">admin@cmpdi.local</div>
+        </div>
+      </div>
+
+      <!-- User Information Details -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748B; margin-bottom:10px;">Account Details</div>
+        <div style="background:#fff; border:1px solid #E2E8F0; border-radius:12px; overflow:hidden;">
+          <div style="display:flex; justify-content:space-between; padding:10px 14px; font-size:13px; border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">Username</span>
+            <span style="font-weight:600; color:var(--navy);" id="settingsDetailUsername">admin</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:10px 14px; font-size:13px; border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">Role & Organization</span>
+            <span style="font-weight:600; color:var(--navy);" id="settingsDetailRole">Administrator · CMPDI</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:10px 14px; font-size:13px; border-bottom:1px solid #F1F5F9;">
+            <span style="color:#64748B;">Auth Status</span>
+            <span style="font-weight:600; color:#166534; display:flex; align-items:center; gap:6px;">
+              <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#22C55E;"></span>
+              Active Session
+            </span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:10px 14px; font-size:13px;">
+            <span style="color:#64748B;">Access Level</span>
+            <span style="font-weight:600; color:var(--navy);" id="settingsDetailAccess">Full Access (Admin / Superuser)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Configuration -->
+      <div style="margin-bottom:24px;">
+        <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748B; margin-bottom:10px;">System Configuration</div>
+        <div style="background:#fff; border:1px solid #E2E8F0; border-radius:12px; overflow:hidden;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; font-size:13px; border-bottom:1px solid #F1F5F9;">
+            <div>
+              <div style="font-weight:500; color:var(--charcoal);">AI Engine Model</div>
+              <div style="font-size:11px; color:#94A3B8;">Ollama / Groq / OpenAI Backend</div>
+            </div>
+            <span style="font-size:12px; background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:6px; font-weight:600; font-family:var(--font-mono);">Llama-3.3-70b</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; font-size:13px;">
+            <div>
+              <div style="font-weight:500; color:var(--charcoal);">Geological Intelligence</div>
+              <div style="font-size:11px; color:#94A3B8;">GSI & OCBIS official catalogues</div>
+            </div>
+            <span style="font-size:12px; background:#F0FDF4; color:#15803D; padding:3px 8px; border-radius:6px; font-weight:600;">Phase 1-8 Active</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer / Buttons -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #EEF2F8; padding-top:16px;">
+        <button type="button" onclick="closeSettingsModal(); if(typeof doLogout==='function'){ doLogout(); } if(typeof _showLoginModal==='function'){ _showLoginModal('You have been signed out.'); }" style="background:#FFF1F2; border:1px solid #FECDD3; color:#E11D48; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+          <span>🚪</span> Sign Out
+        </button>
+        <button type="button" onclick="closeSettingsModal()" style="background:var(--navy); color:#fff; border:none; padding:8px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>/* ============================================================
    MOCK DATA — clearly separated so a real backend can replace
@@ -924,6 +1130,10 @@ const MOCK = {
   }
 };
 
+// Fixtures are retained for local design work only.  They must never be
+// rendered as live evidence unless a developer explicitly enables them.
+const DEMO_FIXTURES_ENABLED = window.CMPDI_AI_ENABLE_FIXTURES === true;
+
 function MOCK_SUB_ROWS(){
   return [
     ["ECL", "Eastern Coalfields Ltd", "West Bengal", "42.1", "Coal Directory 2024-25", "26"],
@@ -1048,7 +1258,7 @@ function buildProductionChart(container, data, selectedYear, tooltipEl){
 }
 
 /* ---------- Horizontal bar chart: subsidiary comparison ---------- */
-function buildSubsidiaryChart(container, data, tooltipEl){
+function buildSubsidiaryChart(container, data, tooltipEl, gradId="subGrad", color1=COLORS.royal, color2=COLORS.blue){
   container.innerHTML = "";
   const W = container.clientWidth || 500;
   const rowH = 30, gap = 10;
@@ -1066,7 +1276,7 @@ function buildSubsidiaryChart(container, data, tooltipEl){
     svg.appendChild(label);
 
     svg.appendChild(svgEl("rect", { x:padL, y:y, width:barMaxW, height:rowH, rx:8, fill:"#F2F5FA" }));
-    const bar = svgEl("rect", { x:padL, y:y, width:Math.max(barW,4), height:rowH, rx:8, fill:`url(#subGrad)`,
+    const bar = svgEl("rect", { x:padL, y:y, width:Math.max(barW,4), height:rowH, rx:8, fill:`url(#${gradId})`,
       class:"sub-bar", "data-name":d.name, "data-val":d.production, "data-state": d.state });
     svg.appendChild(bar);
 
@@ -1076,9 +1286,9 @@ function buildSubsidiaryChart(container, data, tooltipEl){
   });
 
   const defs = svgEl("defs", {});
-  const grad = svgEl("linearGradient", { id:"subGrad", x1:"0", x2:"1", y1:"0", y2:"0" });
-  grad.appendChild(svgEl("stop", { offset:"0%", "stop-color":COLORS.royal }));
-  grad.appendChild(svgEl("stop", { offset:"100%", "stop-color":COLORS.blue }));
+  const grad = svgEl("linearGradient", { id:gradId, x1:"0", x2:"1", y1:"0", y2:"0" });
+  grad.appendChild(svgEl("stop", { offset:"0%", "stop-color":color1 }));
+  grad.appendChild(svgEl("stop", { offset:"100%", "stop-color":color2 }));
   defs.appendChild(grad);
   svg.insertBefore(defs, svg.firstChild);
 
@@ -1252,61 +1462,6 @@ function buildGeoBackground(){
   return s;
 }
 
-/* Hero 3D geological block (interactive rotate) */
-function buildHeroGeoBlock(){
-  return `
-  <svg viewBox="0 0 400 280" xmlns="http://www.w3.org/2000/svg" id="heroGeoSvg">
-    <defs>
-      <linearGradient id="layerSurface" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#1976D2"/><stop offset="100%" stop-color="#0B4DB8"/>
-      </linearGradient>
-      <linearGradient id="layerRock" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#3E5C8A"/><stop offset="100%" stop-color="#2A4470"/>
-      </linearGradient>
-      <linearGradient id="layerCoal" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#DFAE24"/><stop offset="100%" stop-color="#B98A16"/>
-      </linearGradient>
-      <linearGradient id="layerMineral" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#8B6B4A"/><stop offset="100%" stop-color="#5E4530"/>
-      </linearGradient>
-      <linearGradient id="layerBase" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#0A1A38"/><stop offset="100%" stop-color="#050F24"/>
-      </linearGradient>
-    </defs>
-    <g id="heroGeoGroup" transform="translate(200,140)">
-      <!-- isometric layered block -->
-      <g transform="translate(-140,-95)">
-        <path d="M0,40 L140,0 L280,40 L140,80 Z" fill="url(#layerSurface)" opacity="0.95"/>
-        <path d="M0,40 L0,80 L140,120 L140,80 Z" fill="#0A2E63"/>
-        <path d="M280,40 L280,80 L140,120 L140,80 Z" fill="#082252"/>
-
-        <path d="M0,80 L140,120 L280,80 L280,110 L140,150 L0,110 Z" fill="url(#layerRock)"/>
-        <path d="M0,110 L140,150 L280,110 L280,132 L140,172 L0,132 Z" fill="url(#layerCoal)"/>
-        <path d="M0,132 L140,172 L280,132 L280,156 L140,196 L0,156 Z" fill="url(#layerMineral)"/>
-        <path d="M0,156 L140,196 L280,156 L280,190 L140,230 L0,190 Z" fill="url(#layerBase)"/>
-      </g>
-      <!-- boreholes -->
-      <line x1="-60" y1="-70" x2="-60" y2="40" stroke="#F4C542" stroke-width="1.4" opacity="0.8" stroke-dasharray="2 3"/>
-      <line x1="30" y1="-90" x2="30" y2="20" stroke="#F4C542" stroke-width="1.4" opacity="0.8" stroke-dasharray="2 3"/>
-      <line x1="95" y1="-60" x2="95" y2="35" stroke="#F4C542" stroke-width="1.4" opacity="0.8" stroke-dasharray="2 3"/>
-      <circle cx="-60" cy="-70" r="3.5" fill="#F4C542"/>
-      <circle cx="30" cy="-90" r="3.5" fill="#F4C542"/>
-      <circle cx="95" cy="-60" r="3.5" fill="#F4C542"/>
-      <!-- floating data nodes -->
-      <g font-family="IBM Plex Mono, monospace" font-size="8" fill="#9FC0F5">
-        <circle cx="-120" cy="-40" r="2.5" fill="#1976D2"><animate attributeName="cy" values="-40;-46;-40" dur="3s" repeatCount="indefinite"/></circle>
-        <line x1="-120" y1="-40" x2="-60" y2="-70" stroke="#1976D2" stroke-width="0.7" opacity="0.5"/>
-        <circle cx="130" cy="-50" r="2.5" fill="#DFAE24"><animate attributeName="cy" values="-50;-56;-50" dur="2.4s" repeatCount="indefinite"/></circle>
-        <line x1="130" y1="-50" x2="95" y2="-60" stroke="#DFAE24" stroke-width="0.7" opacity="0.5"/>
-        <circle cx="0" cy="-110" r="2.5" fill="#1976D2"><animate attributeName="cy" values="-110;-116;-110" dur="2.8s" repeatCount="indefinite"/></circle>
-        <line x1="0" y1="-110" x2="30" y2="-90" stroke="#1976D2" stroke-width="0.7" opacity="0.5"/>
-      </g>
-      <!-- fault line -->
-      <path d="M-140,-20 L-40,60 L-10,150" stroke="#DFAE24" stroke-width="1" stroke-dasharray="4 4" opacity="0.35" fill="none"/>
-    </g>
-  </svg>`;
-}
-
 /* Full 3D geological explorer view (page) with layer toggles */
 function buildGeo3DScene(state){
   const layers = [
@@ -1426,10 +1581,20 @@ const NAV_ITEMS = [
 ];
 
 /* ---------------- Boot ---------------- */
+try {
+  const serverEl = document.getElementById("serverUserData");
+  if (serverEl && serverEl.textContent.trim()) {
+    window.SERVER_USER = JSON.parse(serverEl.textContent);
+  }
+} catch (_) {
+  window.SERVER_USER = { isAuthenticated: false, username: "" };
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("geoBg").innerHTML = buildGeoBackground();
   renderSidebar();
   renderShellChrome();
+  syncUserDataToUI();
   goTo("dashboard");
   wireGlobalSearch();
   wireSidebarToggle();
@@ -1458,10 +1623,98 @@ function closeSidebarMobile(){
   document.getElementById("sidebarScrim").classList.remove("show");
 }
 
+/* ---------------- User Profile & Settings Modal ---------------- */
+function getActiveUserData() {
+  let username = sessionStorage.getItem('cmpdi_username');
+  let role = sessionStorage.getItem('cmpdi_user_role');
+  let email = sessionStorage.getItem('cmpdi_user_email');
+
+  if (!username && window.SERVER_USER && window.SERVER_USER.isAuthenticated && window.SERVER_USER.username) {
+    username = window.SERVER_USER.username;
+    role = (window.SERVER_USER.isStaff || window.SERVER_USER.isSuperuser || username.toLowerCase() === 'admin')
+      ? 'Administrator · CMPDI'
+      : 'Contributor · CMPDI';
+    email = window.SERVER_USER.email;
+  }
+
+  if (!username && typeof isAuthenticated === 'function' && isAuthenticated()) {
+    username = 'admin';
+    role = 'Administrator · CMPDI';
+    email = 'admin@cmpdi.local';
+  }
+
+  if (!username) {
+    username = 'admin';
+    role = 'Administrator · CMPDI';
+    email = 'admin@cmpdi.local';
+  }
+
+  return {
+    username: username,
+    role: role || (username.toLowerCase() === 'admin' ? 'Administrator · CMPDI' : 'Contributor · CMPDI'),
+    email: email || `${username.toLowerCase()}@cmpdi.local`
+  };
+}
+
+function syncUserDataToUI() {
+  const user = getActiveUserData();
+  const initials = (user.username && user.username.length >= 2 ? user.username.slice(0, 2) : (user.username || 'AD')).toUpperCase();
+  const isAdmin = user.username && (user.username.toLowerCase() === 'admin' || (user.role && user.role.toLowerCase().includes('admin')));
+
+  const sbAvatar = document.getElementById('sidebarAvatar');
+  const sbName = document.getElementById('sidebarUserName');
+  const sbRole = document.getElementById('sidebarUserRole');
+  if (sbAvatar) sbAvatar.textContent = initials;
+  if (sbName) sbName.textContent = user.username;
+  if (sbRole) sbRole.textContent = user.role || (isAdmin ? 'Administrator · CMPDI' : 'Contributor · CMPDI');
+
+  const smAvatar = document.getElementById('settingsModalAvatar');
+  const smUser = document.getElementById('settingsModalUsername');
+  const smRoleBadge = document.getElementById('settingsModalRoleBadge');
+  const smEmail = document.getElementById('settingsModalEmail');
+  const sdUser = document.getElementById('settingsDetailUsername');
+  const sdRole = document.getElementById('settingsDetailRole');
+  const sdAccess = document.getElementById('settingsDetailAccess');
+
+  if (smAvatar) smAvatar.textContent = initials;
+  if (smUser) smUser.textContent = user.username;
+  if (smRoleBadge) {
+    smRoleBadge.textContent = isAdmin ? 'Administrator' : 'Contributor';
+    smRoleBadge.style.background = isAdmin ? '#DCFCE7' : '#EFF6FF';
+    smRoleBadge.style.color = isAdmin ? '#166534' : '#1D4ED8';
+    smRoleBadge.style.borderColor = isAdmin ? '#86EFAC' : '#BFDBFE';
+  }
+  if (smEmail) smEmail.textContent = user.email || `${user.username.toLowerCase()}@cmpdi.local`;
+  if (sdUser) sdUser.textContent = user.username;
+  if (sdRole) sdRole.textContent = user.role || (isAdmin ? 'Administrator · CMPDI' : 'Contributor · CMPDI');
+  if (sdAccess) sdAccess.textContent = isAdmin ? 'Full Access (Admin / Superuser)' : 'Standard Access (Contributor)';
+}
+
+function openSettingsModal() {
+  syncUserDataToUI();
+  const modal = document.getElementById("cmpdiSettingsModal");
+  if (modal) modal.style.display = "flex";
+}
+
+function closeSettingsModal() {
+  const modal = document.getElementById("cmpdiSettingsModal");
+  if (modal) modal.style.display = "none";
+}
+
 function renderShellChrome(){
-  document.getElementById("settingsNav").addEventListener("click", ()=> toast("Settings", "Settings are simulated in this prototype."));
-  document.getElementById("profileNav").addEventListener("click", ()=> toast("Profile", "Signed in as R. Sharma · CMPDI Contributor"));
-  document.getElementById("notifBtn").addEventListener("click", ()=> toast("Notifications", "3 documents finished processing overnight."));
+  const sNav = document.getElementById("settingsNav");
+  if (sNav) sNav.addEventListener("click", openSettingsModal);
+  const pNav = document.getElementById("profileNav");
+  if (pNav) pNav.addEventListener("click", openSettingsModal);
+  const nBtn = document.getElementById("notifBtn");
+  if (nBtn) nBtn.addEventListener("click", ()=> toast("Notifications", "All documents and models up to date."));
+
+  const sModal = document.getElementById("cmpdiSettingsModal");
+  if (sModal) {
+    sModal.addEventListener("click", (e) => {
+      if (e.target === sModal) closeSettingsModal();
+    });
+  }
 }
 
 /* ---------------- Router ---------------- */
@@ -1512,8 +1765,9 @@ function pageDashboard(){
   const latest = MOCK.productionByYear[MOCK.productionByYear.length-1];
   return `
   <div class="page active">
+    <!-- Hero Banner -->
     <div class="hero">
-      <div>
+      <div class="hero-content">
         <div class="hero-eyebrow">⛏ CMPDI · Coal India Limited</div>
         <h1>AI-Powered Mining Intelligence</h1>
         <p class="lead">Transform geological, mining and production data into verified insights.</p>
@@ -1524,27 +1778,29 @@ function pageDashboard(){
           <button class="btn btn-gold" id="heroAskBtn">✦ Ask Mining AI</button>
           <button class="btn btn-outline" id="heroUploadBtn" style="background:rgba(255,255,255,.08); color:#fff; border-color:rgba(255,255,255,.3);">⬆ Upload Document</button>
         </div>
-        <div class="hero-mini-note">🛈 Demo metrics are simulated for this prototype; production figures are sourced from official Ministry of Coal statistics.</div>
+        <div class="hero-mini-note" id="heroMiniNote">🛈 Demo metrics are simulated for this prototype; production figures are sourced from official Ministry of Coal statistics.</div>
       </div>
-
     </div>
 
+    <!-- Top KPI Grid: Exactly 5 Core Metrics (Image 1 & 2 Layout) -->
     <div class="kpi-grid" id="kpiGrid">
-      ${kpiCard("⛏","India Coal Production", "1,047.52 MT", "official", "+4.98%", "up")}
-      ${kpiCard("🏭","CIL Production", "781.06 MT", "official", "+5.8%", "up")}
-      ${kpiCard("📄","Documents Processed", "2,450", "demo", "+128 this week", "up")}
-      ${kpiCard("✦","AI Queries", "876", "demo", "+64 this week", "up")}
-      ${kpiCard("🎯","Extraction Accuracy", "96.8%", "prototype", "+0.4%", "up")}
+      ${kpiCard("⛏","India Coal Production", "1,047.52 MT", "official", "+4.98%", "up", "india")}
+      ${kpiCard("🏭","CIL Production", "781.06 MT", "official", "+5.8%", "up", "cil")}
+      ${kpiCard("📄","Documents Processed", "2,450", "demo", "+128 this week", "up", "docs")}
+      ${kpiCard("✦","AI Queries", "876", "demo", "+64 this week", "up", "ai")}
+      ${kpiCard("🎯","Extraction Accuracy", "96.8%", "prototype", "+0.4%", "up", "acc")}
     </div>
 
+    <!-- Main Production Visualization: Trend (Left) + Stack (Right) -->
     <div class="grid-2">
+      <!-- LEFT: Coal Production Trend -->
       <div class="card card-pad">
         <div class="card-title-row">
           <div>
-            <h3>Coal Production Trend</h3>
-            <div class="sub">National vs CIL production, FY 2020-21 to FY 2024-25</div>
+            <h3 id="dbTrendTitle">Coal Production Trend</h3>
+            <div class="sub" id="dbTrendSub">National vs CIL production, FY 2020-21 to FY 2024-25</div>
           </div>
-          <div class="row">
+          <div id="dbTrendLegend" class="row">
             <span class="row small muted"><span class="legend-dot" style="background:var(--royal)"></span>CIL (bars)</span>
             <span class="row small muted" style="margin-left:10px;"><span class="legend-dot" style="background:var(--blue)"></span>India (line)</span>
           </div>
@@ -1554,15 +1810,20 @@ function pageDashboard(){
           <div class="chart-tooltip" id="prodTooltip"></div>
         </div>
       </div>
+
+      <!-- RIGHT: 4 Mini-Stats + Production by Subsidiary -->
       <div class="stack">
+        <!-- 4 Mini-Stats in 2x2 Grid -->
         <div class="grid-2" style="grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="stat-mini"><div class="l">CIL Production</div><div class="v">781.06 MT</div></div>
-          <div class="stat-mini"><div class="l">India Production</div><div class="v">1,047.52 MT</div></div>
-          <div class="stat-mini"><div class="l">CIL Share</div><div class="v">74.6%</div></div>
-          <div class="stat-mini"><div class="l">YoY Growth <span class="badge demo" style="margin-left:4px;">Demo</span></div><div class="v">+4.98%</div></div>
+          <div class="stat-mini"><div class="l">CIL Production</div><div class="v" id="mainStatCilProd">781.06 MT</div></div>
+          <div class="stat-mini"><div class="l">India Production</div><div class="v" id="mainStatIndiaProd">1,047.52 MT</div></div>
+          <div class="stat-mini"><div class="l">CIL Share</div><div class="v" id="mainStatCilShare">74.6%</div></div>
+          <div class="stat-mini"><div class="l">YoY Growth <span class="badge demo" style="margin-left:4px; font-size:9px;">Demo</span></div><div class="v" id="mainStatYoY">+4.98%</div></div>
         </div>
+
+        <!-- Production by Subsidiary Card -->
         <div class="card card-pad">
-          <div class="card-title-row"><h3>Production by Subsidiary</h3></div>
+          <div class="card-title-row"><h3 id="dbSubTitle">Production by Subsidiary</h3></div>
           <div style="position:relative;">
             <div id="subChart"></div>
             <div class="chart-tooltip" id="subTooltip"></div>
@@ -1572,53 +1833,46 @@ function pageDashboard(){
     </div>
   </div>`;
 }
-function kpiCard(icon,label,value,badge,delta,dir){
+
+function kpiCard(icon,label,value,badge,delta,dir,idKey){
   const badgeClass = badge==="official"?"official":(badge==="demo"?"demo":"prototype");
   const badgeText = badge==="official"?"Official Data":(badge==="demo"?"Demo Data":"Prototype Metric");
+  const idAttr = idKey ? `id="kpiCard-${idKey}"` : '';
+  const valId = idKey ? `id="kpiVal-${idKey}"` : '';
+  const deltaId = idKey ? `id="kpiDelta-${idKey}"` : '';
+  const badgeId = idKey ? `id="kpiBadge-${idKey}"` : '';
   return `
-  <div class="kpi-card">
-    <div class="kpi-top"><div class="kpi-icon">${icon}</div><span class="badge ${badgeClass}">${badgeText}</span></div>
+  <div class="kpi-card" ${idAttr}>
+    <div class="kpi-top"><div class="kpi-icon">${icon}</div><span class="badge ${badgeClass}" ${badgeId}>${badgeText}</span></div>
     <div class="kpi-label">${label}</div>
-    <div class="kpi-value">${value}</div>
-    <div class="kpi-delta ${dir}">${dir==='up'?'↗':'↘'} ${delta}</div>
+    <div class="kpi-value" ${valId}>${value}</div>
+    <div class="kpi-delta ${dir}" ${deltaId}>${dir==='up'?'↗':'↘'} ${delta}</div>
   </div>`;
 }
+
 function afterDashboard(){
   const tooltip = document.getElementById("prodTooltip");
   buildProductionChart(document.getElementById("prodChart"), MOCK.productionByYear, APP.selectedYear, tooltip);
   buildSubsidiaryChart(document.getElementById("subChart"), MOCK.subsidiaries, document.getElementById("subTooltip"));
 
-  document.getElementById("heroAskBtn").addEventListener("click", ()=>{
-    const q = document.getElementById("heroAskInput").value.trim();
-    goTo("ai-query");
-    setTimeout(()=> runAIQuery(q || "Major geological activities?"), 150);
-  });
-  document.getElementById("heroUploadBtn").addEventListener("click", ()=> goTo("documents"));
-
-  // The optional hero visual may be omitted by the current dashboard layout.
-  const visual = document.getElementById("heroVisual");
-  if (visual) {
-    let rot = -8, scale = 1;
-    document.getElementById("heroRotateL").addEventListener("click", ()=>{ rot -= 12; applyHeroTransform(rot, scale); });
-    document.getElementById("heroZoomIn").addEventListener("click", ()=>{ scale = Math.min(1.4, scale+0.12); applyHeroTransform(rot, scale); });
-    document.getElementById("heroZoomOut").addEventListener("click", ()=>{ scale = Math.max(0.7, scale-0.12); applyHeroTransform(rot, scale); });
-    document.getElementById("heroReset").addEventListener("click", ()=>{ rot=-8; scale=1; applyHeroTransform(rot, scale); });
-
-    let dragging=false, lastX=0;
-    visual.addEventListener("mousedown", e=>{ dragging=true; lastX=e.clientX; });
-    window.addEventListener("mouseup", ()=> dragging=false);
-    window.addEventListener("mousemove", e=>{
-      if(!dragging) return;
-      const dx = e.clientX-lastX; lastX=e.clientX;
-      rot += dx*0.6; applyHeroTransform(rot, scale);
+  const askBtn = document.getElementById("heroAskBtn");
+  if (askBtn) {
+    askBtn.addEventListener("click", ()=>{
+      const q = (document.getElementById("heroAskInput")?.value || "").trim();
+      goTo("ai-query");
+      setTimeout(()=> runAIQuery(q || "Major geological activities?"), 150);
     });
   }
-}
-function applyHeroTransform(rot, scale){
-  const g = document.getElementById("heroGeoGroup");
-  if(g) g.style.transform = `translate(200px,140px) rotate(${(rot%360)*0.15}deg) scale(${scale})`;
-  const svgEl2 = document.getElementById("heroGeoSvg");
-  if(svgEl2) svgEl2.style.transition = "none";
+  const upBtn = document.getElementById("heroUploadBtn");
+  if (upBtn) {
+    upBtn.addEventListener("click", ()=> goTo("documents"));
+  }
+
+  // If live documents are already loaded in memory, update count non-blockingly
+  if (Array.isArray(_liveDocuments) && _liveDocuments.length > 0) {
+    const docEl = document.getElementById("kpiVal-docs");
+    if (docEl) docEl.textContent = Number(_liveDocuments.length).toLocaleString();
+  }
 }
 
 /* ============================================================
@@ -1638,7 +1892,7 @@ function escapeHtml(str) {
 
 function pageDocuments(){
   const statusCounts = { done:0, processing:0, review:0, failed:0 };
-  const docs = _liveDocuments || MOCK.documents;
+  const docs = _liveDocuments || (DEMO_FIXTURES_ENABLED ? MOCK.documents : []);
   docs.forEach(d=> {
     const st = d.status === 'completed' || d.status === 'indexed' || d.status === 'processed' ? 'done'
       : (d.status === 'uploaded' || d.status === 'queued' || d.status === 'processing' || d.status === 'extracting' || d.status === 'validating') ? 'processing'
@@ -1754,6 +2008,10 @@ function renderDocRows(){
       const docName = escapeHtml(d.original_filename || d.title);
       const safeHash = escapeHtml(d.sha256_hash || '');
       const docId = escapeHtml(String(d.id));
+      const isRef = Boolean(d.is_reference);
+      const actionHtml = isRef
+        ? `<span class="badge" style="background:#E8F0FE; color:var(--royal); font-weight:600; padding:2px 8px; border-radius:4px; font-size:11px;">Baseline Reference</span>`
+        : `<a class="link-action" data-remove="${docId}" data-docname="${docName}" style="color:var(--red);">Remove</a>`;
 
       return `
       <tr>
@@ -1763,11 +2021,11 @@ function renderDocRows(){
         <td style="font-size:12px; color:#6B7A90;">${escapeHtml(createdStr)}</td>
         <td>${statusPill(d.status)}</td>
         <td class="mono small" title="${safeHash}" style="color:#5C6B80;">${escapeHtml(hashShort)}</td>
-        <td>
+        <td style="white-space:nowrap;">
           <a class="link-action" data-view="${docId}">View</a>
           <a class="link-action" data-dl="${docId}">Download</a>
-          <a class="link-action" data-ask="${docId}">Ask AI</a>
-          <a class="link-action" data-archive="${docId}" style="color:var(--red);">Archive</a>
+          <a class="link-action" data-ask="${docId}" data-docname="${docName}">Ask AI</a>
+          ${actionHtml}
         </td>
       </tr>`;
     }).join("");
@@ -1795,20 +2053,26 @@ function renderDocRows(){
         toast("Download failed", err.message || "Could not download document.");
       }
     }));
-    tbody.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> { goTo("ai-query"); setTimeout(()=>runAIQuery("Major geological findings in uploaded report?"),150); }));
-    tbody.querySelectorAll("[data-archive]").forEach(el=> el.addEventListener("click", async ()=> {
-      const docId = el.dataset.archive;
-      if (confirm(`Archive document #${docId}?`)) {
+    tbody.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> {
+      const docId = el.dataset.ask;
+      const docName = el.dataset.docname || `Document #${docId}`;
+      setQueryDocFilter(docId, docName);
+      goTo("ai-query");
+    }));
+    tbody.querySelectorAll("[data-remove]").forEach(el=> el.addEventListener("click", async ()=> {
+      const docId = el.dataset.remove;
+      const docName = el.dataset.docname || `Document #${docId}`;
+      if (confirm(`Remove document "${docName}"? It will be safely archived and excluded from all future analytics, reports, and AI queries.`)) {
         try {
           await window.CMPDI_AI.apiServices.documents.archive(docId);
-          toast("Document archived", `Document #${docId} has been archived.`);
+          toast("Document removed", `Document "${docName}" has been removed.`);
           await loadLiveDocuments();
         } catch (err) {
-          toast("Archive failed", err.message);
+          toast("Removal failed", err.message || "Could not remove document.");
         }
       }
     }));
-  } else {
+  } else if (DEMO_FIXTURES_ENABLED) {
     // Fallback Mock rendering
     const filtered = MOCK.documents.filter(d=> APP.docFilter==="all" || d.status===APP.docFilter);
     tbody.innerHTML = filtered.map(d=>`
@@ -1828,6 +2092,8 @@ function renderDocRows(){
     tbody.querySelectorAll("[data-view]").forEach(el=> el.addEventListener("click", ()=> openDocDetail(el.dataset.view)));
     tbody.querySelectorAll("[data-ask]").forEach(el=> el.addEventListener("click", ()=> { goTo("ai-query"); setTimeout(()=>runAIQuery("Major geological activities?"),150); }));
     tbody.querySelectorAll("[data-dl]").forEach(el=> el.addEventListener("click", ()=> toast("Download started", "This is a simulated download in demo mode.")));
+  } else {
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Sign in to view live documents.</td></tr>';
   }
 }
 
@@ -2028,6 +2294,10 @@ async function handleRealUpload(fileList){
       if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
       if (steps[1]) { steps[1].classList.remove("active"); steps[1].classList.add("done"); }
       if (steps[2]) { steps[2].classList.add("active"); }
+    }
+    const uploadedDoc = res.document || (res.documents && res.documents[0]) || (res.results && res.results[0]);
+    if (uploadedDoc) {
+      setActiveUploadedDoc(uploadedDoc);
     }
     toast("Upload successful", `${res.uploaded_count || files.length} file(s) stored — processing in background.`);
     APP.docFilter = "all";
@@ -2243,30 +2513,228 @@ function openDocDetail(id){
 /* ============================================================
    AI QUERY
    ============================================================ */
+let _selectedQueryDoc = null;
+let _activeUploadedDoc = null;
+let _aiDocPollTimer = null;
+
+function _renderActiveDocBanner() {
+  if (!_activeUploadedDoc) return '';
+  const doc = _activeUploadedDoc;
+  const status = (doc.status || 'uploaded').toLowerCase();
+
+  let statusBadge = '';
+  if (status === 'completed' || status === 'processed' || status === 'indexed' || status === 'ready' || status === 'needs_review') {
+    statusBadge = `<span class="badge badge-green" style="font-size:11.5px; padding:4px 12px; font-weight:700;">✓ Ready</span>`;
+  } else if (status === 'failed') {
+    statusBadge = `<span class="badge badge-red" style="font-size:11.5px; padding:4px 12px; font-weight:700;">⚠ Failed</span>`;
+  } else {
+    statusBadge = `<span class="badge" style="background:#EAF1FF; color:var(--royal); font-size:11.5px; padding:4px 12px; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+      <span class="typing-dots" style="transform:scale(0.6); margin:0;"><span></span><span></span><span></span></span> Processing...
+    </span>`;
+  }
+
+  const name = escapeHtml(doc.original_filename || doc.title || doc.name || 'document.pdf');
+
+  return `
+    <div style="background:linear-gradient(135deg, #F8FAFD 0%, #EFF5FC 100%); border:1.5px solid #C7D8EE; border-radius:14px; padding:12px 16px; box-shadow:0 2px 8px rgba(7,26,61,.05);">
+      <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#6B7A93; margin-bottom:6px;">
+        Recently Uploaded Document
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+          <span style="font-size:24px;">📄</span>
+          <div style="min-width:0;">
+            <div style="font-weight:700; font-size:14px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:420px;" title="${name}">
+              ${name}
+            </div>
+            <div style="font-size:12px; color:#18794E; margin-top:2px; font-weight:600;">
+              Your question will be answered from this uploaded document.
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div id="aiActiveDocStatus">${statusBadge}</div>
+          <button id="aiRemoveDocBtn" type="button" class="btn btn-ghost" style="color:var(--red); padding:5px 12px; font-size:12px; font-weight:700; border:1px solid rgba(220,53,69,.25); border-radius:8px; background:#fff; cursor:pointer;" title="Remove document context">
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function pollActiveDocStatus(docId) {
+  if (_aiDocPollTimer) clearInterval(_aiDocPollTimer);
+  if (!docId) return;
+
+  _aiDocPollTimer = setInterval(async () => {
+    if (!_activeUploadedDoc || String(_activeUploadedDoc.id) !== String(docId)) {
+      clearInterval(_aiDocPollTimer);
+      return;
+    }
+    try {
+      const statusRes = await window.CMPDI_AI.apiServices.documents.status(docId);
+      if (statusRes && statusRes.status) {
+        const s = statusRes.status.toLowerCase();
+        _activeUploadedDoc.status = s;
+        const banner = document.getElementById("aiActiveDocBanner");
+        if (banner && _activeUploadedDoc && String(_activeUploadedDoc.id) === String(docId)) {
+          banner.innerHTML = _renderActiveDocBanner();
+          wireActiveDocRemoveBtn();
+        }
+        if (s === 'completed' || s === 'processed' || s === 'indexed' || s === 'needs_review' || s === 'failed') {
+          clearInterval(_aiDocPollTimer);
+        }
+      }
+    } catch (e) {
+      // Ignore transient errors while polling
+    }
+  }, 1500);
+}
+
+function wireActiveDocRemoveBtn() {
+  const btn = document.getElementById("aiRemoveDocBtn");
+  if (btn) {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      clearActiveUploadedDoc();
+    };
+  }
+}
+
+function clearActiveUploadedDoc() {
+  if (_aiDocPollTimer) clearInterval(_aiDocPollTimer);
+  _activeUploadedDoc = null;
+  _selectedQueryDoc = null;
+  const banner = document.getElementById("aiActiveDocBanner");
+  if (banner) {
+    banner.style.display = "none";
+    banner.innerHTML = "";
+  }
+}
+
+function setActiveUploadedDoc(doc) {
+  if (_aiDocPollTimer) clearInterval(_aiDocPollTimer);
+  _activeUploadedDoc = doc;
+  _selectedQueryDoc = doc && doc.id ? { id: doc.id, name: doc.original_filename || doc.title || doc.name } : null;
+  const banner = document.getElementById("aiActiveDocBanner");
+  if (banner) {
+    banner.style.display = "block";
+    banner.innerHTML = _renderActiveDocBanner();
+    wireActiveDocRemoveBtn();
+  }
+  if (doc && doc.id) {
+    const s = (doc.status || '').toLowerCase();
+    if (s !== 'completed' && s !== 'processed' && s !== 'indexed' && s !== 'needs_review' && s !== 'failed') {
+      pollActiveDocStatus(doc.id);
+    }
+  }
+}
+
+function setQueryDocFilter(docId, docName) {
+  if (docId) {
+    setActiveUploadedDoc({
+      id: docId,
+      original_filename: docName,
+      title: docName,
+      status: 'ready',
+    });
+  } else {
+    clearActiveUploadedDoc();
+  }
+}
+
+function clearQueryDocFilter() {
+  clearActiveUploadedDoc();
+}
+
 function pageAIQuery(){
   return `
-  <div class="page active">
+  <div class="page active ai-query-page">
     <div class="page-head">
       <div class="eyebrow">Mining Intelligence AI</div>
       <h1>Mining Intelligence AI</h1>
       <p>Ask questions across verified geological, mining and production documents.</p>
     </div>
     <div class="ai-panel">
-      <div class="ai-input-row">
-        <input id="aiInput" placeholder="Ask anything about mining, geology or production...">
+      <div class="ai-input-row" style="display:flex; gap:10px; align-items:center;">
+        <input id="aiInput" placeholder="Ask anything about mining, geology or production..." style="flex:1;">
+        <input type="file" id="aiDocFileInput" style="display:none;" accept=".pdf,.docx,.xlsx,.csv,.txt,.png,.jpg,.jpeg">
+        <button class="btn btn-outline" id="aiUploadDocBtn" type="button" style="background:#fff; border:1px solid #C7D8EE; color:var(--navy); font-size:13px; padding:9px 14px; gap:6px; white-space:nowrap;" title="Upload document to attach to Ask AI">
+          📎 Upload Document
+        </button>
         <button class="btn btn-gold" id="aiAskBtn">Ask</button>
       </div>
-      <div class="chip-row">
-        ${MOCK.aiQA.map(q=>`<span class="chip-ai" data-q="${encodeURIComponent(q.q)}">${q.q}</span>`).join("")}
+
+      <!-- Recently Uploaded Document (DIRECTLY BELOW ASK INPUT) -->
+      <div id="aiActiveDocBanner" style="display:${_activeUploadedDoc ? 'block' : 'none'}; margin-top:14px;">
+        ${_renderActiveDocBanner()}
+      </div>
+
+      <div class="chip-row" style="margin-top:14px;">
+        ${(DEMO_FIXTURES_ENABLED ? MOCK.aiQA : []).map(q=>`<span class="chip-ai" data-q="${encodeURIComponent(q.q)}">${q.q}</span>`).join("")}
       </div>
     </div>
     <div id="aiAnswerArea"></div>
   </div>`;
 }
+
 function afterAIQuery(){
-  document.getElementById("aiAskBtn").addEventListener("click", ()=> runAIQuery(document.getElementById("aiInput").value.trim()));
-  document.getElementById("aiInput").addEventListener("keydown", e=>{ if(e.key==="Enter") runAIQuery(e.target.value.trim()); });
+  document.getElementById("aiAskBtn")?.addEventListener("click", ()=> runAIQuery(document.getElementById("aiInput").value.trim()));
+  document.getElementById("aiInput")?.addEventListener("keydown", e=>{ if(e.key==="Enter") runAIQuery(e.target.value.trim()); });
   document.querySelectorAll("[data-q]").forEach(el=> el.addEventListener("click", ()=> runAIQuery(decodeURIComponent(el.dataset.q))));
+
+  wireActiveDocRemoveBtn();
+
+  const uploadBtn = document.getElementById("aiUploadDocBtn");
+  const fileInput = document.getElementById("aiDocFileInput");
+  if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      fileInput.value = "";
+      if (files.length === 0) return;
+      const file = files[0];
+
+      // Immediately display card below input in processing state with filename
+      setActiveUploadedDoc({
+        id: null,
+        original_filename: file.name,
+        title: file.name,
+        status: 'processing',
+      });
+
+      const isLive = await (window.CMPDI_AI && window.CMPDI_AI.ensureBackendStatus ? window.CMPDI_AI.ensureBackendStatus() : Promise.resolve(false));
+      if (!isLive) {
+        if (_activeUploadedDoc) {
+          _activeUploadedDoc.status = 'failed';
+          const banner = document.getElementById("aiActiveDocBanner");
+          if (banner) { banner.innerHTML = _renderActiveDocBanner(); wireActiveDocRemoveBtn(); }
+        }
+        toast("Upload unavailable", "Backend service is offline. Connect to Django backend on port 8000 to upload documents.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("files", file);
+
+      try {
+        const res = await window.CMPDI_AI.apiServices.documents.upload(formData);
+        const uploadedDoc = res.document || (res.documents && res.documents[0]) || (res.results && res.results[0]);
+        if (uploadedDoc) {
+          setActiveUploadedDoc(uploadedDoc);
+          toast("Document uploaded", `"${uploadedDoc.original_filename || file.name}" attached to Ask AI.`);
+        }
+      } catch (err) {
+        if (_activeUploadedDoc) {
+          _activeUploadedDoc.status = 'failed';
+          const banner = document.getElementById("aiActiveDocBanner");
+          if (banner) { banner.innerHTML = _renderActiveDocBanner(); wireActiveDocRemoveBtn(); }
+        }
+        toast("Upload failed", err.message || "Could not upload document.");
+      }
+    });
+  }
 }
 async function runAIQuery(question){
   if(!question) return;
@@ -2302,7 +2770,8 @@ async function runAIQuery(question){
       return;
     }
 
-    const data = await window.CMPDI_AI.apiServices.chat.query(question);
+    const queryContext = _selectedQueryDoc ? { document_id: _selectedQueryDoc.id } : {};
+    const data = await window.CMPDI_AI.apiServices.chat.query(question, queryContext);
 
     const confLevel = (data.confidence || 'LOW').toUpperCase();
     let confBg = '#8593A8';
@@ -2557,8 +3026,8 @@ async function loadAnalyticsData(){
   const kpiBox = document.getElementById("anKpiContainer");
   if (kpiBox) kpiBox.innerHTML = `<div class="card card-pad" style="grid-column:1/-1; text-align:center; padding:16px;"><span class="muted small">Loading dynamic KPIs and charts...</span></div>`;
 
+  // 1. Fetch KPIs & available filter options
   try {
-    // 1. Fetch KPIs & available filter options
     const kpiRes = await window.CMPDI_AI.apiServices.analytics.kpi({
       dataset_id: datasetId,
       ...APP.analyticsFilters,
@@ -2566,8 +3035,15 @@ async function loadAnalyticsData(){
 
     renderAnalyticsKPIs(kpiRes.kpis);
     renderAnalyticsFilters(kpiRes.available_filters);
+  } catch (err) {
+    console.error("Failed to load KPIs:", err);
+    if (kpiBox) {
+      kpiBox.innerHTML = `<div class="card card-pad" style="grid-column:1/-1; padding:20px; color:var(--red);">Failed to calculate analytics: ${escapeHtml(err.message)}</div>`;
+    }
+  }
 
-    // 2. Fetch Time-Series Trends
+  // 2. Fetch Time-Series Trends (gracefully independent)
+  try {
     const trendsRes = await window.CMPDI_AI.apiServices.analytics.trends({
       dataset_id: datasetId,
       metric: 'production',
@@ -2575,8 +3051,13 @@ async function loadAnalyticsData(){
       ...APP.analyticsFilters,
     });
     renderAnalyticsTrends(trendsRes.series || []);
+  } catch (err) {
+    console.warn("Trend data unavailable for dataset:", err);
+    renderAnalyticsTrends([]);
+  }
 
-    // 3. Fetch Subsidiary Breakdown
+  // 3. Fetch Subsidiary Breakdown (gracefully independent)
+  try {
     const subRes = await window.CMPDI_AI.apiServices.analytics.breakdown({
       dataset_id: datasetId,
       group_by: 'subsidiary',
@@ -2584,17 +3065,31 @@ async function loadAnalyticsData(){
       ...APP.analyticsFilters,
     });
     renderAnalyticsSubsidiaries(subRes.series || []);
+  } catch (err) {
+    console.warn("Subsidiary data unavailable for dataset:", err);
+    renderAnalyticsSubsidiaries([]);
+  }
 
-    // 4. Fetch Grade Donut Breakdown
+  // 4. Fetch Grade Donut Breakdown (gracefully independent)
+  try {
     const gradeRes = await window.CMPDI_AI.apiServices.analytics.breakdown({
       dataset_id: datasetId,
       group_by: 'grade',
       metric: 'count',
       ...APP.analyticsFilters,
     });
-    renderAnalyticsGrades(gradeRes.series || []);
+    if (gradeRes.available === false || !gradeRes.series || gradeRes.series.length === 0) {
+      renderAnalyticsGrades([], true);
+    } else {
+      renderAnalyticsGrades(gradeRes.series);
+    }
+  } catch (err) {
+    console.warn("Grade data unavailable for dataset:", err);
+    renderAnalyticsGrades([], true);
+  }
 
-    // 5. Fetch Top Mines Breakdown
+  // 5. Fetch Top Mines Breakdown (gracefully independent)
+  try {
     const minesRes = await window.CMPDI_AI.apiServices.analytics.breakdown({
       dataset_id: datasetId,
       group_by: 'mine',
@@ -2602,13 +3097,14 @@ async function loadAnalyticsData(){
       limit: 6,
       ...APP.analyticsFilters,
     });
-    renderAnalyticsTopMines(minesRes.series || []);
-
-  } catch (err) {
-    console.error("Failed to load analytics details:", err);
-    if (kpiBox) {
-      kpiBox.innerHTML = `<div class="card card-pad" style="grid-column:1/-1; padding:20px; color:var(--red);">Failed to calculate analytics: ${escapeHtml(err.message)}</div>`;
+    if (minesRes.available === false || !minesRes.series || minesRes.series.length === 0) {
+      renderAnalyticsTopMines([], true);
+    } else {
+      renderAnalyticsTopMines(minesRes.series);
     }
+  } catch (err) {
+    console.warn("Mine data unavailable for dataset:", err);
+    renderAnalyticsTopMines([], true);
   }
 }
 
@@ -2706,7 +3202,17 @@ function renderAnalyticsTrends(series){
 
   if (!series || series.length === 0) {
     container.innerHTML = `<div class="small muted" style="padding:40px; text-align:center;">No time-series data available for active filters.</div>`;
+    const subEl = document.getElementById("anTrendSubtitle");
+    if (subEl) subEl.textContent = "Time-series trend data unavailable";
     return;
+  }
+
+  const isSingle = (series.length === 1);
+  const subEl = document.getElementById("anTrendSubtitle");
+  if (subEl) {
+    subEl.textContent = isSingle
+      ? `Single period snapshot (${series[0].period})`
+      : `Financial-year chronological breakdown (${series.length} periods)`;
   }
 
   container.innerHTML = "";
@@ -2714,7 +3220,7 @@ function renderAnalyticsTrends(series){
   const padL = 46, padB = 30, padT = 20, padR = 16;
   const chartW = W - padL - padR, chartH = H - padT - padB;
 
-  const maxV = Math.max(...series.map(d => Math.max(d.value, d.target || 0, d.dispatch || 0))) * 1.15 || 10;
+  const maxV = Math.max(...series.map(d => Math.max(d.value || 0, d.target || 0, d.dispatch || 0))) * 1.15 || 10;
 
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H });
 
@@ -2732,10 +3238,21 @@ function renderAnalyticsTrends(series){
   const linePoints = [];
 
   series.forEach((d, i) => {
-    const x0 = padL + i * bw;
-    const barW = bw * 0.32;
-    const barX = x0 + bw * 0.15;
-    const barH = (d.value / maxV) * chartH;
+    let barW, barX, disW, disX;
+    if (isSingle) {
+      barW = 46;
+      disW = 40;
+      const clusterW = barW + (d.dispatch !== undefined ? disW + 6 : 0);
+      barX = padL + (chartW - clusterW) / 2;
+      disX = barX + barW + 6;
+    } else {
+      barW = Math.min(bw * 0.32, 54);
+      barX = padL + i * bw + bw * 0.15;
+      disW = bw * 0.26;
+      disX = barX + barW + 2;
+    }
+
+    const barH = ((d.value || 0) / maxV) * chartH;
     const barY = padT + chartH - barH;
 
     // Production bar
@@ -2750,8 +3267,6 @@ function renderAnalyticsTrends(series){
 
     // Dispatch bar (side by side)
     if (d.dispatch !== undefined) {
-      const disW = bw * 0.26;
-      const disX = barX + barW + 2;
       const disH = (d.dispatch / maxV) * chartH;
       const disY = padT + chartH - disH;
       const disRect = svgEl("rect", {
@@ -2764,23 +3279,24 @@ function renderAnalyticsTrends(series){
       svg.appendChild(disRect);
     }
 
+    const clusterCenterX = isSingle ? (barX + (d.dispatch !== undefined ? (barW + disW + 6) / 2 : barW / 2)) : (padL + i * bw + bw / 2);
+
     // Target point
     if (d.target !== undefined) {
-      const px = x0 + bw / 2;
       const py = padT + chartH - (d.target / maxV) * chartH;
-      linePoints.push([px, py, d]);
+      linePoints.push([clusterCenterX, py, d]);
     }
 
     // X-axis label
     const lbl = svgEl("text", {
-      x: x0 + bw / 2, y: H - 8, "text-anchor": "middle",
+      x: clusterCenterX, y: H - 8, "text-anchor": "middle",
       "font-size": 10, fill: "#64748B", "font-weight": 600, "font-family": "Inter"
     });
     lbl.textContent = d.period;
     svg.appendChild(lbl);
   });
 
-  // Target benchmark line
+  // Target benchmark line or guideline
   if (linePoints.length > 1) {
     let dPath = "";
     linePoints.forEach((p, i) => { dPath += (i === 0 ? "M" : "L") + p[0] + "," + p[1] + " "; });
@@ -2795,6 +3311,18 @@ function renderAnalyticsTrends(series){
       });
       svg.appendChild(c);
     });
+  } else if (linePoints.length === 1) {
+    const p = linePoints[0];
+    svg.appendChild(svgEl("line", {
+      x1: Math.max(padL, p[0] - 60), x2: Math.min(W - padR, p[0] + 60),
+      y1: p[1], y2: p[1],
+      stroke: "#DFAE24", "stroke-width": 2, "stroke-dasharray": "4 3", opacity: 0.95
+    }));
+    const c = svgEl("circle", {
+      cx: p[0], cy: p[1], r: 5, fill: "#fff", stroke: "#DFAE24", "stroke-width": 2,
+      class: "line-pt", "data-period": p[2].period, "data-val": p[2].target, "data-label": "Target"
+    });
+    svg.appendChild(c);
   }
 
   container.appendChild(svg);
@@ -2888,13 +3416,13 @@ function renderAnalyticsSubsidiaries(series){
   }
 }
 
-function renderAnalyticsGrades(series){
+function renderAnalyticsGrades(series, isUnavailable = false){
   const container = document.getElementById("anGradeDonut");
   const legendEl = document.getElementById("anGradeLegend");
   if (!container || !legendEl) return;
 
-  if (!series || series.length === 0) {
-    container.innerHTML = `<div class="small muted" style="padding:20px;">No grade data.</div>`;
+  if (isUnavailable || !series || series.length === 0) {
+    container.innerHTML = `<div class="small muted" style="padding:40px; text-align:center;">Coal grade distribution is not available for the selected dataset.</div>`;
     legendEl.innerHTML = "";
     return;
   }
@@ -2919,13 +3447,13 @@ function renderAnalyticsGrades(series){
   `).join("");
 }
 
-function renderAnalyticsTopMines(series){
+function renderAnalyticsTopMines(series, isUnavailable = false){
   const container = document.getElementById("anTopMinesChart");
   const tooltipEl = document.getElementById("anMinesTooltip");
   if (!container) return;
 
-  if (!series || series.length === 0) {
-    container.innerHTML = `<div class="small muted" style="padding:40px; text-align:center;">No colliery data available.</div>`;
+  if (isUnavailable || !series || series.length === 0) {
+    container.innerHTML = `<div class="small muted" style="padding:40px; text-align:center;">Mine-level production is not available for the selected dataset.</div>`;
     return;
   }
 
@@ -2977,6 +3505,7 @@ let _reportOptionsCache = null;
 let _savedReportsList = [];
 
 const DEFAULT_REPORT_TYPES = [
+  { key:"Comparative Intelligence Report", ic:"⚖️", d:"Intelligent comparison between Organization / Reference reports and Current User-uploaded reports." },
   { key:"Production Report", ic:"📊", d:"Subsidiary and national raw coal production, targets and dispatch summaries." },
   { key:"Geological & Exploration Report", ic:"⛏", d:"Exploration status, borehole evaluation, and coal grade distribution." },
   { key:"Mining Performance Report", ic:"🏭", d:"Mine-level target vs actual operational performance and evacuation efficiency." },
@@ -2991,9 +3520,9 @@ function pageReports(){
   if (!APP.wizard) {
     APP.wizard = {
       step: 1,
-      type: "Production Report",
+      type: "Comparative Intelligence Report",
       org: "CMPDI (HQ)",
-      range: "All Available",
+      range: "FY 2023-24 vs FY 2024-25",
       sources: [],
       source_dataset_ids: [],
       source_document_ids: [],
@@ -3078,6 +3607,8 @@ async function afterReports(){
 
 function startNewReport(){
   APP.wizard.step = 1;
+  APP.wizard.type = "Comparative Intelligence Report";
+  APP.wizard.range = "FY 2023-24 vs FY 2024-25";
   APP.wizard.activeReport = null;
   APP.wizard.editMode = false;
   renderWizard();
@@ -3144,7 +3675,7 @@ function renderWizard(){
     document.getElementById("wizNext").addEventListener("click", ()=>{ APP.wizard.step=3; renderWizard(); });
 
   } else if(step===3){
-    const ranges = (_reportOptionsCache && _reportOptionsCache.date_ranges) ? _reportOptionsCache.date_ranges : ["All Available","FY 2021-22","FY 2022-23","FY 2023-24","FY 2024-25","FY 2025-26"];
+    const ranges = (_reportOptionsCache && _reportOptionsCache.date_ranges) ? _reportOptionsCache.date_ranges : ["All Available","FY 2023-24 vs FY 2024-25","FY 2024-25","FY 2023-24","FY 2022-23","FY 2021-22"];
     body.innerHTML = `
       <div class="row wrap" style="gap:12px;">
         ${ranges.map(r=>`<span class="chip ${APP.wizard.range===r?'gold':''}" data-range="${r}" style="cursor:pointer; font-size:13px; padding:8px 16px;">${r}</span>`).join("")}
@@ -3171,11 +3702,18 @@ function renderWizard(){
           </div>
           <div class="stack" style="gap:8px;">
             ${datasets.map(d=>`
-              <label class="row" style="border:1px solid #E2E8F0; border-radius:10px; padding:10px 14px; cursor:pointer; background:#fff;">
-                <input type="checkbox" data-dsid="${d.id}" ${(!APP.wizard.source_dataset_ids || APP.wizard.source_dataset_ids.includes(d.id))?'checked':''} style="margin-right:12px; accent-color:var(--royal); width:16px; height:16px;">
-                <div style="flex:1;">
-                  <b>${escapeHtml(d.name)}</b>
-                  <div class="muted small">${d.record_count || 0} verified records</div>
+              <label class="row" style="border:1px solid #E2E8F0; border-radius:10px; padding:10px 14px; cursor:pointer; background:#fff; align-items:center; justify-content:space-between;">
+                <div class="row" style="align-items:center; flex:1;">
+                  <input type="checkbox" data-dsid="${d.id}" ${(!APP.wizard.source_dataset_ids || APP.wizard.source_dataset_ids.includes(d.id))?'checked':''} style="margin-right:12px; accent-color:var(--royal); width:16px; height:16px;">
+                  <div>
+                    <b>${escapeHtml(d.name)}</b>
+                    <div class="muted small">${d.record_count || 0} verified records</div>
+                  </div>
+                </div>
+                <div>
+                  <span class="badge ${d.source_document__is_reference ? 'badge-purple' : 'badge-blue'}" style="font-size:10.5px; font-weight:700;">
+                    ${d.source_document__is_reference ? '🏛 Reference / Past' : '📤 Current Upload'}
+                  </span>
                 </div>
               </label>`).join("")}
           </div>
@@ -3185,11 +3723,18 @@ function renderWizard(){
           <div class="row between mb-8"><span class="eyebrow">Uploaded Source Documents (${documents.length})</span></div>
           <div class="stack" style="gap:8px;">
             ${documents.map(doc=>`
-              <label class="row" style="border:1px solid #E2E8F0; border-radius:10px; padding:8px 14px; cursor:pointer; background:#fff;">
-                <input type="checkbox" data-docid="${doc.id}" ${(APP.wizard.source_document_ids && APP.wizard.source_document_ids.includes(doc.id))?'checked':''} style="margin-right:12px; accent-color:var(--royal); width:16px; height:16px;">
-                <div style="flex:1;">
-                  <b>${escapeHtml(doc.title)}</b>
-                  <div class="muted small">Status: ${doc.status}</div>
+              <label class="row" style="border:1px solid #E2E8F0; border-radius:10px; padding:8px 14px; cursor:pointer; background:#fff; align-items:center; justify-content:space-between;">
+                <div class="row" style="align-items:center; flex:1;">
+                  <input type="checkbox" data-docid="${doc.id}" ${(APP.wizard.source_document_ids && APP.wizard.source_document_ids.includes(doc.id))?'checked':''} style="margin-right:12px; accent-color:var(--royal); width:16px; height:16px;">
+                  <div>
+                    <b>${escapeHtml(doc.title)}</b>
+                    <div class="muted small">Status: ${doc.status}</div>
+                  </div>
+                </div>
+                <div>
+                  <span class="badge ${doc.is_reference ? 'badge-purple' : 'badge-blue'}" style="font-size:10.5px; font-weight:700;">
+                    ${doc.is_reference ? '🏛 Reference' : '📤 Current'}
+                  </span>
                 </div>
               </label>`).join("")}
           </div>
@@ -3417,8 +3962,23 @@ function renderReportViewer(){
         </div>
       </div>
 
+      <!-- Source Role Separation Callout (When Comparative) -->
+      ${(content.source_roles) ? `
+        <div class="row wrap mb-20" style="gap:14px;">
+          <div style="flex:1; min-width:260px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:12px 16px;">
+            <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.5px;">🏛 Historical / Organization Reference</div>
+            <div style="font-size:14px; font-weight:700; color:var(--navy); margin:4px 0;">${escapeHtml(content.source_roles.org_reference?.title || 'Baseline Reference')}</div>
+            <div class="small muted">Period: <b>${escapeHtml(content.source_roles.org_reference?.period || '—')}</b> · Protected Baseline Reference</div>
+          </div>
+          <div style="flex:1; min-width:260px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:12px 16px;">
+            <div style="font-size:11px; font-weight:700; color:var(--royal); text-transform:uppercase; letter-spacing:0.5px;">📤 Current User-Uploaded Report</div>
+            <div style="font-size:14px; font-weight:700; color:var(--navy); margin:4px 0;">${escapeHtml(content.source_roles.current_upload?.title || 'Current Document')}</div>
+            <div class="small muted">Period: <b>${escapeHtml(content.source_roles.current_upload?.period || '—')}</b> · Newly Ingested Document</div>
+          </div>
+        </div>` : ''}
+
       <!-- Executive Summary Box -->
-      <div style="margin-bottom:24px;">
+      <div style="margin-bottom:20px;">
         <h4 style="color:var(--royal); margin:0 0 8px 0; font-size:14px; font-weight:700;">Executive Summary</h4>
         ${!isEditing ? `
           <div style="background:#F8FAFC; border-left:4px solid var(--royal); padding:14px 16px; border-radius:0 8px 8px 0; font-style:italic; font-size:13.5px; line-height:1.6; color:#1E293B;">
@@ -3428,6 +3988,21 @@ function renderReportViewer(){
           <textarea id="editExecSummary" class="input" style="width:100%; height:110px; font-size:13px; padding:10px; font-family:var(--font-body); line-height:1.5;">${escapeHtml(content.executive_summary || '')}</textarea>
         `}
       </div>
+
+      <!-- Top Improvements & Top Declines Box (When Comparative) -->
+      ${(content.top_improvements || content.top_declines) ? `
+        <div class="row wrap mb-20" style="gap:14px;">
+          ${content.top_improvements ? `
+            <div style="flex:1; min-width:260px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; padding:12px 16px;">
+              <h5 style="color:#166534; margin:0 0 6px 0; font-size:12.5px; font-weight:700;">▲ Top Performance Improvements</h5>
+              <div style="font-size:12px; color:#14532D; line-height:1.5;">${escapeHtml(content.top_improvements).replace(/\n/g, '<br/>')}</div>
+            </div>` : ''}
+          ${content.top_declines ? `
+            <div style="flex:1; min-width:260px; background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:12px 16px;">
+              <h5 style="color:#991B1B; margin:0 0 6px 0; font-size:12.5px; font-weight:700;">▼ Top Performance Declines</h5>
+              <div style="font-size:12px; color:#7F1D1D; line-height:1.5;">${escapeHtml(content.top_declines).replace(/\n/g, '<br/>')}</div>
+            </div>` : ''}
+        </div>` : ''}
 
       <!-- Key Performance Indicators (KPIs) -->
       ${(content.kpis && content.kpis.length > 0) ? `
@@ -3456,7 +4031,7 @@ function renderReportViewer(){
                 </tr>
               </thead>
               <tbody>
-                ${(t.rows || []).slice(0, 20).map((r, idx)=>`
+                ${(t.rows || []).slice(0, 25).map((r, idx)=>`
                   <tr style="background:${idx%2===0?'#fff':'#F8FAFC'};">
                     ${r.map(c=>`<td style="padding:7px 12px; border-top:1px solid #E2E8F0;">${escapeHtml(String(c))}</td>`).join("")}
                   </tr>`).join("")}
@@ -3465,6 +4040,66 @@ function renderReportViewer(){
           </div>
           ${t.source ? `<div class="small muted mt-4" style="font-size:10px; font-style:italic;">Source: ${escapeHtml(t.source)}</div>` : ''}
         </div>`).join("") : ''}
+
+      <!-- Cross-Report Comparative Findings -->
+      ${(content.what_org_says || content.what_current_says || content.what_changed) ? `
+        <div style="margin-bottom:24px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:16px;">
+          <h4 style="color:var(--royal); margin:0 0 12px 0; font-size:14px; font-weight:700;">Cross-Report Comparative Findings</h4>
+          ${content.what_org_says ? `
+            <div style="margin-bottom:12px;">
+              <b style="font-size:12px; color:var(--navy);">What the Organization Reference Report Says:</b>
+              <p style="margin:4px 0 0 0; font-size:12.5px; line-height:1.5; color:#334155;">${escapeHtml(content.what_org_says)}</p>
+            </div>` : ''}
+          ${content.what_current_says ? `
+            <div style="margin-bottom:12px;">
+              <b style="font-size:12px; color:var(--navy);">What the Current User Report Says:</b>
+              <p style="margin:4px 0 0 0; font-size:12.5px; line-height:1.5; color:#334155;">${escapeHtml(content.what_current_says)}</p>
+            </div>` : ''}
+          ${content.what_changed ? `
+            <div>
+              <b style="font-size:12px; color:var(--navy);">What Changed (Operational Variances):</b>
+              <div style="margin:4px 0 0 0; font-size:12.5px; line-height:1.5; color:#334155;">
+                ${content.what_changed.split('\n').map(l=>l.trim() ? `<div style="margin-bottom:4px;">${escapeHtml(l)}</div>` : '').join("")}
+              </div>
+            </div>` : ''}
+        </div>` : ''}
+
+      <!-- Rules, Benchmarks & Reference Standards -->
+      ${content.reference_benchmarks ? `
+        <div style="margin-bottom:24px;">
+          <h4 style="color:var(--royal); margin:0 0 8px 0; font-size:14px; font-weight:700;">Rules, Benchmarks &amp; Reference Standards</h4>
+          <div style="background:#F1F5F9; border-left:4px solid #64748B; padding:12px 16px; border-radius:0 8px 8px 0; font-size:12.5px; line-height:1.6; color:#334155;">
+            ${content.reference_benchmarks.split('\n').map(l=>l.trim() ? `<div style="margin-bottom:4px;">${escapeHtml(l)}</div>` : '').join("")}
+          </div>
+        </div>` : ''}
+
+      <!-- Newly Available & Missing Information -->
+      ${(content.newly_available || content.missing_information) ? `
+        <div class="row wrap mb-24" style="gap:14px;">
+          ${content.newly_available ? `
+            <div style="flex:1; min-width:260px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; padding:14px;">
+              <h4 style="color:#166534; margin:0 0 8px 0; font-size:13px; font-weight:700;">✨ Newly Available in Current Report</h4>
+              <div style="font-size:12px; color:#14532D; line-height:1.5;">${escapeHtml(content.newly_available).replace(/\n/g, '<br/>')}</div>
+            </div>` : ''}
+          ${content.missing_information ? `
+            <div style="flex:1; min-width:260px; background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:14px;">
+              <h4 style="color:#92400E; margin:0 0 8px 0; font-size:13px; font-weight:700;">⚠️ Missing / Unavailable Information Disclosure</h4>
+              <div class="small muted mb-6" style="font-style:italic;">Not assumed or interpolated as zero:</div>
+              <div style="font-size:12px; color:#78350F; line-height:1.5;">${escapeHtml(content.missing_information).replace(/\n/g, '<br/>')}</div>
+            </div>` : ''}
+        </div>` : ''}
+
+      <!-- AI-Generated Operational Insights -->
+      ${(content.ai_insights && content.ai_insights.length > 0) ? `
+        <div style="margin-bottom:24px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:16px;">
+          <h4 style="color:var(--royal); margin:0 0 10px 0; font-size:14px; font-weight:700;">🤖 AI-Generated Operational Insights (Strictly Grounded)</h4>
+          <div class="stack" style="gap:8px;">
+            ${content.ai_insights.map((ins, i)=>`
+              <div style="font-size:12.5px; line-height:1.5; color:#1E293B;">
+                <b>${i+1}.</b> ${escapeHtml(ins)}
+              </div>`).join("")}
+          </div>
+        </div>` : ''}
 
       <!-- Operational Analysis Section -->
       <div style="margin-bottom:24px;">
@@ -4409,13 +5044,44 @@ async function loadExplorerRecords(){
         tbodyHtml += `<td class="muted small">${r.row_index}</td>`;
 
         columns.forEach(col => {
-          const val = r.data[col];
-          const displayVal = val !== undefined && val !== null ? escapeHtml(String(val)) : '—';
+          let val = undefined;
+          if (r.data[col] !== undefined && r.data[col] !== null && String(r.data[col]).trim() !== '') {
+            val = r.data[col];
+          } else {
+            const colLower = String(col).toLowerCase().trim();
+            if (r.data[colLower] !== undefined && r.data[colLower] !== null && String(r.data[colLower]).trim() !== '') {
+              val = r.data[colLower];
+            } else if (r.data[`${colLower}_original`] !== undefined && r.data[`${colLower}_original`] !== null && String(r.data[`${colLower}_original`]).trim() !== '') {
+              val = r.data[`${colLower}_original`];
+            } else {
+              for (const k of Object.keys(r.data)) {
+                if (k.toLowerCase() === colLower && !k.endsWith('_unit') && !k.endsWith('_before_apply')) {
+                  val = r.data[k];
+                  break;
+                }
+              }
+            }
+          }
+
+          let displayVal = '—';
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            const colLower = String(col).toLowerCase().trim();
+            const orig = r.data[`${colLower}_original`] || r.data[`${col}_original`];
+            if (orig !== undefined && orig !== null && String(orig).trim() !== '') {
+              displayVal = escapeHtml(String(orig));
+            } else {
+              displayVal = escapeHtml(String(val));
+              const unit = r.data[`${colLower}_unit`] || r.data[`${col}_unit`];
+              if (unit && !String(displayVal).toLowerCase().includes(String(unit).toLowerCase())) {
+                displayVal += ` <span class="small muted">${escapeHtml(unit)}</span>`;
+              }
+            }
+          }
           tbodyHtml += `<td>${displayVal}</td>`;
         });
 
         tbodyHtml += `<td>${qualBadge}${maintainedBadge}</td>`;
-        tbodyHtml += `<td><span class="link-action small">Inspect →</span></td>`;
+        tbodyHtml += `<td><button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); openRecordDetailModal(${datasetId}, ${r.record_id})" style="padding:4px 10px; font-size:11.5px; cursor:pointer; font-weight:600;">Inspect 🔍</button></td>`;
         tbodyHtml += `</tr>`;
       });
     }
@@ -5372,52 +6038,337 @@ function focusMineOnMap(lat, lon){
 }
 
 /* ============================================================
-   AUDIT TRAIL
+   AUDIT TRAIL (PHASE 9)
    ============================================================ */
+let _auditCurrentPage = 1;
+const _auditPageSize = 25;
+let _auditTotalPages = 1;
+let _auditRecords = [];
+
 function pageAudit(){
   return `
   <div class="page active">
     <div class="page-head">
-      <div class="eyebrow">Governance</div>
-      <h1>Data &amp; AI Audit Trail</h1>
-      <p>Full traceability of document processing, data validation and AI activity.</p>
-    </div>
-    <div class="grid-2">
-      <div class="card card-pad">
-        <div class="card-title-row"><h3>Activity Timeline</h3></div>
-        <div class="timeline">
-          ${MOCK.auditTrail.map(a=>`
-            <div class="tl-item ${a.status}">
-              <div class="tl-title">${a.action}</div>
-              <div class="tl-meta">${a.doc} · ${a.user} · ${a.time}</div>
-            </div>`).join("")}
+      <div class="eyebrow">Governance &amp; Accountability</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1>Data &amp; AI Audit Trail</h1>
+          <p>Immutable enterprise ledger tracking document ingest, maintenance reviews, AI interactions, and governance decisions.</p>
+        </div>
+        <div>
+          <button class="btn btn-sm" id="auditRefreshBtn" onclick="loadAuditData(1)" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; padding:8px 16px;">
+            <span>↻</span> Refresh Log
+          </button>
         </div>
       </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card card-pad" style="margin-bottom:20px; padding:16px 20px;">
+      <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+          <label style="font-size:12.5px; font-weight:600; color:var(--navy);">Filters:</label>
+          <select id="auditEventTypeFilter" style="padding:6px 12px; border-radius:8px; border:1px solid #E4E9F2; font-size:12.5px; background:#fff; color:var(--charcoal);">
+            <option value="all">All Event Types</option>
+            <option value="document.uploaded">Document Uploaded</option>
+            <option value="document.processed">Document Processed</option>
+            <option value="document.reviewed">Document Reviewed</option>
+            <option value="document.approved">Document Approved</option>
+            <option value="document.rejected">Document Rejected</option>
+            <option value="document.deleted">Document Deleted / Archived</option>
+            <option value="dataset.created">Dataset Created</option>
+            <option value="dataset.updated">Dataset Updated</option>
+            <option value="ai.query">AI Query Submitted</option>
+            <option value="ai.report">AI Report Generated</option>
+            <option value="user.login">User Login</option>
+          </select>
+          <input type="text" id="auditActorFilter" placeholder="Filter actor (Admin)..." style="padding:6px 12px; border-radius:8px; border:1px solid #E4E9F2; font-size:12.5px; width:160px;">
+          <input type="text" id="auditSearchInput" placeholder="Search description, ID..." style="padding:6px 12px; border-radius:8px; border:1px solid #E4E9F2; font-size:12.5px; width:190px;">
+          <button class="btn btn-sm" id="auditApplyFilterBtn" style="padding:6px 14px; font-size:12px;">Filter</button>
+          <button class="btn btn-sm" id="auditClearFilterBtn" style="padding:6px 12px; font-size:12px; background:#EEF2F8; color:#4B5563;">Reset</button>
+        </div>
+        <div id="auditStatsBadge" style="font-size:12.5px; color:#6B7280; font-family:var(--font-mono);">
+          Connecting to audit ledger...
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Left Column: Activity Timeline -->
       <div class="card card-pad">
-        <div class="card-title-row"><h3>Audit Log</h3></div>
-        <div class="filters"><select id="auditUserFilter"><option value="all">All Users</option>${[...new Set(MOCK.auditTrail.map(a=>a.user))].map(u=>`<option>${u}</option>`).join("")}</select></div>
+        <div class="card-title-row">
+          <h3>Recent Timeline</h3>
+          <span style="font-size:11.5px; color:#8593A8;">Chronological flow</span>
+        </div>
+        <div class="timeline" id="auditTimeline">
+          <div style="padding:20px 0; color:#8593A8; font-size:13px;">Loading timeline...</div>
+        </div>
+      </div>
+
+      <!-- Right Column: Audit Log Table -->
+      <div class="card card-pad">
+        <div class="card-title-row">
+          <h3>Immutable Audit Log</h3>
+        </div>
         <div class="tbl-wrap">
           <table class="dtable" id="auditTable">
-            <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Document</th><th>Status</th></tr></thead>
-            <tbody id="auditTableBody"></tbody>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Actor</th>
+                <th>Event Type</th>
+                <th>Resource</th>
+                <th>Description</th>
+                <th>Metadata</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody">
+              <tr><td colspan="6" style="text-align:center; padding:30px; color:#8593A8;">Loading audit records from database...</td></tr>
+            </tbody>
           </table>
         </div>
+
+        <!-- Pagination Controls -->
+        <div id="auditPagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid #EEF2F8; font-size:12.5px; color:#6B7280;">
+          <div id="auditPageSummary">Page 1</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-sm" id="auditPrevBtn" disabled style="padding:4px 12px;">Previous</button>
+            <button class="btn btn-sm" id="auditNextBtn" disabled style="padding:4px 12px;">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Event Detail Modal -->
+    <div class="modal-overlay" id="auditDetailModal" style="display:none; position:fixed; inset:0; background:rgba(7,26,61,.55); backdrop-filter:blur(2px); z-index:100; align-items:center; justify-content:center; padding:20px;">
+      <div class="modal-box" style="background:#fff; border-radius:20px; max-width:640px; width:100%; max-height:85vh; overflow:auto; box-shadow:0 30px 70px rgba(7,26,61,.4);">
+        <div class="modal-head" style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid #EEF2F8; position:sticky; top:0; background:#fff;">
+          <h3 id="auditDetailTitle" style="margin:0; font-size:16px; font-weight:700; color:var(--navy);">Audit Record Metadata</h3>
+          <button class="modal-close" onclick="closeModal('auditDetailModal')" style="width:32px; height:32px; border-radius:10px; border:1px solid #E4E9F2; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+        </div>
+        <div class="modal-body" id="auditDetailBody" style="padding:22px;"></div>
       </div>
     </div>
   </div>`;
 }
+
 function afterAudit(){
-  renderAuditTable();
-  document.getElementById("auditUserFilter").addEventListener("change", renderAuditTable);
+  _auditCurrentPage = 1;
+  loadAuditData(1);
+
+  const eventFilter = document.getElementById("auditEventTypeFilter");
+  if(eventFilter) eventFilter.addEventListener("change", () => loadAuditData(1));
+
+  const applyBtn = document.getElementById("auditApplyFilterBtn");
+  if(applyBtn) applyBtn.addEventListener("click", () => loadAuditData(1));
+
+  const clearBtn = document.getElementById("auditClearFilterBtn");
+  if(clearBtn) clearBtn.addEventListener("click", () => {
+    if(eventFilter) eventFilter.value = "all";
+    const actorInput = document.getElementById("auditActorFilter");
+    if(actorInput) actorInput.value = "";
+    const searchInput = document.getElementById("auditSearchInput");
+    if(searchInput) searchInput.value = "";
+    loadAuditData(1);
+  });
+
+  const searchInput = document.getElementById("auditSearchInput");
+  if(searchInput) {
+    searchInput.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") loadAuditData(1);
+    });
+  }
+
+  const actorInput = document.getElementById("auditActorFilter");
+  if(actorInput) {
+    actorInput.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") loadAuditData(1);
+    });
+  }
+
+  const prevBtn = document.getElementById("auditPrevBtn");
+  if(prevBtn) prevBtn.addEventListener("click", () => {
+    if(_auditCurrentPage > 1) loadAuditData(_auditCurrentPage - 1);
+  });
+
+  const nextBtn = document.getElementById("auditNextBtn");
+  if(nextBtn) nextBtn.addEventListener("click", () => {
+    if(_auditCurrentPage < _auditTotalPages) loadAuditData(_auditCurrentPage + 1);
+  });
 }
-function renderAuditTable(){
-  const filter = document.getElementById("auditUserFilter")?.value || "all";
-  const rows = MOCK.auditTrail.filter(a=> filter==="all" || a.user===filter);
-  document.getElementById("auditTableBody").innerHTML = rows.map(a=>`
-    <tr><td class="mono small">${a.time}</td><td>${a.user}</td><td>${a.action}</td><td>${a.doc}</td>
-    <td><span class="status-pill ${a.status==='green'?'done':a.status==='gold'?'review':'progress'}">${a.status==='green'?'Completed':a.status==='gold'?'Action':'Info'}</span></td></tr>
-  `).join("");
+
+async function loadAuditData(page = 1){
+  _auditCurrentPage = page;
+  const tbody = document.getElementById("auditTableBody");
+  const timeline = document.getElementById("auditTimeline");
+  const statsBadge = document.getElementById("auditStatsBadge");
+
+  if(tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:28px; color:#8593A8;">⏳ Loading audit records from database...</td></tr>`;
+
+  const params = {
+    page: page,
+    page_size: _auditPageSize,
+  };
+
+  const eventType = document.getElementById("auditEventTypeFilter")?.value;
+  if(eventType && eventType !== "all") params.event_type = eventType;
+
+  const actor = document.getElementById("auditActorFilter")?.value?.trim();
+  if(actor) params.actor = actor;
+
+  const search = document.getElementById("auditSearchInput")?.value?.trim();
+  if(search) params.search = search;
+
+  try {
+    const res = await (window.CMPDI_AI?.apiServices?.audit?.list?.(params) || apiServices.audit.list(params));
+    _auditRecords = res.results || (Array.isArray(res) ? res : []);
+    _auditTotalPages = res.total_pages || Math.max(1, Math.ceil((res.count || _auditRecords.length) / _auditPageSize));
+    const totalCount = res.count !== undefined ? res.count : _auditRecords.length;
+
+    if(statsBadge) {
+      statsBadge.textContent = `${totalCount} total audit events`;
+    }
+
+    renderAuditTable(_auditRecords);
+    renderAuditTimeline(_auditRecords);
+    renderAuditPagination(totalCount, page, _auditTotalPages);
+  } catch(err) {
+    console.error("Failed to load audit trail:", err);
+    if(tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:#D64545;">
+        <b>Error loading audit events:</b> ${err.message || 'Please ensure you are signed in.'}
+      </td></tr>`;
+    }
+    if(timeline) {
+      timeline.innerHTML = `<div style="padding:16px; color:#D64545; font-size:12.5px;">Could not load timeline.</div>`;
+    }
+  }
 }
+
+function _auditPill(eventType) {
+  if(!eventType) return '<span class="status-pill progress">Event</span>';
+  const str = String(eventType).toLowerCase();
+  if(str.includes('delete') || str.includes('failed') || str.includes('reject')) {
+    return `<span class="status-pill alert" style="background:#FDE8E8; color:#D64545;">${eventType}</span>`;
+  }
+  if(str.includes('approved') || str.includes('processed') || str.includes('updated') || str.includes('uploaded')) {
+    return `<span class="status-pill done">${eventType}</span>`;
+  }
+  if(str.includes('review')) {
+    return `<span class="status-pill review">${eventType}</span>`;
+  }
+  return `<span class="status-pill progress">${eventType}</span>`;
+}
+
+function _formatAuditTime(isoStr) {
+  if(!isoStr) return '-';
+  try {
+    const d = new Date(isoStr);
+    if(isNaN(d.getTime())) return isoStr;
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch(_) {
+    return isoStr;
+  }
+}
+
+function renderAuditTable(rows){
+  const tbody = document.getElementById("auditTableBody");
+  if(!tbody) return;
+  if(!rows || rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#8593A8;">No audit records found matching your filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((a, idx) => {
+    const timeStr = _formatAuditTime(a.timestamp);
+    const hasMeta = a.metadata_json && Object.keys(a.metadata_json).length > 0;
+    const pill = _auditPill(a.event_type_display || a.event_type);
+    const resInfo = a.resource_type ? `${a.resource_type}${a.resource_id ? ' #' + a.resource_id : ''}` : '-';
+
+    return `
+      <tr>
+        <td class="mono small" style="white-space:nowrap;">${timeStr}</td>
+        <td style="font-weight:600; color:var(--navy);">${a.actor || 'system'}</td>
+        <td>${pill}</td>
+        <td style="font-size:12px; color:#4B5563;">${resInfo}</td>
+        <td style="max-width:280px; font-size:12.5px;" title="${(a.description || '').replace(/"/g, '&quot;')}">${a.description || '-'}</td>
+        <td>
+          ${hasMeta ? `<button class="btn btn-sm" onclick="showAuditMetadata(${idx})" style="padding:2px 8px; font-size:11px; background:#EAF7F0; color:#18794E; border:1px solid #B8E4CE;">Inspect</button>` : '<span style="color:#A0AEC0; font-size:11px;">None</span>'}
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderAuditTimeline(rows){
+  const timeline = document.getElementById("auditTimeline");
+  if(!timeline) return;
+  if(!rows || rows.length === 0){
+    timeline.innerHTML = `<div style="padding:16px 0; color:#8593A8; font-size:13px;">No recent activities found.</div>`;
+    return;
+  }
+
+  const recent = rows.slice(0, 8);
+  timeline.innerHTML = recent.map(a => {
+    let statusClass = "info";
+    const str = String(a.event_type || '').toLowerCase();
+    if(str.includes('delete') || str.includes('reject')) statusClass = "gold";
+    else if(str.includes('approved') || str.includes('uploaded') || str.includes('updated')) statusClass = "green";
+
+    const timeStr = _formatAuditTime(a.timestamp);
+    const actionName = a.event_type_display || a.event_type || 'System Event';
+    const resourceStr = a.resource_type ? `${a.resource_type}${a.resource_id ? ' #' + a.resource_id : ''}` : '';
+
+    return `
+      <div class="tl-item ${statusClass}">
+        <div class="tl-title">${actionName}</div>
+        <div class="tl-meta">${a.actor || 'system'} ${resourceStr ? '· ' + resourceStr : ''} · ${timeStr}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderAuditPagination(totalCount, curPage, totalPages){
+  const summary = document.getElementById("auditPageSummary");
+  const prevBtn = document.getElementById("auditPrevBtn");
+  const nextBtn = document.getElementById("auditNextBtn");
+
+  if(summary) {
+    if(!totalCount || totalCount === 0) summary.textContent = "Showing 0 records";
+    else {
+      const start = (curPage - 1) * _auditPageSize + 1;
+      const end = Math.min(totalCount, curPage * _auditPageSize);
+      summary.textContent = `Showing ${start}–${end} of ${totalCount} records (Page ${curPage} of ${totalPages})`;
+    }
+  }
+
+  if(prevBtn) prevBtn.disabled = (curPage <= 1);
+  if(nextBtn) nextBtn.disabled = (curPage >= totalPages);
+}
+
+window.showAuditMetadata = function(idx){
+  const item = _auditRecords[idx];
+  if(!item) return;
+  const body = document.getElementById("auditDetailBody");
+  if(!body) return;
+
+  const timeStr = _formatAuditTime(item.timestamp);
+  body.innerHTML = `
+    <div style="display:grid; grid-template-columns:120px 1fr; gap:8px 12px; font-size:13px; margin-bottom:18px;">
+      <span style="color:#6B7280; font-weight:600;">Event ID:</span><span>#${item.id}</span>
+      <span style="color:#6B7280; font-weight:600;">Event Type:</span><span style="font-weight:600; color:var(--navy);">${item.event_type_display || item.event_type} (${item.event_type})</span>
+      <span style="color:#6B7280; font-weight:600;">Actor:</span><span style="font-weight:600;">${item.actor || 'system'}</span>
+      <span style="color:#6B7280; font-weight:600;">Client IP:</span><span>${item.actor_ip || 'Not recorded'}</span>
+      <span style="color:#6B7280; font-weight:600;">Resource:</span><span>${item.resource_type || '-'} ${item.resource_id ? '(ID: ' + item.resource_id + ')' : ''}</span>
+      <span style="color:#6B7280; font-weight:600;">Timestamp:</span><span>${timeStr} (UTC: ${item.timestamp})</span>
+      <span style="color:#6B7280; font-weight:600;">Description:</span><span>${item.description || '-'}</span>
+    </div>
+    <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:8px;">Structured Metadata Context:</div>
+    <pre style="background:#F4F8F5; padding:14px; border-radius:10px; font-size:12px; overflow-x:auto; border:1px solid #E4E9F2; margin:0; font-family:var(--font-mono); color:#1F2937;">${JSON.stringify(item.metadata_json || {}, null, 2)}</pre>
+  `;
+  openModal("auditDetailModal");
+};
 
 /* ============================================================
    DATA MAINTAINER (PHASE 4)
@@ -5683,6 +6634,11 @@ function renderMaintainerContent() {
   const container = document.getElementById("maintainerTabContent");
   if (!container) return;
 
+  const filterBar = document.getElementById("maintainerFilterBar");
+  if (filterBar) {
+    filterBar.style.display = _maintainerTab === 'suggestions' ? 'flex' : 'none';
+  }
+
   if (_maintainerTab === 'suggestions') {
     renderSuggestionsTable(container);
   } else if (_maintainerTab === 'records') {
@@ -5836,9 +6792,26 @@ function renderRecordsTable(container) {
             const data = r.data_json || {};
             return `
             <tr>
-              <td class="mono small">#${r.row_index !== undefined ? r.row_index + 1 : idx + 1}</td>
+              <td class="mono small">#${idx + 1}</td>
               ${columns.map(c => {
-                const val = data[c] !== undefined ? String(data[c]) : '';
+                let val = '';
+                if (data[c] !== undefined && data[c] !== null) {
+                  val = String(data[c]);
+                } else {
+                  const cLower = c.toLowerCase();
+                  if (data[cLower] !== undefined && data[cLower] !== null) {
+                    const orig = data[`${cLower}_original`];
+                    val = (orig !== undefined && orig !== null && String(orig).trim() !== '') ? String(orig) : String(data[cLower]);
+                  } else {
+                    for (const k of Object.keys(data)) {
+                      if (k.toLowerCase() === cLower && !k.includes('_original') && !k.includes('_unit')) {
+                        const orig = data[`${k}_original`];
+                        val = (orig !== undefined && orig !== null && String(orig).trim() !== '') ? String(orig) : String(data[k]);
+                        break;
+                      }
+                    }
+                  }
+                }
                 const origVal = data[`${c}_original_before_apply`];
                 const wasModified = origVal !== undefined && origVal !== val;
                 return `<td>
@@ -5956,10 +6929,25 @@ function modalShell(id, title){
     </div>
   </div>`;
 }
-function openModal(id){ document.getElementById(id).classList.add("show"); }
-function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+function openModal(id){
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add("show");
+    el.style.display = "flex";
+  }
+}
+function closeModal(id){
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.remove("show");
+    el.style.display = "none";
+  }
+}
 document.addEventListener("click", (e)=>{
-  if(e.target.classList && e.target.classList.contains("modal-overlay")) e.target.classList.remove("show");
+  if(e.target.classList && e.target.classList.contains("modal-overlay")) {
+    e.target.classList.remove("show");
+    e.target.style.display = "none";
+  }
 });
 
 let toastCount = 0;
@@ -5990,9 +6978,10 @@ function toast(title, message){
    ============================================================ */
 
 const API_BASE = '';  // Same-origin: Django serves both frontend and API
-const API_TIMEOUT_MS = 5000;
-const AI_QUERY_TIMEOUT_MS = 30000;
-const UPLOAD_TIMEOUT_MS = 30000;
+const API_TIMEOUT_MS = 15000;
+const AI_QUERY_TIMEOUT_MS = 60000;
+const UPLOAD_TIMEOUT_MS = 60000;
+const REPORT_TIMEOUT_MS = 90000;
 const TOKEN_KEY = 'cmpdi_auth_token';
 
 /* --- Token storage (sessionStorage — cleared on tab close) -- */
@@ -6020,8 +7009,15 @@ function _authHeaders(extra) {
 
 /* --- Low-level fetch helper with timeout + auth header ----- */
 async function _apiFetch(path, options = {}, timeoutMs = API_TIMEOUT_MS) {
+  const effectiveTimeout = options.timeout || timeoutMs;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options.timeout || timeoutMs);
+  const timer = setTimeout(() => {
+    try {
+      controller.abort(new Error(`Request timed out after ${Math.round(effectiveTimeout / 1000)} seconds.`));
+    } catch (_) {
+      controller.abort();
+    }
+  }, effectiveTimeout);
   // Merge auth headers; caller-supplied headers take precedence
   const headers = _authHeaders(
     options.headers && !(options.body instanceof FormData)
@@ -6053,11 +7049,27 @@ async function _apiFetch(path, options = {}, timeoutMs = API_TIMEOUT_MS) {
     return await res.json();
   } catch (err) {
     clearTimeout(timer);
+    if (err.name === 'AbortError' || controller.signal.aborted) {
+      const reasonMsg = controller.signal.reason?.message || (typeof controller.signal.reason === 'string' ? controller.signal.reason : null);
+      throw new Error(reasonMsg || `Request timed out after ${Math.round(effectiveTimeout / 1000)} seconds. Please try again.`);
+    }
     throw err;
   }
 }
 
 /* --- Login / Logout ---------------------------------------- */
+async function fetchAndUpdateUserProfile() {
+  try {
+    const res = await _apiFetch('/api/auth/me/');
+    if (res && res.authenticated && res.username) {
+      sessionStorage.setItem('cmpdi_username', res.username);
+      sessionStorage.setItem('cmpdi_user_role', res.role || 'Administrator · CMPDI');
+      if (res.email) sessionStorage.setItem('cmpdi_user_email', res.email);
+      if (typeof syncUserDataToUI === 'function') syncUserDataToUI();
+    }
+  } catch (_) {}
+}
+
 async function doLogin(username, password) {
   const res = await fetch(API_BASE + '/api/auth/token/', {
     method: 'POST',
@@ -6070,15 +7082,29 @@ async function doLogin(username, password) {
   }
   const data = await res.json();
   _setToken(data.token);
+  const isAdmin = (username.toLowerCase() === 'admin');
+  const role = isAdmin ? 'Administrator · CMPDI' : 'Contributor · CMPDI';
+  sessionStorage.setItem('cmpdi_username', username);
+  sessionStorage.setItem('cmpdi_user_role', role);
+  sessionStorage.setItem('cmpdi_user_email', `${username.toLowerCase()}@cmpdi.local`);
+  if (typeof syncUserDataToUI === 'function') syncUserDataToUI();
+  if (typeof fetchAndUpdateUserProfile === 'function') {
+    fetchAndUpdateUserProfile().catch(() => {});
+  }
   return data.token;
 }
 
 function doLogout() {
   if (typeof stopDocumentPolling === 'function') stopDocumentPolling();
   _clearToken();
+  sessionStorage.removeItem('cmpdi_username');
+  sessionStorage.removeItem('cmpdi_user_role');
+  sessionStorage.removeItem('cmpdi_user_email');
   _backendOnline = false;
   _healthPromise = null;
   _hideLoginModal();
+  if (typeof closeSettingsModal === 'function') closeSettingsModal();
+  if (typeof syncUserDataToUI === 'function') syncUserDataToUI();
   // Reload the documents view so it reflects logged-out state
   if (typeof loadLiveDocuments === 'function') {
     _liveDocuments = null;
@@ -6277,18 +7303,23 @@ const apiServices = {
     exportCsvUrl: (id, params) => `${API_BASE}/api/datasets/${id}/export/csv/` + (params ? '?' + new URLSearchParams(params) : ''),
   },
   chat: {
-    query: (message, context = {}) =>
-      _apiFetch('/api/chat/', { method: 'POST', body: JSON.stringify({ message, context }) }, AI_QUERY_TIMEOUT_MS),
+    query: (message, context = {}) => {
+      const payload = { message, context };
+      if (context && context.document_id) {
+        payload.document_id = context.document_id;
+      }
+      return _apiFetch('/api/chat/', { method: 'POST', body: JSON.stringify(payload) }, AI_QUERY_TIMEOUT_MS);
+    },
   },
   excel: {
     list:  () => _apiFetch('/api/excel/'),
     query: (sheet_id, prompt) =>
-      _apiFetch(`/api/excel/${sheet_id}/query/`, { method: 'POST', body: JSON.stringify({ prompt }) }),
+      _apiFetch(`/api/excel/${sheet_id}/query/`, { method: 'POST', body: JSON.stringify({ prompt }) }, AI_QUERY_TIMEOUT_MS),
   },
   reports: {
     options:  () => _apiFetch('/api/reports/options/'),
     list:     (params) => _apiFetch('/api/reports/list/' + (params ? '?' + new URLSearchParams(params) : '')),
-    generate: (params) => _apiFetch('/api/reports/generate/', { method: 'POST', body: JSON.stringify(params) }),
+    generate: (params) => _apiFetch('/api/reports/generate/', { method: 'POST', body: JSON.stringify(params) }, REPORT_TIMEOUT_MS),
     get:      (id) => _apiFetch(`/api/reports/${id}/`),
     edit:     (id, data) => _apiFetch(`/api/reports/${id}/edit/`, { method: 'PATCH', body: JSON.stringify(data) }),
     verify:   (id) => _apiFetch(`/api/reports/${id}/verify/`, { method: 'POST' }),
@@ -6301,6 +7332,7 @@ const apiServices = {
   },
   audit: {
     list: (params) => _apiFetch('/api/audit/' + (params ? '?' + new URLSearchParams(params) : '')),
+    detail: (id) => _apiFetch(`/api/audit/${id}/`),
   },
   maintainer: {
     datasets: (params) => _apiFetch('/api/maintainer/datasets/' + (params ? '?' + new URLSearchParams(params) : '')),
@@ -6308,11 +7340,11 @@ const apiServices = {
     records: (id, params) => _apiFetch(`/api/maintainer/datasets/${id}/records/` + (params ? '?' + new URLSearchParams(params) : '')),
     suggestions: (id, params) => _apiFetch(`/api/maintainer/datasets/${id}/suggestions/` + (params ? '?' + new URLSearchParams(params) : '')),
     validationIssues: (id, params) => _apiFetch(`/api/maintainer/datasets/${id}/validation-issues/` + (params ? '?' + new URLSearchParams(params) : '')),
-    generateSuggestions: (id) => _apiFetch(`/api/maintainer/datasets/${id}/generate-suggestions/`, { method: 'POST' }),
+    generateSuggestions: (id) => _apiFetch(`/api/maintainer/datasets/${id}/generate-suggestions/`, { method: 'POST' }, AI_QUERY_TIMEOUT_MS),
     approve: (id) => _apiFetch(`/api/maintainer/suggestions/${id}/approve/`, { method: 'POST' }),
     reject: (id) => _apiFetch(`/api/maintainer/suggestions/${id}/reject/`, { method: 'POST' }),
     batchReview: (ids, action) => _apiFetch('/api/maintainer/suggestions/batch-review/', { method: 'POST', body: JSON.stringify({ ids, action }) }),
-    apply: (id) => _apiFetch(`/api/maintainer/datasets/${id}/apply/`, { method: 'POST' }),
+    apply: (id) => _apiFetch(`/api/maintainer/datasets/${id}/apply/`, { method: 'POST' }, AI_QUERY_TIMEOUT_MS),
     exportXlsxUrl: (id) => `${API_BASE}/api/maintainer/datasets/${id}/export/xlsx/`,
     exportCsvUrl: (id) => `${API_BASE}/api/maintainer/datasets/${id}/export/csv/`,
   },
@@ -6322,22 +7354,40 @@ const apiServices = {
 let _backendOnline = false;
 let _healthPromise = null;
 
+function _updateStatusPill(online) {
+  const pill = document.getElementById('backendStatusPill');
+  if (!pill) return;
+  if (online) {
+    pill.className = 'backend-pill backend-pill--online';
+    pill.textContent = '\u{26AB} Online';
+    pill.title = 'Django backend connected';
+  } else {
+    pill.className = 'backend-pill backend-pill--offline';
+    pill.textContent = '\u{25CB} Offline';
+    pill.title = 'Backend unreachable — mock/demo mode active';
+  }
+}
+
 function ensureBackendStatus() {
   if (!_healthPromise) {
     _healthPromise = apiServices.health()
       .then(health => {
         _backendOnline = true;
+        _updateStatusPill(true);
         console.info('%c[CMPDI AI] Backend connected', 'color:#1E9E63; font-weight:bold;', health);
         const msg = document.getElementById("uploadZoneMsg");
         if (msg) msg.textContent = "Real document storage active. Uploaded files are verified and stored safely on server.";
         // If backend is online but no token, prompt login
         if (!isAuthenticated()) {
           _showLoginModal();
+        } else {
+          fetchAndUpdateUserProfile().catch(() => {});
         }
         return true;
       })
       .catch(_err => {
         _backendOnline = false;
+        _updateStatusPill(false);
         console.info('%c[CMPDI AI] Backend offline. Demo mock mode active.', 'color:#DFAE24; font-weight:bold;');
         const msg = document.getElementById("uploadZoneMsg");
         if (msg) msg.textContent = "Backend connection required for real file upload. (Demo mode active for viewing).";
@@ -6359,6 +7409,9 @@ window.CMPDI_AI.ensureBackendStatus = ensureBackendStatus;
 window.CMPDI_AI.API_BASE = API_BASE;
 window.CMPDI_AI.showLoginModal = _showLoginModal;
 window.CMPDI_AI.doLogout = doLogout;
+window.CMPDI_AI.openSettingsModal = openSettingsModal;
+window.CMPDI_AI.closeSettingsModal = closeSettingsModal;
+window.CMPDI_AI.syncUserDataToUI = syncUserDataToUI;
 </script>
 </body>
 </html>
