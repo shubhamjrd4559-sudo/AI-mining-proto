@@ -1,4 +1,4 @@
-# ⛏️ CMPDI AI — Mining Intelligence Command Center
+# ⛏️ AI — Mining Intelligence Command Center
 
 > **Enterprise AI-Powered Geological, Mining, and Production Reporting Solution**  
 > Developed for **Central Mine Planning & Design Institute (CMPDI)** & **Coal India Limited (CIL)** Subsidiaries.
